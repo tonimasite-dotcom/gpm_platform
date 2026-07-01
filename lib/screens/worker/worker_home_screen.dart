@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../models/chat_models.dart';
+import '../chats/chat_threads_screen.dart';
 import 'worker_dashboard_screen.dart';
 import 'worker_orders_screen.dart';
 import 'worker_finance_screen.dart';
@@ -19,6 +21,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     final screens = const [
       WorkerDashboardScreen(),
       WorkerOrdersScreen(),
+      ChatThreadsScreen(role: ChatRole.worker),
       WorkerFinanceScreen(),
       WorkerProfileScreen(),
     ];
@@ -36,6 +39,8 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
           BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Заказы'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.forum_outlined), label: 'Чаты'),
           BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet), label: 'Финансы'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),

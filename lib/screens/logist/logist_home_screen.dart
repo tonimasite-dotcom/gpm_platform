@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../models/chat_models.dart';
+import '../chats/chat_threads_screen.dart';
 import 'logist_orders_screen.dart';
 import 'logist_analytics_screen.dart';
 import 'logist_profile_screen.dart';
@@ -17,6 +19,7 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
   Widget build(BuildContext context) {
     final screens = const [
       LogistOrdersScreen(),
+      ChatThreadsScreen(role: ChatRole.logist),
       LogistAnalyticsScreen(),
       LogistProfileScreen(),
     ];
@@ -33,6 +36,8 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
         items: const [
           BottomNavigationBarItem(
               icon: Icon(Icons.assignment), label: 'Заказы'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.forum_outlined), label: 'Чаты'),
           BottomNavigationBarItem(
               icon: Icon(Icons.analytics), label: 'Аналитика'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),

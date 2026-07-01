@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../models/chat_models.dart';
+import '../chats/chat_threads_screen.dart';
 import 'client_orders_screen.dart';
 import 'client_create_order_screen.dart';
 import 'client_profile_screen.dart';
@@ -18,6 +20,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     final screens = const [
       ClientOrdersScreen(),
       ClientCreateOrderScreen(),
+      ChatThreadsScreen(role: ChatRole.client),
       ClientProfileScreen(),
     ];
 
@@ -39,6 +42,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline),
             label: 'Создать заказ',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.forum_outlined),
+            label: 'Чаты',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
