@@ -141,140 +141,145 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: GpmColors.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: GpmColors.line),
+    return Material(
+      color: Colors.transparent,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: GpmColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: GpmColors.line),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title.toUpperCase(),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Оставьте заявку: укажите время, адрес и задачу. Логист проверит заказ и передаст его исполнителям.',
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _pickDateTime,
+                icon: const Icon(Icons.calendar_today),
+                label: Text(
+                  _dateTime == null
+                      ? 'Выбрать дату и время'
+                      : 'Дата: ${_dateTime!.day.toString().padLeft(2, '0')}.${_dateTime!.month.toString().padLeft(2, '0')} '
+                          '${_dateTime!.hour.toString().padLeft(2, '0')}:${_dateTime!.minute.toString().padLeft(2, '0')}',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Text(
-                    widget.title.toUpperCase(),
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  const Text('Часов:'),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        if (_hours > 1) _hours--;
+                      });
+                    },
+                    icon: const Icon(Icons.remove),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Оставьте заявку: укажите время, адрес и задачу. Логист проверит заказ и передаст его исполнителям.',
+                  Text(
+                    '$_hours',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _hours++;
+                      });
+                    },
+                    icon: const Icon(Icons.add),
+                  ),
+                  const Spacer(),
+                  const Text('Грузчиков:'),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        if (_workersCount > 1) _workersCount--;
+                      });
+                    },
+                    icon: const Icon(Icons.remove),
+                  ),
+                  Text(
+                    '$_workersCount',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _workersCount++;
+                      });
+                    },
+                    icon: const Icon(Icons.add),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: _pickDateTime,
-              icon: const Icon(Icons.calendar_today),
-              label: Text(
-                _dateTime == null
-                    ? 'Выбрать дату и время'
-                    : 'Дата: ${_dateTime!.day.toString().padLeft(2, '0')}.${_dateTime!.month.toString().padLeft(2, '0')} '
-                        '${_dateTime!.hour.toString().padLeft(2, '0')}:${_dateTime!.minute.toString().padLeft(2, '0')}',
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _addressController,
+                decoration: const InputDecoration(
+                  labelText: 'Адрес',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Укажите адрес'
+                    : null,
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Text('Часов:'),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      if (_hours > 1) _hours--;
-                    });
-                  },
-                  icon: const Icon(Icons.remove),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Что нужно сделать',
+                  hintText: 'Например: разгрузить машину, поднять на 3 этаж...',
+                  border: OutlineInputBorder(),
                 ),
-                Text(
-                  '$_hours',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _hours++;
-                    });
-                  },
-                  icon: const Icon(Icons.add),
-                ),
-                const Spacer(),
-                const Text('Грузчиков:'),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      if (_workersCount > 1) _workersCount--;
-                    });
-                  },
-                  icon: const Icon(Icons.remove),
-                ),
-                Text(
-                  '$_workersCount',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _workersCount++;
-                    });
-                  },
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _addressController,
-              decoration: const InputDecoration(
-                labelText: 'Адрес',
-                border: OutlineInputBorder(),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Опишите задачу'
+                    : null,
               ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Укажите адрес' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _descriptionController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Что нужно сделать',
-                hintText: 'Например: разгрузить машину, поднять на 3 этаж...',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(widget.submitText,
+                        style: const TextStyle(fontSize: 16)),
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Опишите задачу'
-                  : null,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(widget.submitText, style: const TextStyle(fontSize: 16)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
