@@ -1,6 +1,29 @@
-# gpm_platform
+# GPM Platform
 
-A new Flutter project.
+Flutter prototype for the GPM Platform demo.
+
+## Live Demo
+
+The demo is intended to be continuously available through GitHub Pages:
+
+```text
+https://tonimasite-dotcom.github.io/gpm_platform/
+```
+
+Deployment is handled by `.github/workflows/deploy-demo.yml`.
+
+How updates reach the demo:
+
+1. Push changes to `main`.
+2. GitHub Actions runs Flutter analyze and builds the web app.
+3. The generated `build/web` artifact is published to GitHub Pages.
+
+GitHub repository settings required once:
+
+- Pages source: GitHub Actions.
+- Optional repository secret: `DEMO_ENV`.
+
+If `DEMO_ENV` is not set, CI creates an empty `.env` file and the app runs in bundled demo mode.
 
 ## Getting Started
 

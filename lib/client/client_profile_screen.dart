@@ -96,7 +96,7 @@ class ClientProfileScreen extends StatelessWidget {
       final data = await supabase.from('orders').select('id').execute();
       return (data as List).length;
     } catch (e) {
-      print('Ошибка подсчета заказов: $e');
+      debugPrint('Ошибка подсчета заказов: $e');
       return 0;
     }
   }

@@ -99,8 +99,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icon(Icons.email),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty)
+                    if (value == null || value.trim().isEmpty) {
                       return 'Введите email';
+                    }
                     if (!value.contains('@')) return 'Неверный формат';
                     return null;
                   },

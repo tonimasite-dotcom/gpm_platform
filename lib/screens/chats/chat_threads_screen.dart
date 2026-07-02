@@ -20,6 +20,7 @@ class ChatThreadsScreen extends StatefulWidget {
 
 class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   late Future<List<ChatThread>> _threadsFuture;
+  _ThreadFilter _filter = _ThreadFilter.all;
 
   @override
   void initState() {
@@ -54,10 +55,12 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Ошибка загрузки чатов: ${snapshot.error}'));
+          return Center(
+              child: Text('Ошибка загрузки чатов: ${snapshot.error}'));
         }
 
         final threads = snapshot.data ?? [];
+        final visibleThreads = _applyFilter(threads);
         if (threads.isEmpty) {
           return RefreshIndicator(
             onRefresh: () async => _refresh(),
@@ -88,24 +91,33 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
             children: [
               _ChatPolicyBanner(role: widget.role),
               const SizedBox(height: 10),
-              ...threads.map(
-                (thread) => _ThreadCard(
-                  thread: thread,
-                  role: widget.role,
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatConversationScreen(
-                          threadId: thread.id,
-                          role: widget.role,
-                        ),
-                      ),
-                    );
-                    _refresh();
-                  },
-                ),
+              _ChatFilters(
+                selected: _filter,
+                threads: threads,
+                onSelected: (filter) => setState(() => _filter = filter),
               ),
+              const SizedBox(height: 10),
+              if (visibleThreads.isEmpty)
+                _FilteredEmptyState(filter: _filter)
+              else
+                ...visibleThreads.map(
+                  (thread) => _ThreadCard(
+                    thread: thread,
+                    role: widget.role,
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatConversationScreen(
+                            threadId: thread.id,
+                            role: widget.role,
+                          ),
+                        ),
+                      );
+                      _refresh();
+                    },
+                  ),
+                ),
             ],
           ),
         );
@@ -113,15 +125,149 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
     );
   }
 
+  List<ChatThread> _applyFilter(List<ChatThread> threads) {
+    return switch (_filter) {
+      _ThreadFilter.all => threads,
+      _ThreadFilter.attention =>
+        threads.where((thread) => thread.requiresLogistAttention).toList(),
+      _ThreadFilter.active =>
+        threads.where((thread) => !thread.isArchived).toList(),
+      _ThreadFilter.archived =>
+        threads.where((thread) => thread.isArchived).toList(),
+    };
+  }
+
   String get _emptyText {
     return switch (widget.role) {
       ChatRole.client =>
         'Чаты появятся после создания заказа и назначения исполнителей.',
-      ChatRole.worker =>
-        'Чаты появятся после отклика или назначения на заказ.',
+      ChatRole.worker => 'Чаты появятся после отклика или назначения на заказ.',
       ChatRole.logist => 'Активных чатов пока нет.',
       ChatRole.system => 'Чатов нет.',
     };
+  }
+}
+
+enum _ThreadFilter {
+  all,
+  attention,
+  active,
+  archived,
+}
+
+class _ChatFilters extends StatelessWidget {
+  final _ThreadFilter selected;
+  final List<ChatThread> threads;
+  final ValueChanged<_ThreadFilter> onSelected;
+
+  const _ChatFilters({
+    required this.selected,
+    required this.threads,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final attentionCount =
+        threads.where((thread) => thread.requiresLogistAttention).length;
+    final activeCount = threads.where((thread) => !thread.isArchived).length;
+    final archivedCount = threads.where((thread) => thread.isArchived).length;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _FilterChipButton(
+            label: 'Все',
+            count: threads.length,
+            selected: selected == _ThreadFilter.all,
+            onTap: () => onSelected(_ThreadFilter.all),
+          ),
+          _FilterChipButton(
+            label: 'Внимание',
+            count: attentionCount,
+            selected: selected == _ThreadFilter.attention,
+            onTap: () => onSelected(_ThreadFilter.attention),
+          ),
+          _FilterChipButton(
+            label: 'Активные',
+            count: activeCount,
+            selected: selected == _ThreadFilter.active,
+            onTap: () => onSelected(_ThreadFilter.active),
+          ),
+          _FilterChipButton(
+            label: 'Архив',
+            count: archivedCount,
+            selected: selected == _ThreadFilter.archived,
+            onTap: () => onSelected(_ThreadFilter.archived),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChipButton extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChipButton({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? GpmColors.red : GpmColors.graphite;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text('$label · $count'),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        selectedColor: GpmColors.red.withValues(alpha: 0.12),
+        labelStyle: TextStyle(
+          color: color,
+          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+        ),
+        side: BorderSide(
+          color: selected ? GpmColors.red : GpmColors.line,
+        ),
+        showCheckmark: false,
+      ),
+    );
+  }
+}
+
+class _FilteredEmptyState extends StatelessWidget {
+  final _ThreadFilter filter;
+
+  const _FilteredEmptyState({required this.filter});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (filter) {
+      _ThreadFilter.attention => 'Чатов, требующих внимания логиста, нет.',
+      _ThreadFilter.active => 'Активных чатов сейчас нет.',
+      _ThreadFilter.archived => 'Архивных чатов пока нет.',
+      _ThreadFilter.all => 'Чатов пока нет.',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+      child: Center(
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: GpmColors.graphite),
+        ),
+      ),
+    );
   }
 }
 
@@ -140,7 +286,8 @@ class _ThreadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         leading: _ThreadIcon(thread: thread),
         title: Row(
           children: [
@@ -168,6 +315,15 @@ class _ThreadCard extends StatelessWidget {
                   ),
                 ),
               ),
+            const SizedBox(width: 8),
+            Text(
+              _formatUpdatedAt(thread.updatedAt),
+              style: const TextStyle(
+                color: GpmColors.graphite,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         subtitle: Padding(
@@ -197,6 +353,20 @@ class _ThreadCard extends StatelessWidget {
       ),
     );
   }
+
+  String _formatUpdatedAt(DateTime value) {
+    final now = DateTime.now();
+    final local = value.toLocal();
+    if (local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day) {
+      return '${local.hour.toString().padLeft(2, '0')}:'
+          '${local.minute.toString().padLeft(2, '0')}';
+    }
+
+    return '${local.day.toString().padLeft(2, '0')}.'
+        '${local.month.toString().padLeft(2, '0')}';
+  }
 }
 
 class _ThreadIcon extends StatelessWidget {
@@ -212,7 +382,8 @@ class _ThreadIcon extends StatelessWidget {
       ChatThreadType.clientWorker => Icons.forum_outlined,
       ChatThreadType.support => Icons.warning_amber_rounded,
     };
-    final color = thread.requiresLogistAttention ? GpmColors.red : GpmColors.black;
+    final color =
+        thread.requiresLogistAttention ? GpmColors.red : GpmColors.black;
 
     return Container(
       width: 44,

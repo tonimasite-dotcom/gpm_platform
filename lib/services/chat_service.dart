@@ -19,15 +19,13 @@ class ChatService {
   }) async {
     _ensureThreadsForOrders(orders);
 
-    final visibleThreads = _threads
-        .where((thread) => thread.isVisibleFor(role))
-        .where((thread) {
-          if (role == ChatRole.worker) {
-            return _isRelevantForDemoWorker(thread, orders);
-          }
-          return true;
-        })
-        .toList();
+    final visibleThreads =
+        _threads.where((thread) => thread.isVisibleFor(role)).where((thread) {
+      if (role == ChatRole.worker) {
+        return _isRelevantForDemoWorker(thread, orders);
+      }
+      return true;
+    }).toList();
 
     visibleThreads.sort((a, b) {
       if (a.requiresLogistAttention != b.requiresLogistAttention) {
@@ -112,7 +110,8 @@ class ChatService {
       requiresLogistAttention: true,
     );
 
-    final supportThreadId = _threadId(sourceThread.orderId, ChatThreadType.support);
+    final supportThreadId =
+        _threadId(sourceThread.orderId, ChatThreadType.support);
     if (!_threads.any((thread) => thread.id == supportThreadId)) {
       _threads.add(
         ChatThread(
@@ -180,8 +179,9 @@ class ChatService {
     final id = _threadId(orderId, type);
     if (_threads.any((thread) => thread.id == id)) return false;
 
-    final createdAt = DateTime.tryParse(order['created_at']?.toString() ?? '') ??
-        DateTime.now();
+    final createdAt =
+        DateTime.tryParse(order['created_at']?.toString() ?? '') ??
+            DateTime.now();
     final archived = order['status'] == 'CONVERTED';
     final orderTitle = order['title']?.toString() ?? 'Заказ #$orderId';
 
@@ -211,7 +211,7 @@ class ChatService {
     final orderTitle = order['title']?.toString() ?? 'заказ';
     final messages = <ChatMessage>[
       ChatMessage(
-        id: 'msg-${threadId}-system-start',
+        id: 'msg-$threadId-system-start',
         threadId: threadId,
         senderRole: ChatRole.system,
         senderName: 'GPM',
@@ -226,7 +226,7 @@ class ChatService {
       case ChatThreadType.clientLogist:
         messages.add(
           ChatMessage(
-            id: 'msg-${threadId}-logist-hello',
+            id: 'msg-$threadId-logist-hello',
             threadId: threadId,
             senderRole: ChatRole.logist,
             senderName: 'Логист GPM',
@@ -239,11 +239,12 @@ class ChatService {
       case ChatThreadType.workerLogist:
         messages.add(
           ChatMessage(
-            id: 'msg-${threadId}-worker-info',
+            id: 'msg-$threadId-worker-info',
             threadId: threadId,
             senderRole: ChatRole.logist,
             senderName: 'Логист GPM',
-            text: 'Проверьте адрес, время и комментарии по заказу перед выходом.',
+            text:
+                'Проверьте адрес, время и комментарии по заказу перед выходом.',
             createdAt: createdAt.add(const Duration(minutes: 3)),
             isSystem: false,
           ),
@@ -252,7 +253,7 @@ class ChatService {
       case ChatThreadType.clientWorker:
         messages.add(
           ChatMessage(
-            id: 'msg-${threadId}-client-worker-info',
+            id: 'msg-$threadId-client-worker-info',
             threadId: threadId,
             senderRole: ChatRole.system,
             senderName: 'GPM',
@@ -274,7 +275,8 @@ class ChatService {
     ChatThread thread,
     List<Map<String, dynamic>> orders,
   ) {
-    final order = orders.where((order) => order['id'].toString() == thread.orderId);
+    final order =
+        orders.where((order) => order['id'].toString() == thread.orderId);
     if (order.isEmpty) return false;
 
     if (thread.type == ChatThreadType.clientLogist) return false;
