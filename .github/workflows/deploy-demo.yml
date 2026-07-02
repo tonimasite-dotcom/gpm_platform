@@ -34,7 +34,7 @@ jobs:
           if [ -n "${{ secrets.DEMO_ENV }}" ]; then
             printf '%s' "${{ secrets.DEMO_ENV }}" > .env
           else
-            touch .env
+            printf 'DEMO_MODE=true\n' > .env
           fi
 
       - name: Install dependencies

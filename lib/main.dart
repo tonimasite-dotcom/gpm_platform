@@ -15,7 +15,11 @@ late ChatService chatService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    dotenv.testLoad(fileInput: 'DEMO_MODE=true');
+  }
 
   bitrix24 = Bitrix24Service();
   supabase = SupabaseCompatibilityLayer(bitrix24);
