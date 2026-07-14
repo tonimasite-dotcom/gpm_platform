@@ -77,6 +77,7 @@ class Bitrix24Service {
       'employment_type': 'contract',
       'inn': '772812345678',
       'passport': '4512 345678',
+      'card_last4': '',
       'mark': 'Нет',
       'success_requests': 8,
       'fail_requests': 1,
@@ -111,6 +112,8 @@ class Bitrix24Service {
     int? pricePerHour,
     int? priceRegular,
     int? priceState,
+    String? nationality,
+    String? workerCategory,
   }) async {
     // Демо-режим если webhook не настроен
     if (!isConfigured) {
@@ -134,6 +137,8 @@ class Bitrix24Service {
         'price_per_hour': pricePerHour,
         'price_regular': priceRegular,
         'price_state': priceState,
+        'nationality': nationality,
+        'worker_category': workerCategory,
         'created_at': DateTime.now().toUtc().toIso8601String(),
         'assigned_worker_ids': <String>[],
       });
@@ -178,7 +183,8 @@ class Bitrix24Service {
           'Разгрузить машину, перенести коробки на склад, нужен аккуратный подъем.',
       clientEmail: 'crm@gpm.ru',
       clientPhone: '',
-      scheduledAt: now.add(const Duration(days: 1, hours: 2)).toUtc().toIso8601String(),
+      scheduledAt:
+          now.add(const Duration(days: 1, hours: 2)).toUtc().toIso8601String(),
       source: 'crm',
       externalOrderId: externalOrderId,
       metro: 'Печатники',
@@ -210,14 +216,13 @@ class Bitrix24Service {
     return _demoApplications
         .where((application) => application['order_id'] == orderId)
         .map((application) {
-          final copy = Map<String, dynamic>.from(application);
-          final worker = getWorkerProfileSync(copy['worker_id'].toString());
-          if (worker != null) {
-            copy['worker'] = worker;
-          }
-          return copy;
-        })
-        .toList();
+      final copy = Map<String, dynamic>.from(application);
+      final worker = getWorkerProfileSync(copy['worker_id'].toString());
+      if (worker != null) {
+        copy['worker'] = worker;
+      }
+      return copy;
+    }).toList();
   }
 
   Map<String, dynamic>? getWorkerProfileSync(String workerId) {
@@ -323,7 +328,8 @@ class Bitrix24Service {
     required String orderId,
     required String applicationId,
   }) async {
-    final orderIndex = _demoOrders.indexWhere((order) => order['id'] == orderId);
+    final orderIndex =
+        _demoOrders.indexWhere((order) => order['id'] == orderId);
     if (orderIndex == -1) {
       return {'success': false, 'error': 'Заявка не найдена'};
     }
@@ -375,7 +381,8 @@ class Bitrix24Service {
     required String workerId,
     required String result,
   }) async {
-    final orderIndex = _demoOrders.indexWhere((order) => order['id'] == orderId);
+    final orderIndex =
+        _demoOrders.indexWhere((order) => order['id'] == orderId);
     if (orderIndex == -1) {
       return {'success': false, 'error': 'Заявка не найдена'};
     }
@@ -387,7 +394,8 @@ class Bitrix24Service {
 
     switch (result) {
       case 'success':
-        worker['success_requests'] = (worker['success_requests'] as int? ?? 0) + 1;
+        worker['success_requests'] =
+            (worker['success_requests'] as int? ?? 0) + 1;
         worker['rating'] = (worker['rating'] as int? ?? 0) + 2;
         break;
       case 'fail':
@@ -495,7 +503,8 @@ class Bitrix24Service {
           ..clear()
           ..addAll(orders.map((order) {
             final copy = Map<String, dynamic>.from(order);
-            if (copy['source'] == 'crm' && copy['title'] == 'Разгрузка из CRM') {
+            if (copy['source'] == 'crm' &&
+                copy['title'] == 'Разгрузка из CRM') {
               copy['title'] = 'Разгрузка склада';
             }
             final description = copy['description']?.toString();

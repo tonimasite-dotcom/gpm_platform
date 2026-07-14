@@ -89,8 +89,10 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
             children: [
-              _ChatPolicyBanner(role: widget.role),
-              const SizedBox(height: 10),
+              if (widget.role != ChatRole.logist) ...[
+                _ChatPolicyBanner(role: widget.role),
+                const SizedBox(height: 10),
+              ],
               _ChatFilters(
                 selected: _filter,
                 threads: threads,
@@ -128,8 +130,8 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   List<ChatThread> _applyFilter(List<ChatThread> threads) {
     return switch (_filter) {
       _ThreadFilter.all => threads,
-      _ThreadFilter.attention =>
-        threads.where((thread) => thread.requiresLogistAttention).toList(),
+      _ThreadFilter.unread =>
+        threads.where((thread) => thread.unreadCount > 0).toList(),
       _ThreadFilter.active =>
         threads.where((thread) => !thread.isArchived).toList(),
       _ThreadFilter.archived =>
@@ -150,7 +152,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
 enum _ThreadFilter {
   all,
-  attention,
+  unread,
   active,
   archived,
 }
@@ -168,8 +170,8 @@ class _ChatFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final attentionCount =
-        threads.where((thread) => thread.requiresLogistAttention).length;
+    final unreadCount =
+        threads.where((thread) => thread.unreadCount > 0).length;
     final activeCount = threads.where((thread) => !thread.isArchived).length;
     final archivedCount = threads.where((thread) => thread.isArchived).length;
 
@@ -184,10 +186,10 @@ class _ChatFilters extends StatelessWidget {
             onTap: () => onSelected(_ThreadFilter.all),
           ),
           _FilterChipButton(
-            label: 'Внимание',
-            count: attentionCount,
-            selected: selected == _ThreadFilter.attention,
-            onTap: () => onSelected(_ThreadFilter.attention),
+            label: 'Непрочитанные',
+            count: unreadCount,
+            selected: selected == _ThreadFilter.unread,
+            onTap: () => onSelected(_ThreadFilter.unread),
           ),
           _FilterChipButton(
             label: 'Активные',
@@ -252,7 +254,7 @@ class _FilteredEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = switch (filter) {
-      _ThreadFilter.attention => 'Чатов, требующих внимания логиста, нет.',
+      _ThreadFilter.unread => 'Непрочитанных чатов нет.',
       _ThreadFilter.active => 'Активных чатов сейчас нет.',
       _ThreadFilter.archived => 'Архивных чатов пока нет.',
       _ThreadFilter.all => 'Чатов пока нет.',
@@ -348,7 +350,12 @@ class _ThreadCard extends StatelessWidget {
             ],
           ),
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: thread.unreadCount > 0
+            ? Badge(
+                label: Text('${thread.unreadCount}'),
+                backgroundColor: Colors.red,
+              )
+            : const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
     );

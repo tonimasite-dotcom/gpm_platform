@@ -26,6 +26,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   @override
   void initState() {
     super.initState();
+    chatService.markThreadRead(widget.threadId);
     _conversationFuture = _loadConversation();
   }
 
@@ -141,13 +142,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             },
           ),
         ),
-        if (canWrite) _Composer(
-          controller: _controller,
-          isSending: _isSending,
-          canRequestSupport: _canRequestSupport(data.thread),
-          onSend: _sendMessage,
-          onRequestSupport: _requestSupport,
-        ) else const _ArchivedFooter(),
+        if (canWrite)
+          _Composer(
+            controller: _controller,
+            isSending: _isSending,
+            canRequestSupport: _canRequestSupport(data.thread),
+            onSend: _sendMessage,
+            onRequestSupport: _requestSupport,
+          )
+        else
+          const _ArchivedFooter(),
       ],
     );
   }

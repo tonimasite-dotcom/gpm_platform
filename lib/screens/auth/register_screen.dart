@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   String _selectedRole = 'worker';
+  String _clientType = 'individual';
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -83,6 +84,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Введите имя' : null,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Вы регистрируетесь как:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'individual',
+                      label: Text('Физическое лицо'),
+                    ),
+                    ButtonSegment(
+                      value: 'company',
+                      label: Text('Юридическое лицо'),
+                    ),
+                  ],
+                  selected: {_clientType},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _clientType = selection.first),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

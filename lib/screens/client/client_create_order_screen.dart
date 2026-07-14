@@ -29,6 +29,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   DateTime? _dateTime;
   int _hours = 4;
   int _workersCount = 2;
+  String _nationality = 'any';
+  String _workerCategory = 'loader';
   bool _isLoading = false;
 
   @override
@@ -51,6 +53,12 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 2))),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
     );
     if (time == null) return;
 
@@ -85,6 +93,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         clientEmail: 'client@gpm.ru',
         clientPhone: '',
         scheduledAt: _dateTime!.toUtc().toIso8601String(),
+        nationality: _nationality,
+        workerCategory: _workerCategory,
       );
 
       if (result['success'] != true) {
@@ -124,6 +134,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         _dateTime = null;
         _hours = 4;
         _workersCount = 2;
+        _nationality = 'any';
+        _workerCategory = 'loader';
       });
     } catch (error) {
       if (!mounted) return;
@@ -246,6 +258,45 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 validator: (value) => value == null || value.trim().isEmpty
                     ? 'Укажите адрес'
                     : null,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Гражданство исполнителей:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'any', label: Text('Любое')),
+                  ButtonSegment(value: 'ru', label: Text('Только РФ')),
+                ],
+                selected: {_nationality},
+                onSelectionChanged: (selection) =>
+                    setState(() => _nationality = selection.first),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _workerCategory,
+                decoration: const InputDecoration(
+                  labelText: 'Категория рабочих',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'loader', child: Text('Грузчики')),
+                  DropdownMenuItem(value: 'rigger', child: Text('Такелажники')),
+                  DropdownMenuItem(
+                    value: 'assembler',
+                    child: Text('Сборщики / разборщики'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'mover',
+                    child: Text('Разнорабочие'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _workerCategory = value);
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(

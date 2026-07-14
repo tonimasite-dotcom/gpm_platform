@@ -80,6 +80,10 @@ class ChatService {
       requiresLogistAttention: senderRole != ChatRole.logist &&
           _threadType(threadId) != ChatThreadType.clientWorker,
     );
+    if (senderRole != ChatRole.logist) {
+      final thread = _threads.firstWhere((thread) => thread.id == threadId);
+      _touchThread(threadId, unreadCount: thread.unreadCount + 1);
+    }
     _saveState();
   }
 
@@ -108,6 +112,7 @@ class ChatService {
       sourceThread.id,
       updatedAt: now,
       requiresLogistAttention: true,
+      unreadCount: sourceThread.unreadCount + 1,
     );
 
     final supportThreadId =
@@ -122,6 +127,7 @@ class ChatService {
           subtitle: 'Клиент, исполнитель и логист GPM',
           isArchived: sourceThread.isArchived,
           requiresLogistAttention: true,
+          unreadCount: 1,
           updatedAt: now,
         ),
       );
@@ -142,6 +148,7 @@ class ChatService {
         supportThreadId,
         updatedAt: now,
         requiresLogistAttention: true,
+        unreadCount: 1,
       );
     }
 
@@ -150,6 +157,11 @@ class ChatService {
 
   Future<void> resolveLogistAttention(String threadId) async {
     _touchThread(threadId, requiresLogistAttention: false);
+    _saveState();
+  }
+
+  Future<void> markThreadRead(String threadId) async {
+    _touchThread(threadId, unreadCount: 0);
     _saveState();
   }
 
@@ -328,6 +340,7 @@ class ChatService {
     String threadId, {
     DateTime? updatedAt,
     bool? requiresLogistAttention,
+    int? unreadCount,
   }) {
     final index = _threads.indexWhere((thread) => thread.id == threadId);
     if (index == -1) return;
@@ -335,6 +348,7 @@ class ChatService {
     _threads[index] = _threads[index].copyWith(
       updatedAt: updatedAt,
       requiresLogistAttention: requiresLogistAttention,
+      unreadCount: unreadCount,
     );
   }
 

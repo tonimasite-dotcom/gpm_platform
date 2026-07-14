@@ -128,7 +128,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                   const CircleAvatar(
                     radius: 32,
                     backgroundColor: Color(0xFF5B4FFF),
-                    child: Icon(Icons.engineering, color: Colors.white, size: 32),
+                    child:
+                        Icon(Icons.engineering, color: Colors.white, size: 32),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -146,7 +147,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         Text(profile['telegram'] ?? ''),
                         const SizedBox(height: 8),
                         _StatusPill(
-                          text: 'Группа $priorityGroup: ${profile['priority_label'] ?? 'Остальные'}',
+                          text:
+                              'Группа $priorityGroup: ${profile['priority_label'] ?? 'Остальные'}',
                           color: _priorityColor(priorityGroup),
                         ),
                       ],
@@ -197,6 +199,25 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     title: 'Инструменты',
                     value: tools['tools'] == true ? 'Есть' : 'Нет',
                     isOk: tools['tools'] == true,
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    initialValue: profile['card_last4']?.toString() ?? '',
+                    decoration: const InputDecoration(
+                      labelText: 'Карта для выплат',
+                      prefixText: '**** **** **** ',
+                      prefixStyle: TextStyle(letterSpacing: 2),
+                      border: OutlineInputBorder(),
+                      counterText: '',
+                    ),
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    onChanged: (value) {
+                      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+                      if (digits.length == 4) {
+                        _updateProfile(profile, {'card_last4': digits});
+                      }
+                    },
                   ),
                 ],
               ),
@@ -314,7 +335,8 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: TextStyle(color: Colors.grey[700]))),
+          Expanded(
+              child: Text(label, style: TextStyle(color: Colors.grey[700]))),
           const SizedBox(width: 12),
           Flexible(
             child: Text(

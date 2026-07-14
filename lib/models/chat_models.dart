@@ -20,6 +20,7 @@ class ChatThread {
   final String subtitle;
   final bool isArchived;
   final bool requiresLogistAttention;
+  final int unreadCount;
   final DateTime updatedAt;
 
   const ChatThread({
@@ -30,6 +31,7 @@ class ChatThread {
     required this.subtitle,
     required this.isArchived,
     required this.requiresLogistAttention,
+    this.unreadCount = 0,
     required this.updatedAt,
   });
 
@@ -41,7 +43,8 @@ class ChatThread {
       ChatThreadType.workerLogist => role == ChatRole.worker,
       ChatThreadType.clientWorker =>
         role == ChatRole.client || role == ChatRole.worker,
-      ChatThreadType.support => role == ChatRole.client || role == ChatRole.worker,
+      ChatThreadType.support =>
+        role == ChatRole.client || role == ChatRole.worker,
     };
   }
 
@@ -63,6 +66,7 @@ class ChatThread {
       'subtitle': subtitle,
       'is_archived': isArchived,
       'requires_logist_attention': requiresLogistAttention,
+      'unread_count': unreadCount,
       'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
@@ -79,6 +83,7 @@ class ChatThread {
       subtitle: json['subtitle']?.toString() ?? '',
       isArchived: json['is_archived'] == true,
       requiresLogistAttention: json['requires_logist_attention'] == true,
+      unreadCount: (json['unread_count'] as int?) ?? 0,
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
           DateTime.now(),
     );
@@ -89,6 +94,7 @@ class ChatThread {
     String? subtitle,
     bool? isArchived,
     bool? requiresLogistAttention,
+    int? unreadCount,
     DateTime? updatedAt,
   }) {
     return ChatThread(
@@ -100,6 +106,7 @@ class ChatThread {
       isArchived: isArchived ?? this.isArchived,
       requiresLogistAttention:
           requiresLogistAttention ?? this.requiresLogistAttention,
+      unreadCount: unreadCount ?? this.unreadCount,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
