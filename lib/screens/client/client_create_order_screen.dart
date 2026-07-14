@@ -292,6 +292,10 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     value: 'mover',
                     child: Text('Разнорабочие'),
                   ),
+                  DropdownMenuItem(
+                    value: 'packer',
+                    child: Text('Упаковщики / комплектовщики'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value == null) return;
