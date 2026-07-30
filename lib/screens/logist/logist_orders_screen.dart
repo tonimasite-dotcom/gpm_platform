@@ -564,7 +564,6 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
   Widget build(BuildContext context) {
     final status = _orderStatusText(order['status']);
     final color = _orderStatusColor(order['status']);
-    final assignedCount = order['assigned_count'] ?? 0;
     final isCrmOrder = order['source'] == 'crm';
 
     return Scaffold(
@@ -593,13 +592,23 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            Text('📍 ${order['address'] ?? ''}'),
+            _OrderFact(label: 'Город', value: order['city']),
+            _OrderFact(label: 'Номер заказа', value: order['external_order_id'] ?? order['id']),
+            _OrderFact(label: 'Дата и время выполнения работ', value: _formatSchedule(order['scheduled_at'])),
+            _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
+            _OrderFact(label: 'Гражданство РФ', value: _nationalText(order)),
+            _OrderFact(label: 'Режим работы', value: _workModeText(order)),
+            _OrderFact(label: 'Метро', value: order['metro']),
+            _OrderFact(label: 'Адрес', value: order['address']),
+            if (order['work_mode'] == 'shift')
+              _OrderFact(label: 'Описание смены', value: order['shift_description'])
+            else ...[
+              _OrderFact(label: 'Ставка (штатный постоянного графика)', value: order['price_regular']),
+              _OrderFact(label: 'Ставка (штатный свободного графика)', value: order['price_state']),
+              _OrderFact(label: 'Ставка (наемник)', value: order['price_per_hour']),
+              _OrderFact(label: 'Минимальная оплата', value: _minPayText(order)),
+            ],
             const SizedBox(height: 8),
-            Text('🗓 ${_formatSchedule(order['scheduled_at'])}'),
-            const SizedBox(height: 8),
-            Text('👷 $assignedCount/${order['workers_count']} грузчиков'),
-            const SizedBox(height: 8),
-            Text('⏱️ ${order['hours']} часов'),
             const SizedBox(height: 8),
             _StatusPill(text: status, color: color),
             const SizedBox(height: 16),
@@ -816,6 +825,24 @@ class _ApplicationCard extends StatelessWidget {
   }
 }
 
+class _OrderFact extends StatelessWidget {
+  final String label;
+  final dynamic value;
+
+  const _OrderFact({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text('$label: $text'),
+    );
+  }
+}
+
 class _StatusPill extends StatelessWidget {
   final String text;
   final Color color;
@@ -832,6 +859,29 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(text, style: TextStyle(fontSize: 11, color: color)),
     );
+  }
+}
+
+String _nationalText(Map<String, dynamic> order) {
+  final value = order['national'] ?? order['nationality'];
+  if (value == true || value == 'yes' || value == 'ru') return 'Да';
+  return 'Необязательно';
+}
+
+String _minPayText(Map<String, dynamic> order) {
+  final value = order['min_time'] ?? order['hours'];
+  if (value == null) return '';
+  return '$value часа';
+}
+
+String _workModeText(Map<String, dynamic> order) {
+  switch (order['work_mode']?.toString()) {
+    case 'rate':
+      return 'Ставка';
+    case 'shift':
+      return 'Смена';
+    default:
+      return '';
   }
 }
 

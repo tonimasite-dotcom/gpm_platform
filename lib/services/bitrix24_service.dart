@@ -104,6 +104,7 @@ class Bitrix24Service {
     required String clientEmail,
     required String clientPhone,
     String? scheduledAt,
+    String? city,
     String source = 'manual',
     String? externalOrderId,
     String? metro,
@@ -114,6 +115,8 @@ class Bitrix24Service {
     int? priceState,
     String? nationality,
     String? workerCategory,
+    String? workMode,
+    String? shiftDescription,
   }) async {
     // Демо-режим если webhook не настроен
     if (!isConfigured) {
@@ -129,6 +132,7 @@ class Bitrix24Service {
         'client_email': clientEmail,
         'client_phone': clientPhone,
         'scheduled_at': scheduledAt,
+        'city': city,
         'source': source,
         'external_order_id': externalOrderId,
         'metro': metro,
@@ -139,6 +143,8 @@ class Bitrix24Service {
         'price_state': priceState,
         'nationality': nationality,
         'worker_category': workerCategory,
+        'work_mode': workMode,
+        'shift_description': shiftDescription,
         'created_at': DateTime.now().toUtc().toIso8601String(),
         'assigned_worker_ids': <String>[],
       });
@@ -185,14 +191,18 @@ class Bitrix24Service {
       clientPhone: '',
       scheduledAt:
           now.add(const Duration(days: 1, hours: 2)).toUtc().toIso8601String(),
+      city: 'Москва',
       source: 'crm',
       externalOrderId: externalOrderId,
-      metro: 'Печатники',
-      national: 'every',
+      metro: 'Динамо',
+      national: 'yes',
       minTime: 4,
-      pricePerHour: 600,
-      priceRegular: 2400,
-      priceState: 2600,
+      pricePerHour: 400,
+      priceRegular: 450,
+      priceState: 450,
+      nationality: 'ru',
+      workMode: 'shift',
+      shiftDescription: 'Дневная смена 09:00-18:00, 5000 руб за смену',
     );
   }
 
