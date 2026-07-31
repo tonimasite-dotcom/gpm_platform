@@ -144,15 +144,11 @@ class _GpmLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
+        Image.asset(
+          'assets/images/gpm_logo.png',
           width: 48,
           height: 48,
-          decoration: BoxDecoration(
-            color: GpmColors.red,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: GpmColors.black, width: 2),
-          ),
-          child: const Icon(Icons.engineering, color: Colors.white, size: 30),
+          fit: BoxFit.contain,
         ),
         const SizedBox(width: 8),
         const Text(

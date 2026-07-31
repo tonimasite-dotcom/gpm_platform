@@ -357,6 +357,14 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
             _OrderFact(label: 'Режим работы', value: _workModeText(order)),
             _OrderFact(label: 'Метро', value: order['metro']),
             _OrderFact(label: 'Адрес', value: order['address']),
+            _OrderFact(
+              label: 'Стоимость для физлиц',
+              value: _priceText(order['individual_price']),
+            ),
+            _OrderFact(
+              label: 'Стоимость для юрлиц',
+              value: _priceText(order['legal_price']),
+            ),
             if (order['work_mode'] == 'shift')
               _OrderFact(label: 'Описание смены', value: order['shift_description'])
             else ...[
@@ -471,6 +479,12 @@ String _minPayText(Map<String, dynamic> order) {
   final value = order['min_time'] ?? order['hours'];
   if (value == null) return '';
   return '$value часа';
+}
+
+String _priceText(dynamic value) {
+  final price = int.tryParse(value?.toString() ?? '');
+  if (price == null) return '';
+  return '$price ₽';
 }
 
 String _workModeText(Map<String, dynamic> order) {

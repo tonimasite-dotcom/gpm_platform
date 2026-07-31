@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../main.dart' show bitrix24;
 import '../../theme/gpm_theme.dart';
@@ -35,6 +39,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   final _freeScheduleRateController = TextEditingController(text: '450');
   final _workerRateController = TextEditingController(text: '400');
   final _minPayController = TextEditingController(text: '4');
+  final _individualPriceController = TextEditingController();
+  final _legalPriceController = TextEditingController();
+  Timer? _addressLookupTimer;
   DateTime? _dateTime;
   int _hours = 4;
   int _workersCount = 2;
@@ -42,6 +49,10 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   String _workMode = 'shift';
   String _workerCategory = 'loader';
   bool _isLoading = false;
+  bool _isAddressLookupLoading = false;
+  List<_AddressCandidate> _addressCandidates = const [];
+  _AddressCandidate? _selectedAddress;
+  String? _addressLookupError;
 
   @override
   void dispose() {
@@ -56,6 +67,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     _freeScheduleRateController.dispose();
     _workerRateController.dispose();
     _minPayController.dispose();
+    _individualPriceController.dispose();
+    _legalPriceController.dispose();
     super.dispose();
   }
 
@@ -70,6 +83,117 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   int _requiredInt(TextEditingController controller) {
     return int.parse(controller.text.trim());
+  }
+
+  int? _optionalInt(TextEditingController controller) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return null;
+    return int.tryParse(text);
+  }
+
+  String? _optionalPrice(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+    final parsed = int.tryParse(text);
+    if (parsed == null || parsed < 0) return 'Укажите сумму числом';
+    return null;
+  }
+
+  void _scheduleAddressLookup(String value) {
+    _addressLookupTimer?.cancel();
+    _selectedAddress = null;
+    _addressLookupError = null;
+
+    final query = value.trim();
+    if (query.length < 4) {
+      setState(() {
+        _addressCandidates = const [];
+        _isAddressLookupLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isAddressLookupLoading = true;
+    });
+
+    _addressLookupTimer = Timer(const Duration(milliseconds: 650), () {
+      _lookupAddress(query);
+    });
+  }
+
+  Future<void> _lookupAddress(String rawQuery) async {
+    final city = _cityController.text.trim();
+    final query = city.isEmpty ? rawQuery : '$city, $rawQuery';
+    final uri = Uri.https(
+      'nominatim.openstreetmap.org',
+      '/search',
+      {
+        'format': 'jsonv2',
+        'addressdetails': '1',
+        'limit': '6',
+        'accept-language': 'ru',
+        'countrycodes': 'ru',
+        'q': query,
+      },
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: const {'Accept': 'application/json'},
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('address service returned ${response.statusCode}');
+      }
+
+      final decoded = jsonDecode(response.body);
+      final candidates = decoded is List
+          ? decoded
+              .whereType<Map<String, dynamic>>()
+              .map(_AddressCandidate.fromJson)
+              .whereType<_AddressCandidate>()
+              .toList()
+          : <_AddressCandidate>[];
+
+      if (!mounted || _addressController.text.trim() != rawQuery) return;
+
+      setState(() {
+        _addressCandidates = candidates;
+        _addressLookupError = candidates.isEmpty
+            ? 'Адрес не найден. Уточните город, улицу и дом.'
+            : null;
+        _isAddressLookupLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || _addressController.text.trim() != rawQuery) return;
+
+      setState(() {
+        _addressCandidates = const [];
+        _addressLookupError = 'Не удалось проверить адрес по картам: $error';
+        _isAddressLookupLoading = false;
+      });
+    }
+  }
+
+  void _selectAddress(_AddressCandidate candidate) {
+    _addressLookupTimer?.cancel();
+    setState(() {
+      _selectedAddress = candidate;
+      _addressController.text = candidate.title;
+      _addressCandidates = const [];
+      _addressLookupError = null;
+      _isAddressLookupLoading = false;
+    });
+  }
+
+  String? _validateAddress(String? value) {
+    final message = _requiredText(value, 'Укажите адрес');
+    if (message != null) return message;
+    if (_selectedAddress == null) {
+      return 'Выберите адрес из вариантов, чтобы подтвердить точку на карте';
+    }
+    return null;
   }
 
   Iterable<String> _addressOptions(TextEditingValue value) {
@@ -154,6 +278,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         priceState: _workMode == 'rate'
             ? _requiredInt(_freeScheduleRateController)
             : null,
+        individualPrice: _optionalInt(_individualPriceController),
+        legalPrice: _optionalInt(_legalPriceController),
         nationality: _isRussianCitizenshipRequired ? 'ru' : 'any',
         workerCategory: _workerCategory,
         workMode: _workMode,
@@ -203,6 +329,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       _freeScheduleRateController.text = '450';
       _workerRateController.text = '400';
       _minPayController.text = '4';
+      _individualPriceController.clear();
+      _legalPriceController.clear();
       setState(() {
         _dateTime = null;
         _hours = 4;
@@ -210,6 +338,10 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         _isRussianCitizenshipRequired = true;
         _workMode = 'shift';
         _workerCategory = 'loader';
+        _selectedAddress = null;
+        _addressCandidates = const [];
+        _addressLookupError = null;
+        _isAddressLookupLoading = false;
       });
     } catch (error) {
       if (!mounted) return;
@@ -349,6 +481,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 optionsBuilder: _addressOptions,
                 onSelected: (value) {
                   _addressController.text = value;
+                  _scheduleAddressLookup(value);
                 },
                 fieldViewBuilder: (
                   context,
@@ -364,8 +497,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                       hintText: 'Начните вводить улицу или проспект',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) =>
-                        _requiredText(value, 'Укажите адрес'),
+                    onChanged: _scheduleAddressLookup,
+                    validator: _validateAddress,
                   );
                 },
                 optionsViewBuilder: (context, onSelected, options) {
@@ -400,6 +533,28 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   );
                 },
               ),
+              if (_isAddressLookupLoading) ...[
+                const SizedBox(height: 8),
+                const LinearProgressIndicator(minHeight: 2),
+              ],
+              if (_addressLookupError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _addressLookupError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              if (_addressCandidates.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _AddressCandidatesList(
+                  candidates: _addressCandidates,
+                  onSelected: _selectAddress,
+                ),
+              ],
+              if (_selectedAddress != null) ...[
+                const SizedBox(height: 12),
+                _SelectedAddressPreview(candidate: _selectedAddress!),
+              ],
               const SizedBox(height: 12),
               TextFormField(
                 controller: _metroController,
@@ -469,6 +624,12 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   if (value == null) return;
                   setState(() => _workerCategory = value);
                 },
+              ),
+              const SizedBox(height: 12),
+              _ClientPriceSection(
+                individualController: _individualPriceController,
+                legalController: _legalPriceController,
+                validatePrice: _optionalPrice,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -602,6 +763,221 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   }
 }
 
+class _ClientPriceSection extends StatelessWidget {
+  final TextEditingController individualController;
+  final TextEditingController legalController;
+  final FormFieldValidator<String> validatePrice;
+
+  const _ClientPriceSection({
+    required this.individualController,
+    required this.legalController,
+    required this.validatePrice,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: GpmColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.payments_outlined),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Предполагаемая стоимость',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: individualController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Стоимость для физлиц, ₽',
+                border: OutlineInputBorder(),
+              ),
+              validator: validatePrice,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: legalController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Стоимость для юрлиц, ₽',
+                border: OutlineInputBorder(),
+              ),
+              validator: validatePrice,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddressCandidate {
+  final String title;
+  final String details;
+  final double latitude;
+  final double longitude;
+
+  const _AddressCandidate({
+    required this.title,
+    required this.details,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  static _AddressCandidate? fromJson(Map<String, dynamic> json) {
+    final lat = double.tryParse(json['lat']?.toString() ?? '');
+    final lon = double.tryParse(json['lon']?.toString() ?? '');
+    final displayName = json['display_name']?.toString().trim();
+    if (lat == null || lon == null || displayName == null || displayName.isEmpty) {
+      return null;
+    }
+
+    final address = json['address'];
+    final title = address is Map
+        ? [address['road'], address['house_number'], address['building']]
+            .where((part) => part != null && part.toString().trim().isNotEmpty)
+            .map((part) => part.toString().trim())
+            .join(', ')
+        : '';
+
+    return _AddressCandidate(
+      title: title.isEmpty ? displayName : title,
+      details: displayName,
+      latitude: lat,
+      longitude: lon,
+    );
+  }
+
+  String get mapImageUrl {
+    final lat = latitude.toStringAsFixed(6);
+    final lon = longitude.toStringAsFixed(6);
+    return 'https://staticmap.openstreetmap.de/staticmap.php'
+        '?center=$lat,$lon&zoom=16&size=720x260&markers=$lat,$lon,red-pushpin';
+  }
+}
+
+class _AddressCandidatesList extends StatelessWidget {
+  final List<_AddressCandidate> candidates;
+  final ValueChanged<_AddressCandidate> onSelected;
+
+  const _AddressCandidatesList({
+    required this.candidates,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: GpmColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < candidates.length; index++) ...[
+            if (index > 0) const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.place_outlined),
+              title: Text(candidates[index].title),
+              subtitle: Text(
+                candidates[index].details,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.check_circle_outline),
+              onTap: () => onSelected(candidates[index]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedAddressPreview extends StatelessWidget {
+  final _AddressCandidate candidate;
+
+  const _SelectedAddressPreview({required this.candidate});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: GpmColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            child: Image.network(
+              candidate.mapImageUrl,
+              height: 180,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  height: 180,
+                  color: GpmColors.page,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.map_outlined, size: 44),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.verified,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Локация подтверждена',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(candidate.details),
+                const SizedBox(height: 6),
+                Text(
+                  '${candidate.latitude.toStringAsFixed(6)}, '
+                  '${candidate.longitude.toStringAsFixed(6)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 const _moscowAddressSuggestions = [
   'Ленинградский проспект',
   'Ленинградское шоссе',
