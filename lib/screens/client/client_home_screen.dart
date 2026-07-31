@@ -17,11 +17,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = const [
-      ClientOrdersScreen(),
-      ClientCreateOrderScreen(),
-      ChatThreadsScreen(role: ChatRole.client),
-      ClientProfileScreen(),
+    final screens = [
+      const ClientOrdersScreen(),
+      ClientCreateOrderScreen(onBack: () => setState(() => _currentIndex = 0)),
+      const ChatThreadsScreen(role: ChatRole.client),
+      const ClientProfileScreen(),
     ];
 
     return Scaffold(

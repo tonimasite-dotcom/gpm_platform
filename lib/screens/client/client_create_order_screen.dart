@@ -12,6 +12,7 @@ class ClientCreateOrderScreen extends StatefulWidget {
   final bool closeOnSuccess;
   final String title;
   final String submitText;
+  final VoidCallback? onBack;
 
   const ClientCreateOrderScreen({
     super.key,
@@ -19,6 +20,7 @@ class ClientCreateOrderScreen extends StatefulWidget {
     this.closeOnSuccess = false,
     this.title = 'Создание заказа',
     this.submitText = 'Создать заказ',
+    this.onBack,
   });
 
   @override
@@ -194,6 +196,16 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       return 'Выберите адрес из вариантов, чтобы подтвердить точку на карте';
     }
     return null;
+  }
+
+  void _goBack() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+      return;
+    }
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
   }
 
   Iterable<String> _addressOptions(TextEditingValue value) {
@@ -378,9 +390,21 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.title.toUpperCase(),
-                      style: Theme.of(context).textTheme.headlineSmall,
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'Назад',
+                          onPressed: _goBack,
+                          icon: const Icon(Icons.arrow_back),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            widget.title.toUpperCase(),
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     const Text(
