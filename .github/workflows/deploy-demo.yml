@@ -34,7 +34,12 @@ jobs:
           if [ -n "${{ secrets.DEMO_ENV }}" ]; then
             printf '%s' "${{ secrets.DEMO_ENV }}" > .env
           else
-            printf 'DEMO_MODE=true\n' > .env
+            printf '%s\n' \
+              'SUPABASE_URL=https://efeppgqobxihwufumwty.supabase.co' \
+              'SUPABASE_ANON_KEY=sb_publishable_dtCXB_lGmwV2Vx0nvhKhpg_Bp-DX3h4' \
+              'GPM_APP_API_URL=https://app-api.gpmbot.ru' \
+              'GPM_APP_API_TOKEN=yFhMJF9hnfWPJq6YP65gnjqN7v8esPQB8CAeOImeKOcS4t6DwgOA4nUExbcTN4N8' \
+              > .env
           fi
 
       - name: Install dependencies
