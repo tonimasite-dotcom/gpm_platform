@@ -593,13 +593,28 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             ],
             const SizedBox(height: 16),
             _OrderFact(label: 'Город', value: order['city']),
-            _OrderFact(label: 'Номер заказа', value: order['external_order_id'] ?? order['id']),
-            _OrderFact(label: 'Дата и время выполнения работ', value: _formatSchedule(order['scheduled_at'])),
+            _OrderFact(
+              label: 'Telegram оператора',
+              value: order['telegram_username'],
+            ),
+            _OrderFact(
+              label: 'Номер заказа',
+              value: order['external_order_id'] ?? order['id'],
+            ),
+            _OrderFact(
+              label: 'Дата и время выполнения работ',
+              value: _formatSchedule(order['scheduled_at']),
+            ),
+            _OrderFact(label: 'Часовой пояс', value: order['timezone']),
             _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
             _OrderFact(label: 'Гражданство РФ', value: _nationalText(order)),
             _OrderFact(label: 'Режим работы', value: _workModeText(order)),
             _OrderFact(label: 'Метро', value: order['metro']),
             _OrderFact(label: 'Адрес', value: order['address']),
+            _OrderFact(label: 'Улица', value: order['address_street']),
+            _OrderFact(label: 'Дом', value: order['address_number']),
+            _OrderFact(label: 'Координаты', value: _coordinatesText(order)),
+            _OrderFact(label: 'Доп. информация CRM', value: order['additional_info']),
             _OrderFact(
               label: 'Стоимость для физлиц',
               value: _priceText(order['individual_price']),
@@ -886,6 +901,13 @@ String _priceText(dynamic value) {
   final price = int.tryParse(value?.toString() ?? '');
   if (price == null) return '';
   return '$price ₽';
+}
+
+String _coordinatesText(Map<String, dynamic> order) {
+  final lat = order['address_lat'];
+  final lon = order['address_lon'];
+  if (lat == null || lon == null) return '';
+  return '$lat, $lon';
 }
 
 String _workModeText(Map<String, dynamic> order) {

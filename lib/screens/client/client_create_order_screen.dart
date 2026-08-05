@@ -31,10 +31,13 @@ class ClientCreateOrderScreen extends StatefulWidget {
 class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   final _formKey = GlobalKey<FormState>();
   final _cityController = TextEditingController(text: 'Москва');
+  final _telegramUsernameController = TextEditingController();
+  final _timezoneController = TextEditingController(text: 'Europe/Moscow');
   final _orderNumberController = TextEditingController();
   final _addressController = TextEditingController();
   final _addressFocusNode = FocusNode();
   final _metroController = TextEditingController();
+  final _additionalInfoController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _shiftDescriptionController = TextEditingController();
   final _regularRateController = TextEditingController(text: '450');
@@ -59,10 +62,13 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   @override
   void dispose() {
     _cityController.dispose();
+    _telegramUsernameController.dispose();
+    _timezoneController.dispose();
     _orderNumberController.dispose();
     _addressController.dispose();
     _addressFocusNode.dispose();
     _metroController.dispose();
+    _additionalInfoController.dispose();
     _descriptionController.dispose();
     _shiftDescriptionController.dispose();
     _regularRateController.dispose();
@@ -281,7 +287,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         source: widget.publishImmediately ? 'crm' : 'manual',
         externalOrderId: orderNumber.isEmpty ? null : orderNumber,
         metro: _metroController.text.trim(),
-        national: _isRussianCitizenshipRequired ? 'yes' : 'any',
+        national: _isRussianCitizenshipRequired ? 'yes' : 'every',
         minTime: _workMode == 'rate' ? _requiredInt(_minPayController) : null,
         pricePerHour:
             _workMode == 'rate' ? _requiredInt(_workerRateController) : null,
@@ -298,6 +304,14 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         shiftDescription: _workMode == 'shift'
             ? _shiftDescriptionController.text.trim()
             : null,
+        telegramUsername: _telegramUsernameController.text.trim(),
+        timezone: _timezoneController.text.trim(),
+        additionalInfo: _additionalInfoController.text.trim(),
+        addressStreet:
+            _selectedAddress?.street ?? _addressController.text.trim(),
+        addressNumber: _selectedAddress?.houseNumber,
+        addressLat: _selectedAddress?.latitude,
+        addressLon: _selectedAddress?.longitude,
       );
 
       if (result['success'] != true) {
@@ -333,8 +347,11 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
       _addressController.clear();
       _cityController.text = 'Москва';
+      _telegramUsernameController.clear();
+      _timezoneController.text = 'Europe/Moscow';
       _orderNumberController.clear();
       _metroController.clear();
+      _additionalInfoController.clear();
       _descriptionController.clear();
       _shiftDescriptionController.clear();
       _regularRateController.text = '450';
@@ -424,6 +441,21 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
               ),
               const SizedBox(height: 12),
               TextFormField(
+                controller: _telegramUsernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Telegram username оператора',
+                  hintText: 'Например: logist_gpm',
+                  border: OutlineInputBorder(),
+                ),
+                validator: widget.publishImmediately
+                    ? (value) => _requiredText(
+                          value,
+                          'Укажите Telegram username оператора',
+                        )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
                 controller: _orderNumberController,
                 decoration: const InputDecoration(
                   labelText: 'Номер заказа',
@@ -443,6 +475,17 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                       : 'Дата: ${_dateTime!.day.toString().padLeft(2, '0')}.${_dateTime!.month.toString().padLeft(2, '0')} '
                           '${_dateTime!.hour.toString().padLeft(2, '0')}:${_dateTime!.minute.toString().padLeft(2, '0')}',
                 ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _timezoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Часовой пояс',
+                  hintText: 'Europe/Moscow',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    _requiredText(value, 'Укажите часовой пояс'),
               ),
               const SizedBox(height: 12),
               Row(
@@ -588,6 +631,17 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) => _requiredText(value, 'Укажите метро'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _additionalInfoController,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Доп. информация CRM',
+                  hintText: 'Например: Только РФ, нужен пропуск, склад 3',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -853,12 +907,16 @@ class _ClientPriceSection extends StatelessWidget {
 class _AddressCandidate {
   final String title;
   final String details;
+  final String street;
+  final String? houseNumber;
   final double latitude;
   final double longitude;
 
   const _AddressCandidate({
     required this.title,
     required this.details,
+    required this.street,
+    required this.houseNumber,
     required this.latitude,
     required this.longitude,
   });
@@ -872,8 +930,13 @@ class _AddressCandidate {
     }
 
     final address = json['address'];
+    final street = address is Map ? address['road']?.toString().trim() : null;
+    final houseNumber =
+        address is Map ? address['house_number']?.toString().trim() : null;
+    final building =
+        address is Map ? address['building']?.toString().trim() : null;
     final title = address is Map
-        ? [address['road'], address['house_number'], address['building']]
+        ? [street, houseNumber, building]
             .where((part) => part != null && part.toString().trim().isNotEmpty)
             .map((part) => part.toString().trim())
             .join(', ')
@@ -882,6 +945,8 @@ class _AddressCandidate {
     return _AddressCandidate(
       title: title.isEmpty ? displayName : title,
       details: displayName,
+      street: street?.isNotEmpty == true ? street! : displayName,
+      houseNumber: houseNumber?.isNotEmpty == true ? houseNumber : building,
       latitude: lat,
       longitude: lon,
     );

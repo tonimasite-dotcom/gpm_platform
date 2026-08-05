@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 
 import 'demo_storage.dart';
 
@@ -9,6 +10,8 @@ class Bitrix24Service {
   static const demoWorkerName = 'Иван Петров';
 
   late String _webhook;
+  late String _appApiUrl;
+  late String _appApiToken;
   final List<Map<String, dynamic>> _demoOrders = [
     {
       'id': '1001',
@@ -87,13 +90,105 @@ class Bitrix24Service {
 
   Bitrix24Service() {
     _webhook = dotenv.env['BITRIX24_WEBHOOK'] ?? '';
+    _appApiUrl = dotenv.env['GPM_APP_API_URL'] ?? '';
+    _appApiToken = dotenv.env['GPM_APP_API_TOKEN'] ?? '';
     // Не бросаем исключение если webhook не задан — работаем в демо-режиме
-    if (!isConfigured) {
-      _loadDemoState();
-    }
+    _loadDemoState();
   }
 
   bool get isConfigured => _webhook.isNotEmpty;
+
+  Future<Map<String, dynamic>> importCrmOrder(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final orderData = _mapValue(payload['order_data']);
+      final completionDate = _mapValue(orderData['completion_date']);
+      final loaders = _mapValue(orderData['loaders']);
+      final info = _mapValue(orderData['info']);
+      final externalOrderId = _stringValue(
+        orderData['order_number'],
+        fallback: 'CRM-${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final existingIndex = _demoOrders.indexWhere(
+        (order) => order['external_order_id']?.toString() == externalOrderId,
+      );
+
+      if (existingIndex != -1) {
+        return {
+          'success': true,
+          'orderId': _demoOrders[existingIndex]['id'],
+          'duplicate': true,
+        };
+      }
+
+      final additionalInfo = _stringValue(info['additional']);
+      final national = _nationalFromAdditional(additionalInfo);
+
+      return createOrder(
+        title: 'Заявка № $externalOrderId',
+        address: _stringValue(
+          info['address'],
+          fallback: _stringValue(
+            info['address_street'],
+            fallback: 'Адрес не указан',
+          ),
+        ),
+        workersCount: _intValue(loaders['loader_count'], fallback: 1),
+        hours: _intValue(
+          orderData['hours'],
+          fallback: _intValue(orderData['min_time'], fallback: 4),
+        ),
+        description: _stringValue(orderData['note']),
+        clientEmail: _stringValue(
+          payload['client_email'],
+          fallback: 'crm@gpm.ru',
+        ),
+        clientPhone: _stringValue(payload['client_phone']),
+        scheduledAt: _stringValue(
+          completionDate['date'],
+          fallback: DateTime.now().toUtc().toIso8601String(),
+        ),
+        city: _stringValue(
+          orderData['city'],
+          fallback: _stringValue(payload['city'], fallback: 'Москва'),
+        ),
+        source: 'crm',
+        externalOrderId: externalOrderId,
+        metro: _stringValue(info['metro_station']),
+        national: national,
+        minTime: _intValue(orderData['min_time'], fallback: 4),
+        pricePerHour: _intOrNull(orderData['price_per_hour']),
+        priceRegular: _intOrNull(orderData['price_regular']),
+        priceState: _intOrNull(orderData['price_state']),
+        individualPrice: _intOrNull(orderData['individual_price']),
+        legalPrice: _intOrNull(orderData['legal_price']),
+        nationality: national == 'yes' ? 'ru' : 'any',
+        workerCategory: _stringValue(
+          orderData['worker_category'],
+          fallback: 'loader',
+        ),
+        workMode: _stringValue(orderData['work_mode'], fallback: 'rate'),
+        shiftDescription: _stringValue(orderData['shift_description']),
+        telegramUsername:
+            _stringValue(payload['telegram_username']).replaceFirst('@', ''),
+        timezone: _stringValue(
+          orderData['timezone'],
+          fallback: 'Europe/Moscow',
+        ),
+        additionalInfo: additionalInfo,
+        addressStreet: _stringValue(
+          info['address_street'],
+          fallback: _stringValue(info['address']),
+        ),
+        addressNumber: _stringValue(info['address_number']),
+        addressLat: _doubleOrNull(info['address_lat']),
+        addressLon: _doubleOrNull(info['address_lon']),
+      );
+    } catch (error) {
+      return {'success': false, 'error': error.toString()};
+    }
+  }
 
   Future<Map<String, dynamic>> createOrder({
     required String title,
@@ -119,9 +214,51 @@ class Bitrix24Service {
     String? workerCategory,
     String? workMode,
     String? shiftDescription,
+    String? telegramUsername,
+    String? timezone,
+    String? additionalInfo,
+    String? addressStreet,
+    String? addressNumber,
+    double? addressLat,
+    double? addressLon,
   }) async {
+    final effectiveExternalOrderId = externalOrderId?.trim().isNotEmpty == true
+        ? externalOrderId!.trim()
+        : null;
+    final effectiveScheduledAt =
+        scheduledAt ?? DateTime.now().toUtc().toIso8601String();
+    final effectiveMinTime = minTime ?? hours;
+    final effectiveAdditional = [
+      if (additionalInfo?.trim().isNotEmpty == true) additionalInfo!.trim(),
+      if (national == 'yes') 'Только РФ',
+      if (workMode == 'shift' && shiftDescription?.trim().isNotEmpty == true)
+        shiftDescription!.trim(),
+    ].join('\n');
+    final crmPayload = {
+      'telegram_username': (telegramUsername ?? '').replaceFirst('@', ''),
+      'order_data': {
+        'order_number': effectiveExternalOrderId ?? title,
+        'completion_date': {'date': effectiveScheduledAt},
+        'timezone': timezone ?? 'Europe/Moscow',
+        'loaders': {'loader_count': workersCount},
+        'info': {
+          'address': address,
+          'address_street': addressStreet ?? address,
+          'address_number': addressNumber ?? '',
+          'address_lat': addressLat,
+          'address_lon': addressLon,
+          'metro_station': metro,
+          'additional': effectiveAdditional,
+        },
+        'note': description,
+        'min_time': effectiveMinTime,
+        'work_mode': workMode,
+        'worker_category': workerCategory,
+      },
+    };
+
     // Демо-режим если webhook не настроен
-    if (!isConfigured) {
+    {
       final orderId = DateTime.now().microsecondsSinceEpoch.toString();
       _demoOrders.insert(0, {
         'id': orderId,
@@ -133,13 +270,13 @@ class Bitrix24Service {
         'description': description,
         'client_email': clientEmail,
         'client_phone': clientPhone,
-        'scheduled_at': scheduledAt,
+        'scheduled_at': effectiveScheduledAt,
         'city': city,
         'source': source,
-        'external_order_id': externalOrderId,
+        'external_order_id': effectiveExternalOrderId,
         'metro': metro,
         'national': national,
-        'min_time': minTime,
+        'min_time': effectiveMinTime,
         'price_per_hour': pricePerHour,
         'price_regular': priceRegular,
         'price_state': priceState,
@@ -149,6 +286,14 @@ class Bitrix24Service {
         'worker_category': workerCategory,
         'work_mode': workMode,
         'shift_description': shiftDescription,
+        'telegram_username': telegramUsername,
+        'timezone': timezone ?? 'Europe/Moscow',
+        'additional_info': additionalInfo,
+        'address_street': addressStreet ?? address,
+        'address_number': addressNumber,
+        'address_lat': addressLat,
+        'address_lon': addressLon,
+        'crm_payload': crmPayload,
         'created_at': DateTime.now().toUtc().toIso8601String(),
         'assigned_worker_ids': <String>[],
       });
@@ -156,21 +301,71 @@ class Bitrix24Service {
       return {'success': true, 'orderId': orderId};
     }
 
-    try {
-      // HTTP запрос к Bitrix24 (реализация через dart:io если нужно)
-      return {'success': true, 'orderId': '1'};
-    } catch (e) {
-      return {'success': false, 'error': e.toString()};
-    }
   }
 
   Future<List<Map<String, dynamic>>> getOrders() async {
-    if (!isConfigured) {
-      return _demoOrders
-          .map((order) => Map<String, dynamic>.from(order))
-          .toList();
+    await _syncAppPublishedOrders();
+    return _demoOrders.map((order) => Map<String, dynamic>.from(order)).toList();
+  }
+
+  Future<void> _syncAppPublishedOrders() async {
+    if (_appApiUrl.trim().isEmpty) return;
+
+    final uri = Uri.parse(_appApiUrl).resolve('/app-api/orders');
+    final headers = <String, String>{'Accept': 'application/json'};
+    if (_appApiToken.trim().isNotEmpty) {
+      headers['X-GPM-App-Token'] = _appApiToken.trim();
     }
-    return [];
+
+    try {
+      final response = await http.get(uri, headers: headers);
+      if (response.statusCode < 200 || response.statusCode >= 300) return;
+
+      final decoded = jsonDecode(response.body);
+      final orders = decoded is Map ? decoded['orders'] : decoded;
+      if (orders is! List) return;
+
+      for (final order in orders.whereType<Map>()) {
+        final mappedOrder = order.map((key, value) => MapEntry(key.toString(), value));
+        if (mappedOrder['order_data'] is Map || mappedOrder['order_data'] is String) {
+          await importCrmOrder(mappedOrder);
+        } else {
+          _upsertOrder(mappedOrder);
+        }
+      }
+    } catch (_) {
+      return;
+    }
+  }
+
+  void _upsertOrder(Map<String, dynamic> order) {
+    final externalOrderId = _stringValue(order['external_order_id']);
+    final id = _stringValue(order['id'], fallback: externalOrderId);
+    final existingIndex = _demoOrders.indexWhere((existing) {
+      final existingExternal = _stringValue(existing['external_order_id']);
+      final existingId = _stringValue(existing['id']);
+      return (externalOrderId.isNotEmpty && existingExternal == externalOrderId) ||
+          (id.isNotEmpty && existingId == id);
+    });
+
+    final normalized = Map<String, dynamic>.from(order);
+    normalized['id'] = id.isEmpty ? DateTime.now().microsecondsSinceEpoch.toString() : id;
+    normalized['external_order_id'] =
+        externalOrderId.isEmpty ? normalized['id'] : externalOrderId;
+    normalized['assigned_worker_ids'] =
+        List<String>.from((normalized['assigned_worker_ids'] as List?) ?? const []);
+    normalized['applications'] =
+        List<Map<String, dynamic>>.from((normalized['applications'] as List?) ?? const []);
+
+    if (existingIndex == -1) {
+      _demoOrders.insert(0, normalized);
+    } else {
+      _demoOrders[existingIndex] = {
+        ..._demoOrders[existingIndex],
+        ...normalized,
+      };
+    }
+    _saveDemoState();
   }
 
   Future<Map<String, dynamic>> createDemoCrmOrder() async {
@@ -207,6 +402,13 @@ class Bitrix24Service {
       nationality: 'ru',
       workMode: 'shift',
       shiftDescription: 'Дневная смена 09:00-18:00, 5000 руб за смену',
+      telegramUsername: 'logist_gpm',
+      timezone: 'Europe/Moscow',
+      additionalInfo: 'Только РФ',
+      addressStreet: 'ул. Складская',
+      addressNumber: '18',
+      addressLat: 55.7912,
+      addressLon: 37.5589,
     );
   }
 
@@ -470,6 +672,56 @@ class Bitrix24Service {
 
   Future<Map<String, dynamic>> getFinancialStats() async {
     return {'totalIncome': 125000, 'totalDeals': 47, 'averageDeal': 2659};
+  }
+
+  Map<String, dynamic> _mapValue(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) {
+          return decoded.map((key, item) => MapEntry(key.toString(), item));
+        }
+      } catch (_) {
+        return <String, dynamic>{};
+      }
+    }
+    return <String, dynamic>{};
+  }
+
+  String _stringValue(dynamic value, {String fallback = ''}) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  int _intValue(dynamic value, {required int fallback}) {
+    return _intOrNull(value) ?? fallback;
+  }
+
+  int? _intOrNull(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString().trim() ?? '');
+  }
+
+  double? _doubleOrNull(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().trim() ?? '');
+  }
+
+  String _nationalFromAdditional(String additionalInfo) {
+    final normalized = additionalInfo.toLowerCase();
+    if (normalized.contains('только рф') ||
+        normalized.contains('rf only') ||
+        normalized.contains('russian only')) {
+      return 'yes';
+    }
+    return 'every';
   }
 
   Map<String, dynamic> _withWorkerMeta(
