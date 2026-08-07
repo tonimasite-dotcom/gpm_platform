@@ -111,7 +111,13 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
           );
         }
 
-        final orders = _sorted(snapshot.data ?? []);
+        final orders = _sorted(
+          (snapshot.data ?? [])
+              .where(
+                (order) => order['source']?.toString().toLowerCase() != 'crm',
+              )
+              .toList(),
+        );
 
         if (orders.isEmpty) {
           return const Center(

@@ -224,7 +224,9 @@ class Bitrix24Service {
   }) async {
     final effectiveExternalOrderId = externalOrderId?.trim().isNotEmpty == true
         ? externalOrderId!.trim()
-        : null;
+        : source == 'crm'
+            ? null
+            : _generateManualOrderNumber();
     final effectiveScheduledAt =
         scheduledAt ?? DateTime.now().toUtc().toIso8601String();
     final effectiveMinTime = minTime ?? hours;
@@ -236,6 +238,9 @@ class Bitrix24Service {
     ].join('\n');
     final crmPayload = {
       'telegram_username': (telegramUsername ?? '').replaceFirst('@', ''),
+      'client_email': clientEmail,
+      'client_phone': clientPhone,
+      'city': city,
       'order_data': {
         'order_number': effectiveExternalOrderId ?? title,
         'completion_date': {'date': effectiveScheduledAt},
@@ -252,17 +257,47 @@ class Bitrix24Service {
         },
         'note': description,
         'min_time': effectiveMinTime,
+        'hours': hours,
         'work_mode': workMode,
         'worker_category': workerCategory,
+        'price_per_hour': pricePerHour,
+        'price_regular': priceRegular,
+        'price_state': priceState,
+        'individual_price': individualPrice,
+        'legal_price': legalPrice,
+        'shift_description': shiftDescription,
       },
     };
 
-    // Демо-режим если webhook не настроен
+    if (source == 'crm') {
+      final published = await _publishAppOrder(crmPayload);
+      if (published['success'] == true) {
+        await _syncAppPublishedOrders();
+        final syncedOrder = await getOrderById(effectiveExternalOrderId ?? title);
+        return {
+          'success': true,
+          'orderId': syncedOrder?['id'] ?? effectiveExternalOrderId ?? title,
+          'published': true,
+        };
+      }
+
+      if (_appApiUrl.trim().isNotEmpty) {
+        return published;
+      }
+    }
+
+    // Демо-режим если backend не настроен
     {
-      final orderId = DateTime.now().microsecondsSinceEpoch.toString();
+      final orderId = effectiveExternalOrderId ??
+          DateTime.now().microsecondsSinceEpoch.toString();
+      final effectiveTitle = effectiveExternalOrderId == null
+          ? title
+          : title.contains(effectiveExternalOrderId)
+              ? title
+              : 'Заявка № $effectiveExternalOrderId';
       _demoOrders.insert(0, {
         'id': orderId,
-        'title': title,
+        'title': effectiveTitle,
         'status': 'NEW',
         'address': address,
         'workers_count': workersCount,
@@ -303,8 +338,63 @@ class Bitrix24Service {
 
   }
 
+  Future<Map<String, dynamic>> _publishAppOrder(
+    Map<String, dynamic> payload,
+  ) async {
+    if (_appApiUrl.trim().isEmpty) {
+      return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
+    }
+
+    final uri = Uri.parse(_appApiUrl).resolve('/app-api/orders');
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (_appApiToken.trim().isNotEmpty) {
+      headers['X-GPM-App-Token'] = _appApiToken.trim();
+    }
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(payload),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return {
+          'success': false,
+          'error': 'CRM API ${response.statusCode}: ${response.body}',
+        };
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      if (decoded is Map) {
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
+      }
+      return {'success': true};
+    } catch (error) {
+      return {'success': false, 'error': error.toString()};
+    }
+  }
+
+  String _generateManualOrderNumber() {
+    final now = DateTime.now();
+    final year = (now.year % 100).toString().padLeft(2, '0');
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+    final second = now.second.toString().padLeft(2, '0');
+    final millisecond = now.millisecond.toString().padLeft(3, '0');
+    return 'APP-$year$month$day-$hour$minute$second$millisecond';
+  }
+
   Future<List<Map<String, dynamic>>> getOrders() async {
     await _syncAppPublishedOrders();
+    _normalizeDemoCrmOrders();
     return _demoOrders.map((order) => Map<String, dynamic>.from(order)).toList();
   }
 
@@ -341,6 +431,20 @@ class Bitrix24Service {
   void _upsertOrder(Map<String, dynamic> order) {
     final externalOrderId = _stringValue(order['external_order_id']);
     final id = _stringValue(order['id'], fallback: externalOrderId);
+    if (_isInvalidCrmOrderNumber(order, externalOrderId, id)) {
+      _demoOrders.removeWhere(
+        (existing) =>
+            existing['external_order_id'] == externalOrderId ||
+            existing['id'] == id ||
+            _isInvalidCrmOrderNumber(
+              existing,
+              _stringValue(existing['external_order_id']),
+              _stringValue(existing['id']),
+            ),
+      );
+      _saveDemoState();
+      return;
+    }
     final existingIndex = _demoOrders.indexWhere((existing) {
       final existingExternal = _stringValue(existing['external_order_id']);
       final existingId = _stringValue(existing['id']);
@@ -349,9 +453,13 @@ class Bitrix24Service {
     });
 
     final normalized = Map<String, dynamic>.from(order);
-    normalized['id'] = id.isEmpty ? DateTime.now().microsecondsSinceEpoch.toString() : id;
+    normalized['id'] =
+        id.isEmpty ? DateTime.now().microsecondsSinceEpoch.toString() : id;
     normalized['external_order_id'] =
         externalOrderId.isEmpty ? normalized['id'] : externalOrderId;
+    normalized['status'] = _normalizeOrderStatus(normalized['status']);
+    normalized['created_at'] ??=
+        normalized['scheduled_at'] ?? DateTime.now().toUtc().toIso8601String();
     normalized['assigned_worker_ids'] =
         List<String>.from((normalized['assigned_worker_ids'] as List?) ?? const []);
     normalized['applications'] =
@@ -368,9 +476,67 @@ class Bitrix24Service {
     _saveDemoState();
   }
 
+  String _normalizeOrderStatus(dynamic status) {
+    switch (status?.toString().toUpperCase()) {
+      case 'NEW':
+        return 'NEW';
+      case 'PROCESSED':
+        return 'PROCESSED';
+      case 'IN_PROCESS':
+        return 'IN_PROCESS';
+      case 'DONE_PENDING':
+        return 'DONE_PENDING';
+      case 'CONVERTED':
+        return 'CONVERTED';
+      case 'JUNK':
+        return 'JUNK';
+      default:
+        return 'NEW';
+    }
+  }
+
+  bool _isInvalidCrmOrderNumber(
+    Map<String, dynamic> order,
+    String externalOrderId,
+    String id,
+  ) {
+    if (order['source'] != 'crm') return false;
+    final title = _stringValue(order['title']);
+    final number = externalOrderId.isNotEmpty
+        ? externalOrderId
+        : id.isNotEmpty
+            ? id
+            : title.replaceFirst('Заявка № ', '').trim();
+    return !RegExp(r'^\d+/\d{2}$').hasMatch(number);
+  }
+
+  bool _isObsoleteDemoCrmOrder(Map<String, dynamic> order) {
+    return order['source'] == 'crm' &&
+        order['title'] == 'Разгрузка склада' &&
+        order['address'] == 'ул. Складская, 18' &&
+        _stringValue(order['external_order_id']).isEmpty;
+  }
+
+  bool _isValidCrmOrderNumber(String value) {
+    return RegExp(r'^\d+/\d{2}$').hasMatch(value);
+  }
+
+  String _crmOrderNumber(Map<String, dynamic> order) {
+    final externalOrderId = _stringValue(order['external_order_id']);
+    if (_isValidCrmOrderNumber(externalOrderId)) return externalOrderId;
+
+    final id = _stringValue(order['id']);
+    if (_isValidCrmOrderNumber(id)) return id;
+
+    final title = _stringValue(order['title']).replaceFirst('Заявка № ', '');
+    if (_isValidCrmOrderNumber(title)) return title;
+
+    return externalOrderId.isNotEmpty ? externalOrderId : id;
+  }
+
   Future<Map<String, dynamic>> createDemoCrmOrder() async {
     final now = DateTime.now();
-    const externalOrderId = 'CRM-DEMO-1001';
+    const externalOrderId = '14096/26';
 
     final existingIndex = _demoOrders.indexWhere(
       (order) => order['external_order_id'] == externalOrderId,
@@ -821,6 +987,13 @@ class Bitrix24Service {
     for (final order in _demoOrders) {
       final copy = Map<String, dynamic>.from(order);
       final isCrm = copy['source'] == 'crm';
+      final externalOrderId = _stringValue(copy['external_order_id']);
+      final id = _stringValue(copy['id']);
+
+      if (_isInvalidCrmOrderNumber(copy, externalOrderId, id) &&
+          !_isObsoleteDemoCrmOrder(copy)) {
+        continue;
+      }
 
       if (isCrm && copy['title'] == 'Разгрузка из CRM') {
         copy['title'] = 'Разгрузка склада';
@@ -834,11 +1007,23 @@ class Bitrix24Service {
       if (isCrm &&
           copy['title'] == 'Разгрузка склада' &&
           copy['address'] == 'ул. Складская, 18') {
-        copy['external_order_id'] = 'CRM-DEMO-1001';
-        if (seenDemoCrmOrderIds.contains('CRM-DEMO-1001')) {
+        copy['id'] = '14096/26';
+        copy['external_order_id'] = '14096/26';
+        copy['title'] = 'Заявка № 14096/26';
+      }
+
+      final normalizedExternalOrderId = _crmOrderNumber(copy);
+      if (isCrm && normalizedExternalOrderId.isNotEmpty) {
+        if (!_isValidCrmOrderNumber(normalizedExternalOrderId)) {
           continue;
         }
-        seenDemoCrmOrderIds.add('CRM-DEMO-1001');
+        copy['id'] = normalizedExternalOrderId;
+        copy['external_order_id'] = normalizedExternalOrderId;
+        copy['title'] = 'Заявка № $normalizedExternalOrderId';
+        if (seenDemoCrmOrderIds.contains(normalizedExternalOrderId)) {
+          continue;
+        }
+        seenDemoCrmOrderIds.add(normalizedExternalOrderId);
       }
 
       normalizedOrders.add(copy);

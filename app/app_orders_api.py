@@ -112,7 +112,8 @@ def normalize_crm_order(payload: dict[str, Any]) -> dict[str, Any]:
         "address_lat": info.get("address_lat") or 0,
         "address_lon": info.get("address_lon") or 0,
         "crm_payload": payload,
-        "status": "new",
+        "status": "NEW",
+        "created_at": completion_date.get("date"),
         "assigned_worker_ids": [],
         "applications": [],
     }

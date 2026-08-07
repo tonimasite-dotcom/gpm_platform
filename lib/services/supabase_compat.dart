@@ -110,6 +110,8 @@ class QueryBuilder {
                 'hours': o['hours'] ?? 1,
                 'description': o['description'] ?? '',
                 'created_at': o['created_at'],
+                'source': o['source'],
+                'external_order_id': o['external_order_id'],
               })
           .toList();
 

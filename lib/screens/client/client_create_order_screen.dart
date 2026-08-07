@@ -51,7 +51,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   int _hours = 4;
   int _workersCount = 2;
   bool _isRussianCitizenshipRequired = true;
-  String _workMode = 'shift';
+  String _workMode = 'rate';
   String _workerCategory = 'loader';
   bool _isLoading = false;
   bool _isAddressLookupLoading = false;
@@ -365,7 +365,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         _hours = 4;
         _workersCount = 2;
         _isRussianCitizenshipRequired = true;
-        _workMode = 'shift';
+        _workMode = 'rate';
         _workerCategory = 'loader';
         _selectedAddress = null;
         _addressCandidates = const [];
@@ -462,8 +462,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   hintText: 'Например: 12724/26',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    _requiredText(value, 'Укажите номер заказа'),
+                validator: widget.publishImmediately
+                    ? (value) => _requiredText(value, 'Укажите номер заказа')
+                    : null,
               ),
               const SizedBox(height: 12),
               TextButton.icon(
