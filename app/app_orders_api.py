@@ -105,6 +105,7 @@ def normalize_crm_order(payload: dict[str, Any]) -> dict[str, Any]:
         "work_mode": order_data.get("work_mode", "rate"),
         "shift_description": order_data.get("shift_description"),
         "telegram_username": str(payload.get("telegram_username") or "").replace("@", ""),
+        "logist_phone": str(payload.get("logist_phone") or ""),
         "timezone": order_data.get("timezone", "Europe/Moscow"),
         "additional_info": additional,
         "address_street": info.get("address_street") or address,

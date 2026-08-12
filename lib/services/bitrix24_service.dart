@@ -468,8 +468,24 @@ class Bitrix24Service {
     if (existingIndex == -1) {
       _demoOrders.insert(0, normalized);
     } else {
+      final existing = _demoOrders[existingIndex];
+      final existingStatus = _stringValue(existing['status']);
+      final incomingStatus = _stringValue(normalized['status']);
+      if (existingStatus.isNotEmpty &&
+          existingStatus != 'NEW' &&
+          incomingStatus == 'NEW') {
+        normalized['status'] = existingStatus;
+      }
+
+      final existingAssignedWorkerIds = _assignedWorkerIds(existing);
+      final incomingAssignedWorkerIds = _assignedWorkerIds(normalized);
+      if (existingAssignedWorkerIds.isNotEmpty &&
+          incomingAssignedWorkerIds.isEmpty) {
+        normalized['assigned_worker_ids'] = existingAssignedWorkerIds;
+      }
+
       _demoOrders[existingIndex] = {
-        ..._demoOrders[existingIndex],
+        ...existing,
         ...normalized,
       };
     }

@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show bitrix24;
+import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
 import '../client/client_create_order_screen.dart';
 
@@ -12,6 +15,8 @@ class LogistOrdersScreen extends StatefulWidget {
 }
 
 class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
+  static const _profileStorageKey = 'gpm.logist.profile.v1';
+
   String _selectedFilter = 'Все';
   late Future<List<Map<String, dynamic>>> _ordersFuture;
 
@@ -23,9 +28,12 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
 
   Future<List<Map<String, dynamic>>> _loadOrders() async {
     final orders = await bitrix24.getOrders();
+    final currentLogistPhone = _currentLogistPhone();
     final result = <Map<String, dynamic>>[];
 
     for (final order in orders) {
+      if (!_isVisibleForCurrentLogist(order, currentLogistPhone)) continue;
+
       final applications = await bitrix24.getApplicationsForOrder(
         order['id'].toString(),
       );
@@ -45,6 +53,35 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
           ),
     );
     return result;
+  }
+
+  String _currentLogistPhone() {
+    final raw = readDemoValue(_profileStorageKey);
+    if (raw == null || raw.isEmpty) return '';
+
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      return _phoneDigits(data['phone']);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  bool _isVisibleForCurrentLogist(
+    Map<String, dynamic> order,
+    String currentLogistPhone,
+  ) {
+    if (order['status'] != 'NEW') return true;
+
+    final orderLogistPhone = _phoneDigits(order['logist_phone']);
+    if (orderLogistPhone.isEmpty) return true;
+
+    return currentLogistPhone.isNotEmpty &&
+        orderLogistPhone == currentLogistPhone;
+  }
+
+  String _phoneDigits(dynamic value) {
+    return value?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
   }
 
   void _refresh() {
