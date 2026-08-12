@@ -108,25 +108,6 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
     }
   }
 
-  Future<void> _createDemoCrmOrder() async {
-    final result = await bitrix24.createDemoCrmOrder();
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result['success'] == true
-              ? 'CRM-заявка получена и отправлена на модерацию'
-              : result['error']?.toString() ?? 'Не удалось принять CRM-заявку',
-        ),
-        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
-      ),
-    );
-
-    if (result['success'] == true) {
-      _refresh();
-    }
-  }
 
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> orders) {
     if (_selectedFilter == 'Все') return orders;
@@ -148,14 +129,6 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
                   onPressed: _openCreateOrder,
                   icon: const Icon(Icons.add),
                   label: const Text('Создать'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _createDemoCrmOrder,
-                  icon: const Icon(Icons.cloud_download_outlined),
-                  label: const Text('Из CRM'),
                 ),
               ),
             ],
