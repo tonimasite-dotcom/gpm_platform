@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../main.dart' show bitrix24;
 import '../../services/bitrix24_service.dart';
@@ -174,6 +175,23 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     'Тип занятости',
                     isState ? 'Штатный' : 'Подрядчик',
                   ),
+                  const SizedBox(height: 8),
+                  _WorkerAddressFields(
+                    profile: profile,
+                    onSave: (data) => _updateProfile(profile, data),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _Section(
+                title: 'Выплаты',
+                children: [
+                  _WorkerPayoutFields(
+                    key: ValueKey(hasInn),
+                    profile: profile,
+                    isSelfEmployed: hasInn,
+                    onSave: (data) => _updateProfile(profile, data),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -199,25 +217,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     title: 'Инструменты',
                     value: tools['tools'] == true ? 'Есть' : 'Нет',
                     isOk: tools['tools'] == true,
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    initialValue: profile['card_last4']?.toString() ?? '',
-                    decoration: const InputDecoration(
-                      labelText: 'Карта для выплат',
-                      prefixText: '**** **** **** ',
-                      prefixStyle: TextStyle(letterSpacing: 2),
-                      border: OutlineInputBorder(),
-                      counterText: '',
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 4,
-                    onChanged: (value) {
-                      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-                      if (digits.length == 4) {
-                        _updateProfile(profile, {'card_last4': digits});
-                      }
-                    },
                   ),
                 ],
               ),
@@ -319,6 +318,281 @@ class _Section extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WorkerAddressFields extends StatefulWidget {
+  final Map<String, dynamic> profile;
+  final ValueChanged<Map<String, dynamic>> onSave;
+
+  const _WorkerAddressFields({
+    required this.profile,
+    required this.onSave,
+  });
+
+  @override
+  State<_WorkerAddressFields> createState() => _WorkerAddressFieldsState();
+}
+
+class _WorkerAddressFieldsState extends State<_WorkerAddressFields> {
+  late final TextEditingController _cityController;
+  late final TextEditingController _streetController;
+  late final TextEditingController _houseController;
+  late final TextEditingController _apartmentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cityController = TextEditingController(
+      text: widget.profile['address_city']?.toString() ?? '',
+    );
+    _streetController = TextEditingController(
+      text: widget.profile['address_street']?.toString() ?? '',
+    );
+    _houseController = TextEditingController(
+      text: widget.profile['address_house']?.toString() ?? '',
+    );
+    _apartmentController = TextEditingController(
+      text: widget.profile['address_apartment']?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _cityController.dispose();
+    _streetController.dispose();
+    _houseController.dispose();
+    _apartmentController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    widget.onSave({
+      'address_city': _cityController.text.trim(),
+      'address_street': _streetController.text.trim(),
+      'address_house': _houseController.text.trim(),
+      'address_apartment': _apartmentController.text.trim(),
+      'address': [
+        _cityController.text.trim(),
+        _streetController.text.trim(),
+        if (_houseController.text.trim().isNotEmpty)
+          'д. ${_houseController.text.trim()}',
+        if (_apartmentController.text.trim().isNotEmpty)
+          'кв./офис ${_apartmentController.text.trim()}',
+      ].where((part) => part.isNotEmpty).join(', '),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Адрес',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _cityController,
+          decoration: const InputDecoration(
+            labelText: 'Город',
+            hintText: 'Москва',
+            border: OutlineInputBorder(),
+          ),
+          textInputAction: TextInputAction.next,
+          onEditingComplete: _save,
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _streetController,
+          decoration: const InputDecoration(
+            labelText: 'Улица',
+            hintText: 'Ленинградский проспект',
+            border: OutlineInputBorder(),
+          ),
+          textInputAction: TextInputAction.next,
+          onEditingComplete: _save,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _houseController,
+                decoration: const InputDecoration(
+                  labelText: 'Дом',
+                  hintText: '10',
+                  border: OutlineInputBorder(),
+                ),
+                textInputAction: TextInputAction.next,
+                onEditingComplete: _save,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                controller: _apartmentController,
+                decoration: const InputDecoration(
+                  labelText: 'Кв./офис',
+                  hintText: '25',
+                  border: OutlineInputBorder(),
+                ),
+                textInputAction: TextInputAction.done,
+                onEditingComplete: _save,
+                onFieldSubmitted: (_) => _save(),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _WorkerPayoutFields extends StatefulWidget {
+  final Map<String, dynamic> profile;
+  final bool isSelfEmployed;
+  final ValueChanged<Map<String, dynamic>> onSave;
+
+  const _WorkerPayoutFields({
+    super.key,
+    required this.profile,
+    required this.isSelfEmployed,
+    required this.onSave,
+  });
+
+  @override
+  State<_WorkerPayoutFields> createState() => _WorkerPayoutFieldsState();
+}
+
+class _WorkerPayoutFieldsState extends State<_WorkerPayoutFields> {
+  late String _method;
+
+  @override
+  void initState() {
+    super.initState();
+    final savedMethod = widget.profile['payout_method']?.toString();
+    if (!widget.isSelfEmployed) {
+      _method = 'card';
+    } else {
+      _method = savedMethod == 'card' || savedMethod == 'account'
+          ? savedMethod!
+          : 'account';
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkerPayoutFields oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isSelfEmployed && _method != 'card') {
+      _method = 'card';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onSave({'payout_method': 'card'});
+      });
+    }
+  }
+
+  void _selectMethod(String method) {
+    if (method == 'account' && !widget.isSelfEmployed) return;
+    setState(() => _method = method);
+    widget.onSave({'payout_method': method});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAccount = widget.isSelfEmployed && _method == 'account';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          widget.isSelfEmployed
+              ? 'Самозанятым по умолчанию выбрана выплата по счету.'
+              : 'Счет для выплат доступен после подтверждения самозанятости.',
+          style: TextStyle(color: Colors.grey[700], fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        if (widget.isSelfEmployed) ...[
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'account',
+                icon: Icon(Icons.account_balance),
+                label: Text('Счет'),
+              ),
+              ButtonSegment(
+                value: 'card',
+                icon: Icon(Icons.credit_card),
+                label: Text('Карта'),
+              ),
+            ],
+            selected: {_method},
+            onSelectionChanged: (selection) => _selectMethod(selection.first),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (isAccount) ...[
+          TextFormField(
+            initialValue: widget.profile['payout_account']?.toString() ?? '',
+            decoration: const InputDecoration(
+              labelText: 'Счет для выплат',
+              hintText: '20 цифр',
+              border: OutlineInputBorder(),
+              counterText: '',
+            ),
+            keyboardType: TextInputType.number,
+            maxLength: 20,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (value) {
+              final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.length == 20) {
+                widget.onSave({'payout_account': digits});
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            initialValue: widget.profile['payout_bik']?.toString() ?? '',
+            decoration: const InputDecoration(
+              labelText: 'БИК банка',
+              hintText: '9 цифр',
+              border: OutlineInputBorder(),
+              counterText: '',
+            ),
+            keyboardType: TextInputType.number,
+            maxLength: 9,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (value) {
+              final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.length == 9) {
+                widget.onSave({'payout_bik': digits});
+              }
+            },
+          ),
+        ] else ...[
+          TextFormField(
+            initialValue: widget.profile['card_last4']?.toString() ?? '',
+            decoration: const InputDecoration(
+              labelText: 'Карта для выплат',
+              prefixText: '**** **** **** ',
+              prefixStyle: TextStyle(letterSpacing: 2),
+              border: OutlineInputBorder(),
+              counterText: '',
+            ),
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (value) {
+              final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.length == 4) {
+                widget.onSave({'card_last4': digits});
+              }
+            },
+          ),
+        ],
+      ],
     );
   }
 }

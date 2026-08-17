@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../main.dart' show bitrix24;
+import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
 
 class ClientCreateOrderScreen extends StatefulWidget {
@@ -31,28 +32,22 @@ class ClientCreateOrderScreen extends StatefulWidget {
 class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   final _formKey = GlobalKey<FormState>();
   final _cityController = TextEditingController(text: 'Москва');
-  final _telegramUsernameController = TextEditingController();
-  final _timezoneController = TextEditingController(text: 'Europe/Moscow');
-  final _orderNumberController = TextEditingController();
+  final _dateController = TextEditingController();
+  final _timeController = TextEditingController();
   final _addressController = TextEditingController();
   final _addressFocusNode = FocusNode();
   final _metroController = TextEditingController();
-  final _additionalInfoController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _shiftDescriptionController = TextEditingController();
-  final _regularRateController = TextEditingController(text: '450');
-  final _freeScheduleRateController = TextEditingController(text: '450');
-  final _workerRateController = TextEditingController(text: '400');
-  final _minPayController = TextEditingController(text: '4');
-  final _individualPriceController = TextEditingController();
-  final _legalPriceController = TextEditingController();
+  final _cargoTypeController = TextEditingController();
+  final _cargoWeightController = TextEditingController();
+  final _floorController = TextEditingController();
+  final _priceController = TextEditingController();
   Timer? _addressLookupTimer;
-  DateTime? _dateTime;
   int _hours = 4;
   int _workersCount = 2;
   bool _isRussianCitizenshipRequired = true;
-  String _workMode = 'rate';
+  bool _hasElevator = true;
   String _workerCategory = 'loader';
+  String _clientType = 'individual';
   bool _isLoading = false;
   bool _isAddressLookupLoading = false;
   List<_AddressCandidate> _addressCandidates = const [];
@@ -60,43 +55,50 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   String? _addressLookupError;
 
   @override
+  void initState() {
+    super.initState();
+    _loadClientType();
+  }
+
+  @override
   void dispose() {
     _cityController.dispose();
-    _telegramUsernameController.dispose();
-    _timezoneController.dispose();
-    _orderNumberController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
     _addressController.dispose();
     _addressFocusNode.dispose();
     _metroController.dispose();
-    _additionalInfoController.dispose();
-    _descriptionController.dispose();
-    _shiftDescriptionController.dispose();
-    _regularRateController.dispose();
-    _freeScheduleRateController.dispose();
-    _workerRateController.dispose();
-    _minPayController.dispose();
-    _individualPriceController.dispose();
-    _legalPriceController.dispose();
+    _cargoTypeController.dispose();
+    _cargoWeightController.dispose();
+    _floorController.dispose();
+    _priceController.dispose();
     super.dispose();
+  }
+
+  void _loadClientType() {
+    final raw = readDemoValue('gpm.client.profile.v1');
+    if (raw == null) return;
+
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final type = data['client_type']?.toString();
+      if (type == 'legal' || type == 'individual') {
+        _clientType = type!;
+      }
+    } catch (_) {
+      _clientType = 'individual';
+    }
   }
 
   String? _requiredText(String? value, String message) {
     return value == null || value.trim().isEmpty ? message : null;
   }
 
-  String? _requiredPositiveInt(String? value, String message) {
-    final parsed = int.tryParse(value?.trim() ?? '');
-    return parsed == null || parsed <= 0 ? message : null;
-  }
-
-  int _requiredInt(TextEditingController controller) {
-    return int.parse(controller.text.trim());
-  }
-
-  int? _optionalInt(TextEditingController controller) {
+  int? _optionalPositiveInt(TextEditingController controller) {
     final text = controller.text.trim();
     if (text.isEmpty) return null;
-    return int.tryParse(text);
+    final parsed = int.tryParse(text);
+    return parsed == null || parsed < 0 ? null : parsed;
   }
 
   String? _optionalPrice(String? value) {
@@ -227,39 +229,67 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         .take(8);
   }
 
-  Future<void> _pickDateTime() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 30)),
-    );
-    if (date == null || !mounted) return;
+  DateTime? _parseScheduledAt() {
+    final dateParts = _dateController.text.trim().split('.');
+    final timeParts = _timeController.text.trim().split(':');
+    if (dateParts.length != 3 || timeParts.length != 2) return null;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 2))),
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
-        );
-      },
-    );
-    if (time == null) return;
+    final day = int.tryParse(dateParts[0]);
+    final month = int.tryParse(dateParts[1]);
+    final year = int.tryParse(dateParts[2]);
+    final hour = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+    if (day == null ||
+        month == null ||
+        year == null ||
+        hour == null ||
+        minute == null ||
+        hour > 23 ||
+        minute > 59) {
+      return null;
+    }
 
-    setState(() {
-      _dateTime =
-          DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    });
+    final parsed = DateTime(year, month, day, hour, minute);
+    if (parsed.day != day || parsed.month != month || parsed.year != year) {
+      return null;
+    }
+    return parsed;
+  }
+
+  String? _validateDate(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Укажите дату';
+    return _parseScheduledAt() == null ? 'Формат даты: 18.08.2026' : null;
+  }
+
+  String? _validateTime(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Укажите время';
+    return _parseScheduledAt() == null ? 'Формат времени: 14:30' : null;
+  }
+
+  String _buildDescription() {
+    return [
+      'Вид груза: ${_cargoTypeController.text.trim()}',
+      if (_cargoWeightController.text.trim().isNotEmpty)
+        'Вес: ${_cargoWeightController.text.trim()} кг',
+      if (_floorController.text.trim().isNotEmpty)
+        'Этаж: ${_floorController.text.trim()}',
+      'Лифт: ${_hasElevator ? 'есть' : 'нет'}',
+    ].join('\n');
+  }
+
+  int get _recommendedPrice {
+    final baseRate = _clientType == 'legal' ? 650 : 550;
+    return _workersCount * _hours * baseRate;
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _dateTime == null) {
+    final scheduledAt = _parseScheduledAt();
+    if (!_formKey.currentState!.validate() || scheduledAt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Заполните поля и выберите дату/время'),
+          content: Text('Заполните поля, дату и время'),
         ),
       );
       return;
@@ -270,43 +300,28 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     });
 
     try {
-      final orderNumber = _orderNumberController.text.trim();
-      final firstLine = _descriptionController.text.split('\n').first.trim();
+      final cargoType = _cargoTypeController.text.trim();
+      final price = _optionalPositiveInt(_priceController);
       final result = await bitrix24.createOrder(
-        title: orderNumber.isEmpty
-            ? (firstLine.isEmpty ? 'Заказ грузчиков' : firstLine)
-            : 'Заявка № $orderNumber',
-        description: _descriptionController.text.trim(),
+        title: cargoType.isEmpty ? 'Заказ грузчиков' : cargoType,
+        description: _buildDescription(),
         address: _addressController.text.trim(),
         hours: _hours,
         workersCount: _workersCount,
         clientEmail: 'client@gpm.ru',
         clientPhone: '',
-        scheduledAt: _dateTime!.toUtc().toIso8601String(),
+        scheduledAt: scheduledAt.toUtc().toIso8601String(),
         city: _cityController.text.trim(),
         source: widget.publishImmediately ? 'crm' : 'manual',
-        externalOrderId: orderNumber.isEmpty ? null : orderNumber,
         metro: _metroController.text.trim(),
         national: _isRussianCitizenshipRequired ? 'yes' : 'every',
-        minTime: _workMode == 'rate' ? _requiredInt(_minPayController) : null,
-        pricePerHour:
-            _workMode == 'rate' ? _requiredInt(_workerRateController) : null,
-        priceRegular:
-            _workMode == 'rate' ? _requiredInt(_regularRateController) : null,
-        priceState: _workMode == 'rate'
-            ? _requiredInt(_freeScheduleRateController)
-            : null,
-        individualPrice: _optionalInt(_individualPriceController),
-        legalPrice: _optionalInt(_legalPriceController),
+        minTime: _hours,
+        individualPrice: _clientType == 'individual' ? price : null,
+        legalPrice: _clientType == 'legal' ? price : null,
         nationality: _isRussianCitizenshipRequired ? 'ru' : 'any',
         workerCategory: _workerCategory,
-        workMode: _workMode,
-        shiftDescription: _workMode == 'shift'
-            ? _shiftDescriptionController.text.trim()
-            : null,
-        telegramUsername: _telegramUsernameController.text.trim(),
-        timezone: _timezoneController.text.trim(),
-        additionalInfo: _additionalInfoController.text.trim(),
+        workMode: 'rate',
+        timezone: 'Europe/Moscow',
         addressStreet:
             _selectedAddress?.street ?? _addressController.text.trim(),
         addressNumber: _selectedAddress?.houseNumber,
@@ -347,25 +362,18 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
       _addressController.clear();
       _cityController.text = 'Москва';
-      _telegramUsernameController.clear();
-      _timezoneController.text = 'Europe/Moscow';
-      _orderNumberController.clear();
+      _dateController.clear();
+      _timeController.clear();
       _metroController.clear();
-      _additionalInfoController.clear();
-      _descriptionController.clear();
-      _shiftDescriptionController.clear();
-      _regularRateController.text = '450';
-      _freeScheduleRateController.text = '450';
-      _workerRateController.text = '400';
-      _minPayController.text = '4';
-      _individualPriceController.clear();
-      _legalPriceController.clear();
+      _cargoTypeController.clear();
+      _cargoWeightController.clear();
+      _floorController.clear();
+      _priceController.clear();
       setState(() {
-        _dateTime = null;
         _hours = 4;
         _workersCount = 2;
         _isRussianCitizenshipRequired = true;
-        _workMode = 'rate';
+        _hasElevator = true;
         _workerCategory = 'loader';
         _selectedAddress = null;
         _addressCandidates = const [];
@@ -425,7 +433,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Оставьте заявку: укажите время, адрес и задачу. Логист проверит заказ и передаст его исполнителям.',
+                      'Оставьте заявку: укажите время, адрес, груз и бюджет.',
                     ),
                   ],
                 ),
@@ -440,53 +448,86 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 validator: (value) => _requiredText(value, 'Укажите город'),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _telegramUsernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Telegram username оператора',
-                  hintText: 'Например: logist_gpm',
-                  border: OutlineInputBorder(),
-                ),
-                validator: widget.publishImmediately
-                    ? (value) => _requiredText(
-                          value,
-                          'Укажите Telegram username оператора',
-                        )
-                    : null,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _dateController,
+                      keyboardType: TextInputType.datetime,
+                      decoration: const InputDecoration(
+                        labelText: 'Дата',
+                        hintText: '18.08.2026',
+                        prefixIcon: Icon(Icons.calendar_today),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: _validateDate,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _timeController,
+                      keyboardType: TextInputType.datetime,
+                      decoration: const InputDecoration(
+                        labelText: 'Время',
+                        hintText: '14:30',
+                        prefixIcon: Icon(Icons.schedule),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: _validateTime,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Формат: дата ДД.ММ.ГГГГ, время 24 часа.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
               TextFormField(
-                controller: _orderNumberController,
+                controller: _cargoTypeController,
                 decoration: const InputDecoration(
-                  labelText: 'Номер заказа',
-                  hintText: 'Например: 12724/26',
+                  labelText: 'Вид груза',
+                  hintText: 'Например: мебель, техника, коробки',
                   border: OutlineInputBorder(),
                 ),
-                validator: widget.publishImmediately
-                    ? (value) => _requiredText(value, 'Укажите номер заказа')
-                    : null,
+                validator: (value) => _requiredText(value, 'Укажите вид груза'),
               ),
               const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: _pickDateTime,
-                icon: const Icon(Icons.calendar_today),
-                label: Text(
-                  _dateTime == null
-                      ? 'Выбрать дату и время'
-                      : 'Дата: ${_dateTime!.day.toString().padLeft(2, '0')}.${_dateTime!.month.toString().padLeft(2, '0')} '
-                          '${_dateTime!.hour.toString().padLeft(2, '0')}:${_dateTime!.minute.toString().padLeft(2, '0')}',
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cargoWeightController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Вес, кг',
+                        hintText: 'Например: 300',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _floorController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Этаж',
+                        hintText: 'Например: 4',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _timezoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Часовой пояс',
-                  hintText: 'Europe/Moscow',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) =>
-                    _requiredText(value, 'Укажите часовой пояс'),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Есть лифт'),
+                value: _hasElevator,
+                onChanged: (value) => setState(() => _hasElevator = value),
               ),
               const SizedBox(height: 12),
               Row(
@@ -634,17 +675,6 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 validator: (value) => _requiredText(value, 'Укажите метро'),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _additionalInfoController,
-                minLines: 2,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Доп. информация CRM',
-                  hintText: 'Например: Только РФ, нужен пропуск, склад 3',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
               const Text(
                 'Гражданство РФ:',
                 style: TextStyle(fontWeight: FontWeight.w600),
@@ -660,21 +690,6 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     setState(
                   () => _isRussianCitizenshipRequired = selection.first,
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Режим работы:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'shift', label: Text('Смена')),
-                  ButtonSegment(value: 'rate', label: Text('Ставка')),
-                ],
-                selected: {_workMode},
-                onSelectionChanged: (selection) =>
-                    setState(() => _workMode = selection.first),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -706,116 +721,11 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
               ),
               const SizedBox(height: 12),
               _ClientPriceSection(
-                individualController: _individualPriceController,
-                legalController: _legalPriceController,
+                clientType: _clientType,
+                controller: _priceController,
                 validatePrice: _optionalPrice,
+                recommendedPrice: _recommendedPrice,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Характер работы',
-                  hintText:
-                      'Например: разгрузка машины с оргтехникой. Общий вес - 300 кг...',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) =>
-                    _requiredText(value, 'Опишите характер работы'),
-              ),
-              if (_workMode == 'shift') ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _shiftDescriptionController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Описание смены',
-                    hintText:
-                        'Например: Ночная смена 22:00-06:00, 5000 руб за смену',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) => _workMode == 'shift'
-                      ? _requiredText(value, 'Опишите смену')
-                      : null,
-                ),
-              ] else ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _regularRateController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Ставка штат. пост.',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) => _workMode == 'rate'
-                            ? _requiredPositiveInt(
-                                value,
-                                'Укажите ставку',
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _freeScheduleRateController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Ставка штат. своб.',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) => _workMode == 'rate'
-                            ? _requiredPositiveInt(
-                                value,
-                                'Укажите ставку',
-                              )
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _workerRateController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Ставка наемник',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) => _workMode == 'rate'
-                            ? _requiredPositiveInt(
-                                value,
-                                'Укажите ставку',
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _minPayController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Мин. оплата, ч',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) => _workMode == 'rate'
-                            ? _requiredPositiveInt(
-                                value,
-                                'Укажите часы',
-                              )
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
@@ -843,14 +753,16 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 }
 
 class _ClientPriceSection extends StatelessWidget {
-  final TextEditingController individualController;
-  final TextEditingController legalController;
+  final String clientType;
+  final TextEditingController controller;
   final FormFieldValidator<String> validatePrice;
+  final int recommendedPrice;
 
   const _ClientPriceSection({
-    required this.individualController,
-    required this.legalController,
+    required this.clientType,
+    required this.controller,
     required this.validatePrice,
+    required this.recommendedPrice,
   });
 
   @override
@@ -879,21 +791,18 @@ class _ClientPriceSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: individualController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Стоимость для физлиц, ₽',
-                border: OutlineInputBorder(),
-              ),
-              validator: validatePrice,
+            Text(
+              'Рекомендация: от $recommendedPrice ₽',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
             TextFormField(
-              controller: legalController,
+              controller: controller,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Стоимость для юрлиц, ₽',
+              decoration: InputDecoration(
+                labelText:
+                    clientType == 'legal' ? 'Бюджет по счету, ₽' : 'Бюджет к оплате, ₽',
+                hintText: recommendedPrice.toString(),
                 border: OutlineInputBorder(),
               ),
               validator: validatePrice,

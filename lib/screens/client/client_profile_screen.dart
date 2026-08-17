@@ -19,15 +19,21 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   final _nameController = TextEditingController();
   final _companyController = TextEditingController();
   final _innController = TextEditingController();
+  final _kppController = TextEditingController();
+  final _ogrnController = TextEditingController();
   final _contactController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
-  final _commentController = TextEditingController();
+  final _legalAddressController = TextEditingController();
+  final _checkingAccountController = TextEditingController();
+  final _bankController = TextEditingController();
+  final _bikController = TextEditingController();
+  final _correspondentAccountController = TextEditingController();
+  final _documentsEmailController = TextEditingController();
 
   String _clientType = 'individual';
   String _paymentType = 'card';
-  bool _notifyByTelegram = true;
   bool _profileLoaded = false;
 
   @override
@@ -41,11 +47,18 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     _nameController.dispose();
     _companyController.dispose();
     _innController.dispose();
+    _kppController.dispose();
+    _ogrnController.dispose();
     _contactController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
-    _commentController.dispose();
+    _legalAddressController.dispose();
+    _checkingAccountController.dispose();
+    _bankController.dispose();
+    _bikController.dispose();
+    _correspondentAccountController.dispose();
+    _documentsEmailController.dispose();
     super.dispose();
   }
 
@@ -55,15 +68,29 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       final data = jsonDecode(raw) as Map<String, dynamic>;
       _clientType = data['client_type']?.toString() ?? _clientType;
       _paymentType = data['payment_type']?.toString() ?? _paymentType;
-      _notifyByTelegram = data['notify_by_telegram'] == true;
+      if (_clientType == 'legal') {
+        _paymentType = 'invoice';
+      } else if (_paymentType == 'invoice') {
+        _paymentType = 'card';
+      }
       _nameController.text = data['name']?.toString() ?? '';
       _companyController.text = data['company']?.toString() ?? '';
       _innController.text = data['inn']?.toString() ?? '';
+      _kppController.text = data['kpp']?.toString() ?? '';
+      _ogrnController.text = data['ogrn']?.toString() ?? '';
       _contactController.text = data['contact']?.toString() ?? '';
       _phoneController.text = data['phone']?.toString() ?? '';
       _emailController.text = data['email']?.toString() ?? '';
       _addressController.text = data['address']?.toString() ?? '';
-      _commentController.text = data['comment']?.toString() ?? '';
+      _legalAddressController.text = data['legal_address']?.toString() ?? '';
+      _checkingAccountController.text =
+          data['checking_account']?.toString() ?? '';
+      _bankController.text = data['bank']?.toString() ?? '';
+      _bikController.text = data['bik']?.toString() ?? '';
+      _correspondentAccountController.text =
+          data['correspondent_account']?.toString() ?? '';
+      _documentsEmailController.text =
+          data['documents_email']?.toString() ?? '';
     }
     setState(() => _profileLoaded = true);
   }
@@ -76,15 +103,21 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       jsonEncode({
         'client_type': _clientType,
         'payment_type': _paymentType,
-        'notify_by_telegram': _notifyByTelegram,
         'name': _nameController.text.trim(),
         'company': _companyController.text.trim(),
         'inn': _innController.text.trim(),
+        'kpp': _kppController.text.trim(),
+        'ogrn': _ogrnController.text.trim(),
         'contact': _contactController.text.trim(),
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
         'address': _addressController.text.trim(),
-        'comment': _commentController.text.trim(),
+        'legal_address': _legalAddressController.text.trim(),
+        'checking_account': _checkingAccountController.text.trim(),
+        'bank': _bankController.text.trim(),
+        'bik': _bikController.text.trim(),
+        'correspondent_account': _correspondentAccountController.text.trim(),
+        'documents_email': _documentsEmailController.text.trim(),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }),
     );
@@ -96,6 +129,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   String? _required(String? value, String message) {
     return value == null || value.trim().isEmpty ? message : null;
+  }
+
+  void _showSupportMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Поддержка 24/7 скоро будет доступна')),
+    );
   }
 
   @override
@@ -143,7 +182,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 ],
                 selected: {_clientType},
                 onSelectionChanged: (selection) {
-                  setState(() => _clientType = selection.first);
+                  setState(() {
+                    _clientType = selection.first;
+                    _paymentType = _clientType == 'legal' ? 'invoice' : 'card';
+                  });
                 },
               ),
               const SizedBox(height: 16),
@@ -166,6 +208,25 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) => _required(value, 'Укажите ИНН'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _kppController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'КПП',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => _required(value, 'Укажите КПП'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _ogrnController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'ОГРН',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 12),
               ] else ...[
@@ -221,35 +282,103 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               ),
               const SizedBox(height: 8),
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'card', label: Text('Карта')),
-                  ButtonSegment(value: 'cash', label: Text('Наличные')),
-                  ButtonSegment(value: 'invoice', label: Text('Счет')),
-                ],
+                segments: isLegal
+                    ? const [
+                        ButtonSegment(
+                          value: 'invoice',
+                          icon: Icon(Icons.receipt_long_outlined),
+                          label: Text('Счет'),
+                        ),
+                      ]
+                    : const [
+                        ButtonSegment(
+                          value: 'card',
+                          icon: Icon(Icons.credit_card),
+                          label: Text('Карта'),
+                        ),
+                        ButtonSegment(
+                          value: 'cash',
+                          icon: Icon(Icons.payments_outlined),
+                          label: Text('Наличные'),
+                        ),
+                      ],
                 selected: {_paymentType},
                 onSelectionChanged: (selection) {
                   setState(() => _paymentType = selection.first);
                 },
               ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Уведомлять в Telegram'),
-                value: _notifyByTelegram,
-                onChanged: (value) {
-                  setState(() => _notifyByTelegram = value);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _commentController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Комментарий для логиста',
-                  border: OutlineInputBorder(),
+              if (isLegal) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Реквизиты для счета',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-              ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _legalAddressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Юридический адрес',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      _required(value, 'Укажите юридический адрес'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _checkingAccountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Расчетный счет',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      _required(value, 'Укажите расчетный счет'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _bankController,
+                  decoration: const InputDecoration(
+                    labelText: 'Банк',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => _required(value, 'Укажите банк'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _bikController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'БИК',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => _required(value, 'Укажите БИК'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _correspondentAccountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Корреспондентский счет',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _documentsEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email для документов',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: _showSupportMessage,
+                icon: const Icon(Icons.support_agent),
+                label: const Text('Обратиться в поддержку 24/7'),
+              ),
+              const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _saveProfile,
                 icon: const Icon(Icons.save_outlined),

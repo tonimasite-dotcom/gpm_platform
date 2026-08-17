@@ -19,7 +19,7 @@ class ChatThreadsScreen extends StatefulWidget {
 }
 
 class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
-  late Future<List<ChatThread>> _threadsFuture;
+  late Future<_ThreadsData> _threadsFuture;
   _ThreadFilter _filter = _ThreadFilter.all;
 
   @override
@@ -28,14 +28,20 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
     _threadsFuture = _loadThreads();
   }
 
-  Future<List<ChatThread>> _loadThreads() async {
+  Future<_ThreadsData> _loadThreads() async {
     final orders = widget.role == ChatRole.worker
         ? await bitrix24.getOrdersForWorker(Bitrix24Service.demoWorkerId)
         : await bitrix24.getOrders();
 
-    return chatService.getThreadsForRole(
+    final threads = await chatService.getThreadsForRole(
       role: widget.role,
       orders: orders,
+    );
+    return _ThreadsData(
+      threads: threads,
+      ordersById: {
+        for (final order in orders) order['id'].toString(): order,
+      },
     );
   }
 
@@ -47,7 +53,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<ChatThread>>(
+    return FutureBuilder<_ThreadsData>(
       future: _threadsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -59,7 +65,8 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
               child: Text('Ошибка загрузки чатов: ${snapshot.error}'));
         }
 
-        final threads = snapshot.data ?? [];
+        final data = snapshot.data ?? const _ThreadsData();
+        final threads = data.threads;
         final visibleThreads = _applyFilter(threads);
         if (threads.isEmpty) {
           return RefreshIndicator(
@@ -95,6 +102,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
               ],
               _ChatFilters(
                 selected: _filter,
+                role: widget.role,
                 threads: threads,
                 onSelected: (filter) => setState(() => _filter = filter),
               ),
@@ -105,6 +113,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
                 ...visibleThreads.map(
                   (thread) => _ThreadCard(
                     thread: thread,
+                    order: data.ordersById[thread.orderId],
                     role: widget.role,
                     onTap: () async {
                       await Navigator.push(
@@ -130,10 +139,18 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   List<ChatThread> _applyFilter(List<ChatThread> threads) {
     return switch (_filter) {
       _ThreadFilter.all => threads,
-      _ThreadFilter.unread =>
-        threads.where((thread) => thread.unreadCount > 0).toList(),
-      _ThreadFilter.active =>
-        threads.where((thread) => !thread.isArchived).toList(),
+      _ThreadFilter.attention => threads
+          .where((thread) =>
+              thread.requiresLogistAttention || thread.unreadCount > 0)
+          .toList(),
+      _ThreadFilter.orders => threads
+          .where((thread) =>
+              thread.type == ChatThreadType.clientLogist ||
+              thread.type == ChatThreadType.workerLogist ||
+              thread.type == ChatThreadType.clientWorker)
+          .toList(),
+      _ThreadFilter.support =>
+        threads.where((thread) => thread.type == ChatThreadType.support).toList(),
       _ThreadFilter.archived =>
         threads.where((thread) => thread.isArchived).toList(),
     };
@@ -152,27 +169,50 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
 enum _ThreadFilter {
   all,
-  unread,
-  active,
+  attention,
+  orders,
+  support,
   archived,
+}
+
+class _ThreadsData {
+  final List<ChatThread> threads;
+  final Map<String, Map<String, dynamic>> ordersById;
+
+  const _ThreadsData({
+    this.threads = const [],
+    this.ordersById = const {},
+  });
 }
 
 class _ChatFilters extends StatelessWidget {
   final _ThreadFilter selected;
+  final ChatRole role;
   final List<ChatThread> threads;
   final ValueChanged<_ThreadFilter> onSelected;
 
   const _ChatFilters({
     required this.selected,
+    required this.role,
     required this.threads,
     required this.onSelected,
   });
 
   @override
   Widget build(BuildContext context) {
-    final unreadCount =
-        threads.where((thread) => thread.unreadCount > 0).length;
-    final activeCount = threads.where((thread) => !thread.isArchived).length;
+    final attentionCount = threads
+        .where(
+          (thread) => thread.requiresLogistAttention || thread.unreadCount > 0,
+        )
+        .length;
+    final orderCount = threads
+        .where((thread) =>
+            thread.type == ChatThreadType.clientLogist ||
+            thread.type == ChatThreadType.workerLogist ||
+            thread.type == ChatThreadType.clientWorker)
+        .length;
+    final supportCount =
+        threads.where((thread) => thread.type == ChatThreadType.support).length;
     final archivedCount = threads.where((thread) => thread.isArchived).length;
 
     return SingleChildScrollView(
@@ -186,16 +226,22 @@ class _ChatFilters extends StatelessWidget {
             onTap: () => onSelected(_ThreadFilter.all),
           ),
           _FilterChipButton(
-            label: 'Непрочитанные',
-            count: unreadCount,
-            selected: selected == _ThreadFilter.unread,
-            onTap: () => onSelected(_ThreadFilter.unread),
+            label: role == ChatRole.logist ? 'Требуют ответа' : 'Новые',
+            count: attentionCount,
+            selected: selected == _ThreadFilter.attention,
+            onTap: () => onSelected(_ThreadFilter.attention),
           ),
           _FilterChipButton(
-            label: 'Активные',
-            count: activeCount,
-            selected: selected == _ThreadFilter.active,
-            onTap: () => onSelected(_ThreadFilter.active),
+            label: 'По заказам',
+            count: orderCount,
+            selected: selected == _ThreadFilter.orders,
+            onTap: () => onSelected(_ThreadFilter.orders),
+          ),
+          _FilterChipButton(
+            label: 'Поддержка',
+            count: supportCount,
+            selected: selected == _ThreadFilter.support,
+            onTap: () => onSelected(_ThreadFilter.support),
           ),
           _FilterChipButton(
             label: 'Архив',
@@ -254,8 +300,9 @@ class _FilteredEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = switch (filter) {
-      _ThreadFilter.unread => 'Непрочитанных чатов нет.',
-      _ThreadFilter.active => 'Активных чатов сейчас нет.',
+      _ThreadFilter.attention => 'Чатов, требующих внимания, нет.',
+      _ThreadFilter.orders => 'Чатов по заказам пока нет.',
+      _ThreadFilter.support => 'Обращений в поддержку пока нет.',
       _ThreadFilter.archived => 'Архивных чатов пока нет.',
       _ThreadFilter.all => 'Чатов пока нет.',
     };
@@ -275,17 +322,25 @@ class _FilteredEmptyState extends StatelessWidget {
 
 class _ThreadCard extends StatelessWidget {
   final ChatThread thread;
+  final Map<String, dynamic>? order;
   final ChatRole role;
   final VoidCallback onTap;
 
   const _ThreadCard({
     required this.thread,
+    required this.order,
     required this.role,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final status = _orderStatusText(order?['status']);
+    final statusColor = _orderStatusColor(order?['status']);
+    final scheduledAt = _formatScheduledAt(order?['scheduled_at']);
+    final title = _threadTitle(thread, role, order);
+    final subtitle = _threadSubtitle(thread, role, order);
+
     return Card(
       child: ListTile(
         contentPadding:
@@ -295,7 +350,7 @@ class _ThreadCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                thread.title,
+                title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w800),
@@ -333,10 +388,22 @@ class _ThreadCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(thread.typeLabel),
-              const SizedBox(height: 3),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _MiniPill(
+                    text: _threadKindLabel(thread, role),
+                    color: GpmColors.black,
+                  ),
+                  _MiniPill(text: status, color: statusColor),
+                  if (scheduledAt.isNotEmpty)
+                    _MiniPill(text: scheduledAt, color: GpmColors.graphite),
+                ],
+              ),
+              const SizedBox(height: 6),
               Text(
-                thread.subtitle,
+                subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -373,6 +440,79 @@ class _ThreadCard extends StatelessWidget {
 
     return '${local.day.toString().padLeft(2, '0')}.'
         '${local.month.toString().padLeft(2, '0')}';
+  }
+
+  String _threadTitle(
+    ChatThread thread,
+    ChatRole role,
+    Map<String, dynamic>? order,
+  ) {
+    final orderTitle = order?['title']?.toString();
+    return switch (thread.type) {
+      ChatThreadType.support => 'Поддержка 24/7',
+      ChatThreadType.clientWorker => role == ChatRole.worker
+          ? 'Клиент по заказу'
+          : 'Исполнитель по заказу',
+      ChatThreadType.clientLogist => orderTitle ?? 'Заказ',
+      ChatThreadType.workerLogist => 'Координация выхода',
+    };
+  }
+
+  String _threadSubtitle(
+    ChatThread thread,
+    ChatRole role,
+    Map<String, dynamic>? order,
+  ) {
+    final address = order?['address']?.toString();
+    final workers = order?['workers_count']?.toString();
+    final hours = order?['hours']?.toString();
+    final parts = [
+      if (address != null && address.isNotEmpty) address,
+      if (workers != null && workers.isNotEmpty) '$workers исполн.',
+      if (hours != null && hours.isNotEmpty) '$hours ч',
+    ];
+    if (parts.isNotEmpty) return parts.join(' · ');
+    return thread.subtitle;
+  }
+
+  String _threadKindLabel(ChatThread thread, ChatRole role) {
+    return switch (thread.type) {
+      ChatThreadType.support => 'Поддержка',
+      ChatThreadType.clientWorker => 'Заказ',
+      ChatThreadType.clientLogist =>
+        role == ChatRole.client ? 'Заказ' : 'Клиент',
+      ChatThreadType.workerLogist =>
+        role == ChatRole.worker ? 'Заказ' : 'Исполнитель',
+    };
+  }
+}
+
+class _MiniPill extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _MiniPill({
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }
 
@@ -437,4 +577,38 @@ class _ChatPolicyBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+String _orderStatusText(dynamic status) {
+  return switch (status?.toString()) {
+    'NEW' => 'Ищем исполнителей',
+    'PROCESSED' => 'Исполнители найдены',
+    'IN_PROCESS' => 'В работе',
+    'DONE_PENDING' => 'Ждет подтверждения',
+    'CONVERTED' => 'Завершен',
+    'JUNK' => 'Отменен',
+    _ => 'Статус уточняется',
+  };
+}
+
+Color _orderStatusColor(dynamic status) {
+  return switch (status?.toString()) {
+    'NEW' => Colors.orange,
+    'PROCESSED' => Colors.blue,
+    'IN_PROCESS' => Colors.green,
+    'DONE_PENDING' => Colors.deepOrange,
+    'CONVERTED' => Colors.grey,
+    'JUNK' => Colors.red,
+    _ => Colors.grey,
+  };
+}
+
+String _formatScheduledAt(dynamic value) {
+  final parsed = DateTime.tryParse(value?.toString() ?? '');
+  if (parsed == null) return '';
+  final local = parsed.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}.'
+      '${local.month.toString().padLeft(2, '0')} '
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }

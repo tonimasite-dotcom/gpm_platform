@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show chatService;
+import '../../main.dart' show bitrix24, chatService;
 import '../../models/chat_models.dart';
 import '../../theme/gpm_theme.dart';
 
@@ -42,7 +42,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     if (thread == null) {
       throw StateError('Чат не найден');
     }
-    return _ConversationData(thread: thread, messages: messages);
+    final order = await bitrix24.getOrderById(thread.orderId);
+    return _ConversationData(
+      thread: thread,
+      messages: messages,
+      order: order,
+    );
   }
 
   void _refresh() {
@@ -80,6 +85,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Логисту отправлен запрос на подключение')),
+    );
+    _refresh();
+  }
+
+  Future<void> _sendQuickMessage(String text) async {
+    await chatService.sendMessage(
+      threadId: widget.threadId,
+      senderRole: widget.role,
+      senderName: _senderName,
+      text: text,
     );
     _refresh();
   }
@@ -129,6 +144,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     return Column(
       children: [
         _ConversationNotice(thread: data.thread, role: widget.role),
+        if (data.order != null)
+          _OrderContextCard(
+            order: data.order!,
+            thread: data.thread,
+          ),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
@@ -143,12 +163,24 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           ),
         ),
         if (canWrite)
-          _Composer(
-            controller: _controller,
-            isSending: _isSending,
-            canRequestSupport: _canRequestSupport(data.thread),
-            onSend: _sendMessage,
-            onRequestSupport: _requestSupport,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _QuickActions(
+                role: widget.role,
+                thread: data.thread,
+                order: data.order,
+                canRequestSupport: _canRequestSupport(data.thread),
+                onRequestSupport: _requestSupport,
+                onQuickMessage: _sendQuickMessage,
+                onResolveAttention: _resolveAttention,
+              ),
+              _Composer(
+                controller: _controller,
+                isSending: _isSending,
+                onSend: _sendMessage,
+              ),
+            ],
           )
         else
           const _ArchivedFooter(),
@@ -158,7 +190,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   bool _canRequestSupport(ChatThread thread) {
     return widget.role != ChatRole.logist &&
-        thread.type == ChatThreadType.clientWorker &&
+        thread.type != ChatThreadType.support &&
         !thread.requiresLogistAttention;
   }
 
@@ -175,10 +207,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 class _ConversationData {
   final ChatThread thread;
   final List<ChatMessage> messages;
+  final Map<String, dynamic>? order;
 
   const _ConversationData({
     required this.thread,
     required this.messages,
+    required this.order,
   });
 }
 
@@ -229,6 +263,243 @@ class _ConversationNotice extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OrderContextCard extends StatelessWidget {
+  final Map<String, dynamic> order;
+  final ChatThread thread;
+
+  const _OrderContextCard({
+    required this.order,
+    required this.thread,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _orderStatusText(order['status']);
+    final statusColor = _orderStatusColor(order['status']);
+    final scheduledAt = _formatScheduledAt(order['scheduled_at']);
+    final address = order['address']?.toString() ?? 'Адрес не указан';
+    final workers = order['workers_count']?.toString() ?? '';
+    final hours = order['hours']?.toString() ?? '';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: GpmColors.line)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  order['title']?.toString() ?? 'Заказ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              _SmallPill(text: status, color: statusColor),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 6,
+            children: [
+              _FactIcon(icon: Icons.place_outlined, text: address),
+              if (scheduledAt.isNotEmpty)
+                _FactIcon(icon: Icons.schedule, text: scheduledAt),
+              if (workers.isNotEmpty || hours.isNotEmpty)
+                _FactIcon(
+                  icon: Icons.engineering,
+                  text: [
+                    if (workers.isNotEmpty) '$workers исполн.',
+                    if (hours.isNotEmpty) '$hours ч',
+                  ].join(' · '),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  final ChatRole role;
+  final ChatThread thread;
+  final Map<String, dynamic>? order;
+  final bool canRequestSupport;
+  final VoidCallback onRequestSupport;
+  final ValueChanged<String> onQuickMessage;
+  final VoidCallback onResolveAttention;
+
+  const _QuickActions({
+    required this.role,
+    required this.thread,
+    required this.order,
+    required this.canRequestSupport,
+    required this.onRequestSupport,
+    required this.onQuickMessage,
+    required this.onResolveAttention,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = <Widget>[];
+
+    if (role == ChatRole.worker) {
+      actions.addAll([
+        _ActionButton(
+          icon: Icons.location_on_outlined,
+          label: 'Я на месте',
+          onTap: () => onQuickMessage('Я на месте. Готов начинать работы.'),
+        ),
+        _ActionButton(
+          icon: Icons.task_alt,
+          label: 'Работы завершены',
+          onTap: () => onQuickMessage('Работы завершены.'),
+        ),
+      ]);
+    }
+
+    if (role == ChatRole.client && order?['status'] == 'DONE_PENDING') {
+      actions.add(
+        _ActionButton(
+          icon: Icons.payments_outlined,
+          label: 'Оплатить',
+          onTap: () => onQuickMessage('Готов оплатить заказ.'),
+        ),
+      );
+    }
+
+    if (role != ChatRole.logist && canRequestSupport) {
+      actions.add(
+        _ActionButton(
+          icon: Icons.support_agent,
+          label: 'Поддержка 24/7',
+          onTap: onRequestSupport,
+        ),
+      );
+    }
+
+    if (role == ChatRole.logist && thread.requiresLogistAttention) {
+      actions.add(
+        _ActionButton(
+          icon: Icons.check_circle_outline,
+          label: 'Закрыть сигнал',
+          onTap: onResolveAttention,
+        ),
+      );
+    }
+
+    if (actions.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      decoration: const BoxDecoration(
+        color: GpmColors.surface,
+        border: Border(top: BorderSide(color: GpmColors.line)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: actions),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, bottom: 8),
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+      ),
+    );
+  }
+}
+
+class _FactIcon extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _FactIcon({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: GpmColors.graphite),
+        const SizedBox(width: 4),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: GpmColors.graphite,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SmallPill extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _SmallPill({
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -322,16 +593,12 @@ class _MessageBubble extends StatelessWidget {
 class _Composer extends StatelessWidget {
   final TextEditingController controller;
   final bool isSending;
-  final bool canRequestSupport;
   final VoidCallback onSend;
-  final VoidCallback onRequestSupport;
 
   const _Composer({
     required this.controller,
     required this.isSending,
-    required this.canRequestSupport,
     required this.onSend,
-    required this.onRequestSupport,
   });
 
   @override
@@ -346,15 +613,6 @@ class _Composer extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (canRequestSupport) ...[
-              IconButton(
-                tooltip: 'Позвать логиста',
-                onPressed: onRequestSupport,
-                icon: const Icon(Icons.support_agent),
-                color: GpmColors.red,
-              ),
-              const SizedBox(width: 4),
-            ],
             Expanded(
               child: TextField(
                 controller: controller,
@@ -408,4 +666,38 @@ class _ArchivedFooter extends StatelessWidget {
       ),
     );
   }
+}
+
+String _orderStatusText(dynamic status) {
+  return switch (status?.toString()) {
+    'NEW' => 'Ищем исполнителей',
+    'PROCESSED' => 'Исполнители найдены',
+    'IN_PROCESS' => 'В работе',
+    'DONE_PENDING' => 'Ждет подтверждения',
+    'CONVERTED' => 'Завершен',
+    'JUNK' => 'Отменен',
+    _ => 'Статус уточняется',
+  };
+}
+
+Color _orderStatusColor(dynamic status) {
+  return switch (status?.toString()) {
+    'NEW' => Colors.orange,
+    'PROCESSED' => Colors.blue,
+    'IN_PROCESS' => Colors.green,
+    'DONE_PENDING' => Colors.deepOrange,
+    'CONVERTED' => Colors.grey,
+    'JUNK' => Colors.red,
+    _ => Colors.grey,
+  };
+}
+
+String _formatScheduledAt(dynamic value) {
+  final parsed = DateTime.tryParse(value?.toString() ?? '');
+  if (parsed == null) return '';
+  final local = parsed.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}.'
+      '${local.month.toString().padLeft(2, '0')} '
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }
