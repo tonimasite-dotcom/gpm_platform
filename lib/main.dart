@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'screens/auth/login_screen.dart';
 import 'screens/client/client_home_screen.dart';
 import 'screens/logist/logist_home_screen.dart';
 import 'screens/worker/worker_home_screen.dart';
@@ -31,15 +32,26 @@ void main() async {
   runApp(const GpmApp());
 }
 
-class GpmApp extends StatelessWidget {
+class GpmApp extends StatefulWidget {
   const GpmApp({super.key});
+
+  @override
+  State<GpmApp> createState() => _GpmAppState();
+}
+
+class _GpmAppState extends State<GpmApp> {
+  void _refreshSession() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GPM Платформа',
       theme: buildGpmTheme(),
-      home: const DevRoleSwitcher(),
+      home: gpmApi.requiresAuth && !gpmApi.hasAuthSession
+          ? GpmLoginScreen(onSignedIn: _refreshSession)
+          : DevRoleSwitcher(onSignedOut: _refreshSession),
     );
   }
 }
@@ -56,7 +68,12 @@ enum DevRole {
 }
 
 class DevRoleSwitcher extends StatefulWidget {
-  const DevRoleSwitcher({super.key});
+  final VoidCallback onSignedOut;
+
+  const DevRoleSwitcher({
+    super.key,
+    required this.onSignedOut,
+  });
 
   @override
   State<DevRoleSwitcher> createState() => _DevRoleSwitcherState();
@@ -80,6 +97,7 @@ class _DevRoleSwitcherState extends State<DevRoleSwitcher> {
           _GpmHeader(
             role: _role,
             onRoleChanged: (role) => setState(() => _role = role),
+            onSignedOut: widget.onSignedOut,
           ),
           Expanded(child: child),
         ],
@@ -91,10 +109,12 @@ class _DevRoleSwitcherState extends State<DevRoleSwitcher> {
 class _GpmHeader extends StatelessWidget {
   final DevRole role;
   final ValueChanged<DevRole> onRoleChanged;
+  final VoidCallback onSignedOut;
 
   const _GpmHeader({
     required this.role,
     required this.onRoleChanged,
+    required this.onSignedOut,
   });
 
   @override
@@ -132,6 +152,17 @@ class _GpmHeader extends StatelessWidget {
                 ),
               ),
             ),
+            if (gpmApi.requiresAuth) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Выйти',
+                onPressed: () {
+                  gpmApi.logout();
+                  onSignedOut();
+                },
+                icon: const Icon(Icons.logout),
+              ),
+            ],
           ],
         ),
       ),

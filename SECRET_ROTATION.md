@@ -36,6 +36,9 @@ assets. Put them into server environment variables or an ignored
 - External Workstaff/test CRM integration:
   - `CRM_API_KEY`
   - `GPM_APP_API_TOKEN`
+- GPM app user auth:
+  - `GPM_APP_JWT_SECRET`
+  - `GPM_APP_LOGIST_PASSWORD`
 - Supabase demo values previously embedded into demo web builds:
   - review project access and RLS policies
   - rotate if the key has more access than a publishable anon key should have

@@ -10,11 +10,15 @@ class GpmApiService {
   static const sourceExternal = 'external';
   static const sourceCrm = 'crm';
   static const demoWorkerId = 'worker-demo-1';
+  static const _authTokenStorageKey = 'gpm_app_access_token_v1';
+  static const _authUsernameStorageKey = 'gpm_app_username_v1';
   static const demoWorkerName = 'Иван Петров';
 
   late String _appApiUrl;
   late String _appApiToken;
   late String _appMode;
+  late String _appAccessToken;
+  late String _appUsername;
   final List<Map<String, dynamic>> _demoOrders = [
     {
       'id': '1001',
@@ -103,14 +107,78 @@ class GpmApiService {
     _appApiUrl = dotenv.env['GPM_APP_API_URL'] ?? '';
     _appApiToken = dotenv.env['GPM_APP_API_TOKEN'] ?? '';
     _appMode = (dotenv.env['GPM_APP_MODE'] ?? 'demo').trim().toLowerCase();
+    _appAccessToken = readDemoValue(_authTokenStorageKey) ?? '';
+    _appUsername = readDemoValue(_authUsernameStorageKey) ?? '';
     // Не бросаем исключение если backend не задан — работаем в демо-режиме
-    _loadDemoState();
+    if (usesLocalPersistence) {
+      _loadDemoState();
+    } else {
+      _demoOrders.clear();
+      _demoApplications.clear();
+    }
   }
 
   bool get isConfigured => hasAppBackend;
   bool get isApiMode => _appMode == 'api' || _appMode == 'production';
   bool get hasAppBackend => _appApiUrl.trim().isNotEmpty;
   bool get usesLocalPersistence => !isApiMode || !hasAppBackend;
+  bool get requiresAuth => isApiMode && hasAppBackend;
+  bool get hasAuthSession =>
+      !requiresAuth || _appAccessToken.trim().isNotEmpty;
+  String get currentUsername => _appUsername;
+
+  Future<Map<String, dynamic>> login({
+    required String username,
+    required String password,
+  }) async {
+    if (_appApiUrl.trim().isEmpty) {
+      return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(_appApiUrl).resolve('/app-api/auth/login'),
+        headers: const {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'username': username.trim(),
+          'password': password,
+        }),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return {
+          'success': false,
+          'error': 'Ошибка входа: ${response.statusCode}',
+        };
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        return {'success': false, 'error': 'Некорректный ответ сервера'};
+      }
+      final token = decoded['access_token']?.toString() ?? '';
+      if (token.isEmpty) {
+        return {'success': false, 'error': 'Сервер не вернул токен'};
+      }
+
+      _appAccessToken = token;
+      _appUsername = decoded['username']?.toString() ?? username.trim();
+      writeDemoValue(_authTokenStorageKey, _appAccessToken);
+      writeDemoValue(_authUsernameStorageKey, _appUsername);
+      return {'success': true};
+    } catch (error) {
+      return {'success': false, 'error': error.toString()};
+    }
+  }
+
+  void logout() {
+    _appAccessToken = '';
+    _appUsername = '';
+    removeDemoValue(_authTokenStorageKey);
+    removeDemoValue(_authUsernameStorageKey);
+  }
 
   bool isExternalOrder(Map<String, dynamic> order) {
     return _isExternalSource(order['source']);
@@ -379,12 +447,19 @@ class GpmApiService {
       return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
     }
 
-    final uri = Uri.parse(_appApiUrl).resolve('/app-api/orders');
+    final uri = Uri.parse(_appApiUrl).resolve(
+      isApiMode ? '/app-api/me/orders' : '/app-api/orders',
+    );
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
     };
-    if (_appApiToken.trim().isNotEmpty) {
+    if (isApiMode) {
+      if (_appAccessToken.trim().isEmpty) {
+        return {'success': false, 'error': 'Требуется вход'};
+      }
+      headers['Authorization'] = 'Bearer ${_appAccessToken.trim()}';
+    } else if (_appApiToken.trim().isNotEmpty) {
       headers['X-GPM-App-Token'] = _appApiToken.trim();
     }
 
@@ -428,30 +503,46 @@ class GpmApiService {
 
   Future<List<Map<String, dynamic>>> getOrders() async {
     await _syncAppPublishedOrders();
-    _normalizeDemoCrmOrders();
+    if (!isApiMode) {
+      _normalizeDemoCrmOrders();
+    }
     return _demoOrders.map((order) => Map<String, dynamic>.from(order)).toList();
   }
 
   Future<void> _syncAppPublishedOrders() async {
     if (_appApiUrl.trim().isEmpty) return;
+    if (requiresAuth && _appAccessToken.trim().isEmpty) return;
 
-    final uri = Uri.parse(_appApiUrl).resolve('/app-api/orders');
+    final uri = Uri.parse(_appApiUrl).resolve(
+      isApiMode ? '/app-api/me/orders' : '/app-api/orders',
+    );
     final headers = <String, String>{'Accept': 'application/json'};
-    if (_appApiToken.trim().isNotEmpty) {
+    if (isApiMode) {
+      headers['Authorization'] = 'Bearer ${_appAccessToken.trim()}';
+    } else if (_appApiToken.trim().isNotEmpty) {
       headers['X-GPM-App-Token'] = _appApiToken.trim();
     }
 
     try {
       final response = await http.get(uri, headers: headers);
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        if (isApiMode) logout();
+        return;
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) return;
 
       final decoded = jsonDecode(response.body);
       final orders = decoded is Map ? decoded['orders'] : decoded;
       if (orders is! List) return;
 
+      if (isApiMode) {
+        _demoOrders.clear();
+      }
       for (final order in orders.whereType<Map>()) {
         final mappedOrder = order.map((key, value) => MapEntry(key.toString(), value));
-        if (mappedOrder['order_data'] is Map || mappedOrder['order_data'] is String) {
+        if (!isApiMode &&
+            (mappedOrder['order_data'] is Map ||
+                mappedOrder['order_data'] is String)) {
           await importExternalOrder(mappedOrder);
         } else {
           _upsertOrder(mappedOrder);
@@ -470,12 +561,19 @@ class GpmApiService {
       return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
     }
 
-    final uri = Uri.parse(_appApiUrl).resolve('/app-api/orders/$orderId');
+    final uri = Uri.parse(_appApiUrl).resolve(
+      isApiMode ? '/app-api/me/orders/$orderId' : '/app-api/orders/$orderId',
+    );
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
     };
-    if (_appApiToken.trim().isNotEmpty) {
+    if (isApiMode) {
+      if (_appAccessToken.trim().isEmpty) {
+        return {'success': false, 'error': 'Требуется вход'};
+      }
+      headers['Authorization'] = 'Bearer ${_appAccessToken.trim()}';
+    } else if (_appApiToken.trim().isNotEmpty) {
       headers['X-GPM-App-Token'] = _appApiToken.trim();
     }
 
@@ -693,6 +791,23 @@ class GpmApiService {
   Future<List<Map<String, dynamic>>> getApplicationsForOrder(
     String orderId,
   ) async {
+    final orderIndex = _demoOrders.indexWhere(
+      (order) => order['id'].toString() == orderId,
+    );
+    if (orderIndex != -1) {
+      final rawApplications = _demoOrders[orderIndex]['applications'];
+      if (rawApplications is List && rawApplications.isNotEmpty) {
+        return rawApplications
+            .whereType<Map>()
+            .map(
+              (application) => application.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+            .toList();
+      }
+    }
+
     return _demoApplications
         .where((application) => application['order_id'] == orderId)
         .map((application) {

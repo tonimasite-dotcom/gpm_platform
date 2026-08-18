@@ -1,5 +1,9 @@
 import json
 import os
+import base64
+import hashlib
+import hmac
+import time
 from contextlib import contextmanager
 import sqlite3
 from pathlib import Path
@@ -73,7 +77,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=parse_allowed_origins(),
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -148,6 +152,102 @@ def check_token(token: str | None) -> None:
     expected = get_setting("GPM_APP_API_TOKEN") or get_setting("CRM_API_KEY")
     if expected and token != expected:
         raise HTTPException(status_code=401, detail="invalid app token")
+
+
+def secure_compare(left: str, right: str) -> bool:
+    return hmac.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
+
+
+def jwt_secret() -> str:
+    secret = get_setting("GPM_APP_JWT_SECRET")
+    if not secret:
+        raise HTTPException(status_code=503, detail="app auth is not configured")
+    return secret
+
+
+def b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def b64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode((value + padding).encode("ascii"))
+
+
+def jwt_sign(message: str) -> str:
+    signature = hmac.new(
+        jwt_secret().encode("utf-8"),
+        message.encode("ascii"),
+        hashlib.sha256,
+    ).digest()
+    return b64url_encode(signature)
+
+
+def create_access_token(username: str, role: str) -> str:
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": username,
+        "role": role,
+        "iat": now,
+        "exp": now + 60 * 60 * 12,
+    }
+    signing_input = ".".join(
+        [
+            b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+            b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+        ]
+    )
+    return f"{signing_input}.{jwt_sign(signing_input)}"
+
+
+def decode_access_token(token: str) -> dict[str, Any]:
+    try:
+        header_part, payload_part, signature = token.split(".", 2)
+    except ValueError as error:
+        raise HTTPException(status_code=401, detail="invalid bearer token") from error
+
+    signing_input = f"{header_part}.{payload_part}"
+    expected_signature = jwt_sign(signing_input)
+    if not secure_compare(signature, expected_signature):
+        raise HTTPException(status_code=401, detail="invalid bearer token")
+
+    try:
+        payload = json.loads(b64url_decode(payload_part))
+    except (json.JSONDecodeError, ValueError) as error:
+        raise HTTPException(status_code=401, detail="invalid bearer token") from error
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=401, detail="invalid bearer token")
+    if int(payload.get("exp", 0)) < int(time.time()):
+        raise HTTPException(status_code=401, detail="bearer token expired")
+
+    return payload
+
+
+def current_user(authorization: str | None) -> dict[str, Any]:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="authorization required")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="authorization required")
+
+    payload = decode_access_token(token)
+    if payload.get("role") != "logist":
+        raise HTTPException(status_code=403, detail="insufficient permissions")
+    return payload
+
+
+def check_logist_credentials(username: str, password: str) -> None:
+    expected_username = get_setting("GPM_APP_LOGIST_USERNAME", "logist") or "logist"
+    expected_password = get_setting("GPM_APP_LOGIST_PASSWORD")
+    if not expected_password:
+        raise HTTPException(status_code=503, detail="logist login is not configured")
+    if not secure_compare(username, expected_username):
+        raise HTTPException(status_code=401, detail="invalid login or password")
+    if not secure_compare(password, expected_password):
+        raise HTTPException(status_code=401, detail="invalid login or password")
 
 
 def save_order(order: dict[str, Any]) -> None:
@@ -312,12 +412,65 @@ async def health() -> dict[str, str]:
     }
 
 
+@app.post("/app-api/auth/login")
+async def login(request: Request) -> dict[str, Any]:
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be an object")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    username = str(payload.get("username") or "").strip()
+    password = str(payload.get("password") or "")
+    check_logist_credentials(username, password)
+
+    return {
+        "access_token": create_access_token(username, "logist"),
+        "token_type": "bearer",
+        "role": "logist",
+        "username": username,
+    }
+
+
+@app.get("/app-api/me")
+async def me(
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = current_user(authorization)
+    return {
+        "username": str(user.get("sub") or ""),
+        "role": str(user.get("role") or ""),
+    }
+
+
+@app.get("/app-api/me/orders")
+async def get_my_orders(
+    authorization: str | None = Header(default=None),
+) -> dict[str, list[dict[str, Any]]]:
+    current_user(authorization)
+    return {"orders": list_orders()}
+
+
+@app.post("/app-api/me/orders")
+async def publish_my_order(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    current_user(authorization)
+    return await publish_order_payload(request)
+
+
 @app.post("/app-api/orders")
 async def publish_order(
     request: Request,
     x_gpm_app_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     check_token(x_gpm_app_token)
+    return await publish_order_payload(request)
+
+
+async def publish_order_payload(request: Request) -> dict[str, Any]:
     try:
         payload = await request.json()
         if not isinstance(payload, dict):
@@ -346,6 +499,20 @@ async def update_order(
     x_gpm_app_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     check_token(x_gpm_app_token)
+    return await update_order_payload(order_id, request)
+
+
+@app.patch("/app-api/me/orders/{order_id}")
+async def update_my_order(
+    order_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    current_user(authorization)
+    return await update_order_payload(order_id, request)
+
+
+async def update_order_payload(order_id: str, request: Request) -> dict[str, Any]:
     order = get_order(order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="order not found")

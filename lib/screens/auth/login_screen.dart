@@ -1,155 +1,167 @@
 import 'package:flutter/material.dart';
-import '../client/client_home_screen.dart';
-import '../worker/worker_home_screen.dart';
-import '../logist/logist_home_screen.dart';
-import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+import '../../main.dart' show gpmApi;
+import '../../theme/gpm_theme.dart';
+
+class GpmLoginScreen extends StatefulWidget {
+  final VoidCallback onSignedIn;
+
+  const GpmLoginScreen({
+    super.key,
+    required this.onSignedIn,
+  });
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<GpmLoginScreen> createState() => _GpmLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+class _GpmLoginScreenState extends State<GpmLoginScreen> {
+  final _usernameController = TextEditingController(text: 'logist');
   final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String? _error;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    // Демо-логика: определяем роль по email
-    final email = _emailController.text.trim().toLowerCase();
-    Widget homeScreen;
-
-    if (email.contains('logist') || email == 'logist@gpm.ru') {
-      homeScreen = const LogistHomeScreen();
-    } else if (email.contains('worker') || email == 'worker@gpm.ru') {
-      homeScreen = const WorkerHomeScreen();
-    } else {
-      homeScreen = const ClientHomeScreen();
-    }
+    final result = await gpmApi.login(
+      username: _usernameController.text,
+      password: _passwordController.text,
+    );
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = false;
+      _error = result['success'] == true
+          ? null
+          : result['error']?.toString() ?? 'Не удалось войти';
+    });
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => homeScreen),
-    );
+    if (result['success'] == true) {
+      widget.onSignedIn();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(Icons.local_shipping,
-                    size: 80, color: Color(0xFF5B4FFF)),
-                const SizedBox(height: 24),
-                const Text(
-                  'GPM Платформа',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Вход в систему',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Демо:\nclient@gpm.ru → Клиент\nworker@gpm.ru → Грузчик\nlogist@gpm.ru → Логист\nПароль: любой (мин. 6 символов)',
-                    style: TextStyle(fontSize: 12, color: Colors.blue),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Введите email';
-                    }
-                    if (!value.contains('@')) return 'Неверный формат';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Пароль',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
+      backgroundColor: GpmColors.page,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Image.asset(
+                          'assets/images/gpm_logo.png',
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'GPM',
+                          style: TextStyle(
+                            color: GpmColors.black,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Введите пароль';
-                    if (value.length < 6) return 'Минимум 6 символов';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5B4FFF),
-                      foregroundColor: Colors.white,
+                    const SizedBox(height: 28),
+                    Text(
+                      'Вход для логиста',
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Войти', style: TextStyle(fontSize: 16)),
-                  ),
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Логин',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      textInputAction: TextInputAction.next,
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? 'Введите логин'
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Пароль',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Показать пароль'
+                              : 'Скрыть пароль',
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      onFieldSubmitted: (_) => _submit(),
+                      validator: (value) =>
+                          value == null || value.isEmpty
+                              ? 'Введите пароль'
+                              : null,
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: GpmColors.red,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    FilledButton.icon(
+                      onPressed: _isLoading ? null : _submit,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.login),
+                      label: const Text('Войти'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  ),
-                  child: const Text('Нет аккаунта? Зарегистрироваться'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

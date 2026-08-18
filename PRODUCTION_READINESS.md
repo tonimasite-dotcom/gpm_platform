@@ -19,6 +19,8 @@ or payouts.
 - New external orders use `source: external`.
 - Legacy `source: crm` orders are still accepted and normalized.
 - The app orders API can use PostgreSQL through `GPM_APP_DATABASE_URL`.
+- Human app users authenticate through `/app-api/auth/login` and read orders
+  through `/app-api/me/orders`.
 - SQLite remains a local development fallback only.
 
 ## Production Requirements
@@ -27,7 +29,7 @@ or payouts.
 - Keep secrets in server environment variables, not in Git, mobile builds, web
   assets, logs, or GitHub Pages workflow fallbacks.
 - Rotate any tokens that were ever committed or embedded into public web builds.
-- Add role-based authorization before exposing personal data to real users.
+- Keep the server-side integration token separate from human user sessions.
 - Store only the minimum personal data needed for each role and workflow.
 - Keep audit logs for access and changes to orders, profiles, assignments, and
   payout details.
@@ -40,8 +42,21 @@ or payouts.
 ```bash
 GPM_APP_DATABASE_URL=postgresql://user:password@host:5432/database
 GPM_APP_API_TOKEN=<server-side integration token>
+GPM_APP_JWT_SECRET=<server-side JWT signing secret>
+GPM_APP_LOGIST_USERNAME=logist
+GPM_APP_LOGIST_PASSWORD=<temporary logist password>
 GPM_APP_ALLOWED_ORIGINS=https://your-app-domain.ru
 ```
+
+Frontend production builds should use only public app settings:
+
+```bash
+GPM_APP_MODE=api
+GPM_APP_API_URL=https://app-api.gpmbot.ru
+```
+
+Do not put `GPM_APP_API_TOKEN`, `GPM_APP_JWT_SECRET`, or user passwords into
+Flutter web assets.
 
 ## Local Secrets
 

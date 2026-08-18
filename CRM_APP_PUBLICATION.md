@@ -6,11 +6,11 @@ Test external system:
 https://ts.workstaffcrm.ru
 ```
 
-The external order system publishes orders to the GPM backend. The Flutter app reads published
-orders from the same backend.
+The external order system publishes orders to the GPM backend. Human app users
+read published orders from the same backend after logging in.
 
 ```text
-External order system -> GPM backend -> Flutter logist app
+External order system -> GPM backend -> PostgreSQL -> Flutter logist app
 ```
 
 ## Endpoints
@@ -23,7 +23,7 @@ X-GPM-App-Token: <token>
 Content-Type: application/json
 ```
 
-Read published orders:
+Read published orders with the server-side integration token:
 
 ```http
 GET /app-api/orders
@@ -42,6 +42,35 @@ Content-Type: application/json
 {
   "status": "PROCESSED"
 }
+```
+
+Log in as a human app user:
+
+```http
+POST /app-api/auth/login
+Content-Type: application/json
+```
+
+```json
+{
+  "username": "logist",
+  "password": "<password>"
+}
+```
+
+Read orders as the logged-in app user:
+
+```http
+GET /app-api/me/orders
+Authorization: Bearer <access_token>
+```
+
+Update an order as the logged-in app user:
+
+```http
+PATCH /app-api/me/orders/{order_id}
+Authorization: Bearer <access_token>
+Content-Type: application/json
 ```
 
 Health check:
@@ -64,7 +93,17 @@ environment, not in the repository:
 ```bash
 GPM_APP_DATABASE_URL=postgresql://user:password@host:5432/database
 GPM_APP_API_TOKEN=<server-side token>
+GPM_APP_JWT_SECRET=<server-side JWT signing secret>
+GPM_APP_LOGIST_USERNAME=logist
+GPM_APP_LOGIST_PASSWORD=<temporary logist password>
 GPM_APP_ALLOWED_ORIGINS=https://your-app-domain.ru
+```
+
+Flutter production builds should contain only public settings:
+
+```bash
+GPM_APP_MODE=api
+GPM_APP_API_URL=https://app-api.gpmbot.ru
 ```
 
 If `GPM_APP_DATABASE_URL` is not set, the API falls back to local SQLite for
