@@ -15,14 +15,14 @@ class _ClientOrdersListExampleState extends State<ClientOrdersListExample> {
   @override
   void initState() {
     super.initState();
-    _ordersFuture = bitrix24.getOrders();
+    _ordersFuture = gpmApi.getOrders();
   }
 
   Future<void> _updateStatus(String orderId, String newStatus) async {
-    final success = await bitrix24.updateOrderStatus(orderId, newStatus);
+    final success = await gpmApi.updateOrderStatus(orderId, newStatus);
     if (success && mounted) {
       setState(() {
-        _ordersFuture = bitrix24.getOrders();
+        _ordersFuture = gpmApi.getOrders();
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Статус обновлён')),

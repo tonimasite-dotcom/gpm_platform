@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show bitrix24;
+import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
 import '../client/client_create_order_screen.dart';
@@ -27,14 +27,14 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _loadOrders() async {
-    final orders = await bitrix24.getOrders();
+    final orders = await gpmApi.getOrders();
     final currentLogistPhone = _currentLogistPhone();
     final result = <Map<String, dynamic>>[];
 
     for (final order in orders) {
       if (!_isVisibleForCurrentLogist(order, currentLogistPhone)) continue;
 
-      final applications = await bitrix24.getApplicationsForOrder(
+      final applications = await gpmApi.getApplicationsForOrder(
         order['id'].toString(),
       );
       final copy = Map<String, dynamic>.from(order);
@@ -298,7 +298,7 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
     String status,
     String successText,
   ) async {
-    final success = await bitrix24.updateOrderStatus(
+    final success = await gpmApi.updateOrderStatus(
       order['id'].toString(),
       status,
     );
@@ -319,8 +319,8 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
   }
 
   Future<void> _refreshOrderSnapshot() async {
-    final freshOrder = await bitrix24.getOrderById(order['id'].toString());
-    final applications = await bitrix24.getApplicationsForOrder(
+    final freshOrder = await gpmApi.getOrderById(order['id'].toString());
+    final applications = await gpmApi.getApplicationsForOrder(
       order['id'].toString(),
     );
 
@@ -343,7 +343,7 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
     final color = _orderStatusColor(order['status']);
     final pendingCount = order['pending_applications_count'] ?? 0;
     final assignedCount = order['assigned_count'] ?? 0;
-    final isCrmOrder = order['source'] == 'crm';
+    final isExternalOrder = gpmApi.isExternalOrder(order);
 
     return Card(
       elevation: 2,
@@ -359,8 +359,8 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                if (isCrmOrder) ...[
-                  const _StatusPill(text: 'CRM', color: Colors.indigo),
+                if (isExternalOrder) ...[
+                  const _StatusPill(text: 'Внешняя', color: Colors.indigo),
                   const SizedBox(width: 6),
                 ],
                 _StatusPill(text: status, color: color),
@@ -475,12 +475,12 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _loadApplications() {
-    return bitrix24.getApplicationsForOrder(order['id'].toString());
+    return gpmApi.getApplicationsForOrder(order['id'].toString());
   }
 
   Future<void> _refreshDetails() async {
-    final freshOrder = await bitrix24.getOrderById(order['id'].toString());
-    final applications = await bitrix24.getApplicationsForOrder(
+    final freshOrder = await gpmApi.getOrderById(order['id'].toString());
+    final applications = await gpmApi.getApplicationsForOrder(
       order['id'].toString(),
     );
 
@@ -502,7 +502,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
 
   Future<void> _approve(String applicationId) async {
     await _runAction(
-      () => bitrix24.approveApplication(
+      () => gpmApi.approveApplication(
         orderId: order['id'].toString(),
         applicationId: applicationId,
       ),
@@ -512,7 +512,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
 
   Future<void> _reject(String applicationId) async {
     await _runAction(
-      () => bitrix24.rejectApplication(applicationId),
+      () => gpmApi.rejectApplication(applicationId),
       'Отклик отклонен',
     );
   }
@@ -530,7 +530,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     }
 
     await _runAction(
-      () => bitrix24.completeOrderWithResult(
+      () => gpmApi.completeOrderWithResult(
         orderId: order['id'].toString(),
         workerId: workerId,
         result: result,
@@ -574,9 +574,9 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
   Widget build(BuildContext context) {
     final status = _orderStatusText(order['status']);
     final color = _orderStatusColor(order['status']);
-    final isCrmOrder = order['source'] == 'crm';
+    final isExternalOrder = gpmApi.isExternalOrder(order);
     final orderNumber = order['external_order_id'] ?? order['id'];
-    final title = isCrmOrder ? 'Заявка № $orderNumber' : order['title'] ?? 'Заказ';
+    final title = isExternalOrder ? 'Заявка № $orderNumber' : order['title'] ?? 'Заказ';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Детали заказа')),
@@ -589,13 +589,13 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               title,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            if (isCrmOrder) ...[
+            if (isExternalOrder) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  const _StatusPill(text: 'Источник: CRM', color: Colors.indigo),
+                  const _StatusPill(text: 'Источник: внешняя система', color: Colors.indigo),
                 ],
               ),
             ],

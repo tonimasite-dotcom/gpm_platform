@@ -1,5 +1,6 @@
-# Safe tracked configuration defaults.
-# Put real values in environment variables or app/config.local.yml.
+# Example local configuration.
+# Copy to app/config.local.yml and replace values outside Git.
+# Prefer environment variables on production servers.
 
 API_TOKEN: '0000000000:CHANGE_ME_CHANGE_ME_CHANGE_ME_CHANGE_ME'
 

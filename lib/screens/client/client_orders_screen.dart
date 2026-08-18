@@ -114,7 +114,10 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
         final orders = _sorted(
           (snapshot.data ?? [])
               .where(
-                (order) => order['source']?.toString().toLowerCase() != 'crm',
+                (order) {
+                  final source = order['source']?.toString().toLowerCase();
+                  return source != 'external' && source != 'crm';
+                },
               )
               .toList(),
         );

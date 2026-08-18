@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show bitrix24, chatService;
+import '../../main.dart' show gpmApi, chatService;
 import '../../models/chat_models.dart';
 import '../../theme/gpm_theme.dart';
 
@@ -42,7 +42,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     if (thread == null) {
       throw StateError('Чат не найден');
     }
-    final order = await bitrix24.getOrderById(thread.orderId);
+    final order = await gpmApi.getOrderById(thread.orderId);
     return _ConversationData(
       thread: thread,
       messages: messages,

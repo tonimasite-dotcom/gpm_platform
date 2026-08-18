@@ -2,6 +2,22 @@
 
 Flutter prototype for the GPM Platform demo.
 
+## Production Direction
+
+The production app should use the GPM backend and its own database as the source
+of truth:
+
+```text
+External order system -> GPM backend -> PostgreSQL -> Flutter app
+```
+
+Bitrix24 is not the core order workflow for this app. See
+`PRODUCTION_READINESS.md` for the current transition checklist.
+
+Tracked `app/config.yml` contains placeholders only. Use server environment
+variables or ignored `app/config.local.yml` for real credentials. Rotate the
+previously tracked credentials listed in `SECRET_ROTATION.md`.
+
 ## Live Demo
 
 The demo is intended to be continuously available through GitHub Pages:

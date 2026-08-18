@@ -14,7 +14,7 @@ class _FinancialStatsExampleState extends State<FinancialStatsExample> {
   @override
   void initState() {
     super.initState();
-    _statsFuture = bitrix24.getFinancialStats();
+    _statsFuture = gpmApi.getFinancialStats();
   }
 
   @override

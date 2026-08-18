@@ -28,7 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await bitrix24.createContact(
+      final result = await gpmApi.createContact(
         name: _nameController.text,
         email: _emailController.text,
         phone: _phoneController.text,

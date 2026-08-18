@@ -36,10 +36,7 @@ jobs:
             printf '%s' "${{ secrets.DEMO_ENV }}" > .env
           else
             printf '%s\n' \
-              'SUPABASE_URL=https://efeppgqobxihwufumwty.supabase.co' \
-              'SUPABASE_ANON_KEY=sb_publishable_dtCXB_lGmwV2Vx0nvhKhpg_Bp-DX3h4' \
-              'GPM_APP_API_URL=https://app-api.gpmbot.ru' \
-              'GPM_APP_API_TOKEN=yFhMJF9hnfWPJq6YP65gnjqN7v8esPQB8CAeOImeKOcS4t6DwgOA4nUExbcTN4N8' \
+              'GPM_APP_MODE=demo' \
               > .env
           fi
 
@@ -50,7 +47,7 @@ jobs:
         run: flutter analyze --no-pub
 
       - name: Build web
-        run: flutter build web --release --base-href /gpm_platform/
+        run: flutter build web --release --base-href /
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

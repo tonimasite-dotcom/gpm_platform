@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show bitrix24, chatService;
+import '../../main.dart' show gpmApi, chatService;
 import '../../models/chat_models.dart';
-import '../../services/bitrix24_service.dart';
+import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
 import 'chat_conversation_screen.dart';
 
@@ -30,8 +30,8 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
   Future<_ThreadsData> _loadThreads() async {
     final orders = widget.role == ChatRole.worker
-        ? await bitrix24.getOrdersForWorker(Bitrix24Service.demoWorkerId)
-        : await bitrix24.getOrders();
+        ? await gpmApi.getOrdersForWorker(GpmApiService.demoWorkerId)
+        : await gpmApi.getOrders();
 
     final threads = await chatService.getThreadsForRole(
       role: widget.role,

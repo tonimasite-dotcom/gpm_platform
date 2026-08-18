@@ -4,8 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../../main.dart' show bitrix24;
+import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
+import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
 
 class ClientCreateOrderScreen extends StatefulWidget {
@@ -302,7 +303,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     try {
       final cargoType = _cargoTypeController.text.trim();
       final price = _optionalPositiveInt(_priceController);
-      final result = await bitrix24.createOrder(
+      final result = await gpmApi.createOrder(
         title: cargoType.isEmpty ? 'Заказ грузчиков' : cargoType,
         description: _buildDescription(),
         address: _addressController.text.trim(),
@@ -312,7 +313,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         clientPhone: '',
         scheduledAt: scheduledAt.toUtc().toIso8601String(),
         city: _cityController.text.trim(),
-        source: widget.publishImmediately ? 'crm' : 'manual',
+        source: widget.publishImmediately
+            ? GpmApiService.sourceExternal
+            : GpmApiService.sourceManual,
         metro: _metroController.text.trim(),
         national: _isRussianCitizenshipRequired ? 'yes' : 'every',
         minTime: _hours,
@@ -336,7 +339,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       }
 
       if (widget.publishImmediately) {
-        await bitrix24.updateOrderStatus(
+        await gpmApi.updateOrderStatus(
           result['orderId'].toString(),
           'PROCESSED',
         );

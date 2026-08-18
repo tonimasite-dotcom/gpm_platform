@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show bitrix24;
+import '../../main.dart' show gpmApi;
 
 class LogistAnalyticsScreen extends StatefulWidget {
   const LogistAnalyticsScreen({super.key});
@@ -19,7 +19,7 @@ class _LogistAnalyticsScreenState extends State<LogistAnalyticsScreen> {
   }
 
   Future<_AnalyticsData> _load() async {
-    final orders = await bitrix24.getOrders();
+    final orders = await gpmApi.getOrders();
     final applicationsByOrder = <String, int>{};
     var totalApplications = 0;
     var pendingApplications = 0;
@@ -27,7 +27,7 @@ class _LogistAnalyticsScreenState extends State<LogistAnalyticsScreen> {
     for (final order in orders) {
       final id = order['id']?.toString() ?? '';
       if (id.isEmpty) continue;
-      final applications = await bitrix24.getApplicationsForOrder(id);
+      final applications = await gpmApi.getApplicationsForOrder(id);
       applicationsByOrder[id] = applications.length;
       totalApplications += applications.length;
       pendingApplications += applications
@@ -139,7 +139,7 @@ class _KpiGrid extends StatelessWidget {
         ),
         _KpiCard(
           icon: Icons.cloud_done_outlined,
-          label: 'Из CRM',
+          label: 'Внешние',
           value: data.crmOrders.toString(),
           color: Colors.blue,
         ),
@@ -327,7 +327,7 @@ class _SourceAndModePanel extends StatelessWidget {
     return Column(
       children: [
         _ProgressRow(
-          label: 'CRM',
+          label: 'Внешняя система',
           value: data.crmOrders,
           total: data.totalOrders == 0 ? 1 : data.totalOrders,
           color: Colors.indigo,
@@ -486,7 +486,7 @@ class _AnalyticsData {
   int get totalOrders => orders.length;
 
   int get crmOrders =>
-      orders.where((order) => order['source'] == 'crm').length;
+      orders.where(gpmApi.isExternalOrder).length;
 
   int get manualOrders => totalOrders - crmOrders;
 

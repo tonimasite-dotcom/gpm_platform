@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show bitrix24;
-import '../../services/bitrix24_service.dart';
+import '../../main.dart' show gpmApi;
+import '../../services/gpm_api_service.dart';
 
 class WorkerFinanceScreen extends StatefulWidget {
   const WorkerFinanceScreen({super.key});
@@ -20,7 +20,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _loadCompletedOrders() async {
-    final orders = await bitrix24.getOrdersForWorker(Bitrix24Service.demoWorkerId);
+    final orders = await gpmApi.getOrdersForWorker(GpmApiService.demoWorkerId);
     return orders
         .where(
           (order) =>

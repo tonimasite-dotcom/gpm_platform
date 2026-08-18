@@ -4,12 +4,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/client/client_home_screen.dart';
 import 'screens/logist/logist_home_screen.dart';
 import 'screens/worker/worker_home_screen.dart';
-import 'services/bitrix24_service.dart';
+import 'services/gpm_api_service.dart';
 import 'services/chat_service.dart';
 import 'services/supabase_compat.dart';
 import 'theme/gpm_theme.dart';
 
-late Bitrix24Service bitrix24;
+late GpmApiService gpmApi;
+// Backward compatibility for older screens and examples.
+late GpmApiService bitrix24;
 late SupabaseCompatibilityLayer supabase;
 late ChatService chatService;
 
@@ -18,11 +20,12 @@ void main() async {
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {
-    dotenv.testLoad(fileInput: 'DEMO_MODE=true');
+    dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo');
   }
 
-  bitrix24 = Bitrix24Service();
-  supabase = SupabaseCompatibilityLayer(bitrix24);
+  gpmApi = GpmApiService();
+  bitrix24 = gpmApi;
+  supabase = SupabaseCompatibilityLayer(gpmApi);
   chatService = ChatService();
 
   runApp(const GpmApp());

@@ -1,10 +1,10 @@
-import 'bitrix24_service.dart';
+import 'gpm_api_service.dart';
 
 /// Compatibility layer для старого кода который использует Supabase API
 class SupabaseCompatibilityLayer {
-  final Bitrix24Service _bitrix24;
+  final GpmApiService _gpmApi;
 
-  SupabaseCompatibilityLayer(this._bitrix24);
+  SupabaseCompatibilityLayer(this._gpmApi);
 
   QueryBuilder from(String table) {
     return QueryBuilder(this, table);
@@ -48,7 +48,7 @@ class QueryBuilder {
   }
 
   Future<void> insert(Map<String, dynamic> data) async {
-    final result = await _compat._bitrix24.createOrder(
+    final result = await _compat._gpmApi.createOrder(
       title: data['title'] ?? 'Заказ грузчиков',
       address: data['address'] ?? '',
       workersCount: data['workers_count'] ?? 1,
@@ -67,7 +67,7 @@ class QueryBuilder {
     if (_filterColumn == 'id' && _filterValue != null) {
       final newStatus = data['status'] as String?;
       if (newStatus != null) {
-        final success = await _compat._bitrix24.updateOrderStatus(
+        final success = await _compat._gpmApi.updateOrderStatus(
           _filterValue.toString(),
           _mapStatusToBitrix(newStatus),
         );
@@ -99,7 +99,7 @@ class QueryBuilder {
     List<Map<String, dynamic>> results = [];
 
     if (_table == 'orders') {
-      final orders = await _compat._bitrix24.getOrders();
+      final orders = await _compat._gpmApi.getOrders();
       results = orders
           .map((o) => {
                 'id': o['id'] ?? '',
@@ -125,7 +125,7 @@ class QueryBuilder {
         results = results.where((o) => statuses.contains(o['status'])).toList();
       }
     } else if (_table == 'profiles') {
-      final contacts = await _compat._bitrix24.getContacts();
+      final contacts = await _compat._gpmApi.getContacts();
       results = contacts;
     }
 

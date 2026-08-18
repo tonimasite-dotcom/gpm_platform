@@ -3,6 +3,13 @@
 *.log
 *.zip
 .env
+app/config.local.yml
+config_admin.yaml
+.private_key
+*.key
+*.pem
+gosuslugi_*.png
+gosuslugi_*.html
 *.pyc
 *.sqlite3
 *.swp

@@ -32,7 +32,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await bitrix24.createOrder(
+      final result = await gpmApi.createOrder(
         title: _titleController.text,
         address: _addressController.text,
         workersCount: int.parse(_workersController.text),

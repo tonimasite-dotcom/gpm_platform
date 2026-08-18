@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../main.dart' show bitrix24;
-import '../../services/bitrix24_service.dart';
+import '../../main.dart' show gpmApi;
+import '../../services/gpm_api_service.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -21,7 +21,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   }
 
   Future<Map<String, dynamic>?> _loadProfile() {
-    return bitrix24.getWorkerProfile(Bitrix24Service.demoWorkerId);
+    return gpmApi.getWorkerProfile(GpmApiService.demoWorkerId);
   }
 
   Future<void> _updateProfile(
@@ -39,7 +39,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       setState(() {
         _profileFuture = Future.value(updatedProfile);
       });
-      await bitrix24.updateWorkerProfile(Bitrix24Service.demoWorkerId, data);
+      await gpmApi.updateWorkerProfile(GpmApiService.demoWorkerId, data);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

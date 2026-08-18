@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show bitrix24;
-import '../../services/bitrix24_service.dart';
+import '../../main.dart' show gpmApi;
+import '../../services/gpm_api_service.dart';
 
 class WorkerOrdersScreen extends StatefulWidget {
   const WorkerOrdersScreen({super.key});
@@ -26,8 +26,8 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
     setState(() => isLoading = true);
 
     try {
-      final orders = await bitrix24.getOrdersForWorker(
-        Bitrix24Service.demoWorkerId,
+      final orders = await gpmApi.getOrdersForWorker(
+        GpmApiService.demoWorkerId,
       );
 
       if (!mounted) return;
@@ -60,7 +60,7 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
         national == true || national == 'yes' || national == 'ru';
     if (!requiresRussianCitizenship) return true;
 
-    final worker = bitrix24.getWorkerProfileSync(Bitrix24Service.demoWorkerId);
+    final worker = gpmApi.getWorkerProfileSync(GpmApiService.demoWorkerId);
     return worker?['nationality'] == true;
   }
 
@@ -255,10 +255,10 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
     setState(() => isApplying = true);
 
     try {
-      final result = await bitrix24.applyToOrder(
+      final result = await gpmApi.applyToOrder(
         orderId: order['id'].toString(),
-        workerId: Bitrix24Service.demoWorkerId,
-        workerName: Bitrix24Service.demoWorkerName,
+        workerId: GpmApiService.demoWorkerId,
+        workerName: GpmApiService.demoWorkerName,
       );
 
       if (!mounted) return;
@@ -293,7 +293,7 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
     setState(() => isCompleting = true);
 
     try {
-      final success = await bitrix24.updateOrderStatus(
+      final success = await gpmApi.updateOrderStatus(
         order['id'].toString(),
         'DONE_PENDING',
       );

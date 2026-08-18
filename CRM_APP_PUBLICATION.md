@@ -1,16 +1,16 @@
-# CRM App Order Publication
+# GPM App Order Publication
 
-Test CRM:
+Test external system:
 
 ```text
 https://ts.workstaffcrm.ru
 ```
 
-The CRM publishes orders to the GPM backend. The Flutter app reads published
+The external order system publishes orders to the GPM backend. The Flutter app reads published
 orders from the same backend.
 
 ```text
-CRM -> GPM backend -> Flutter logist app
+External order system -> GPM backend -> Flutter logist app
 ```
 
 ## Endpoints
@@ -30,6 +30,20 @@ GET /app-api/orders
 X-GPM-App-Token: <token>
 ```
 
+Update an app order:
+
+```http
+PATCH /app-api/orders/{order_id}
+X-GPM-App-Token: <token>
+Content-Type: application/json
+```
+
+```json
+{
+  "status": "PROCESSED"
+}
+```
+
 Health check:
 
 ```http
@@ -42,10 +56,25 @@ Server process:
 uvicorn app.app_orders_api:app --host 127.0.0.1 --port 8081
 ```
 
+## Production storage
+
+Use PostgreSQL for production data. Set the database URL through the server
+environment, not in the repository:
+
+```bash
+GPM_APP_DATABASE_URL=postgresql://user:password@host:5432/database
+GPM_APP_API_TOKEN=<server-side token>
+GPM_APP_ALLOWED_ORIGINS=https://your-app-domain.ru
+```
+
+If `GPM_APP_DATABASE_URL` is not set, the API falls back to local SQLite for
+development.
+
 ## Payload
 
 ```json
 {
+  "source_system": "workstaff",
   "telegram_username": "logist_gpm",
   "client_phone": "+79990000000",
   "client_email": "client@example.com",
