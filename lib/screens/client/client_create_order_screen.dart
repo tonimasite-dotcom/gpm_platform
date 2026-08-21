@@ -53,6 +53,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   List<_AddressCandidate> _addressCandidates = const [];
   _AddressCandidate? _selectedAddress;
   String? _addressLookupError;
+  bool _isAddressServiceUnavailable = false;
 
   @override
   void initState() {
@@ -150,6 +151,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
       setState(() {
         _addressCandidates = candidates;
+        _isAddressServiceUnavailable = false;
         _addressLookupError = candidates.isEmpty
             ? 'Адрес не найден. Уточните город, улицу и дом.'
             : null;
@@ -160,7 +162,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
       setState(() {
         _addressCandidates = const [];
-        _addressLookupError = 'Не удалось получить подсказки адреса';
+        _isAddressServiceUnavailable = true;
+        _addressLookupError =
+            'Подсказки временно недоступны. Введите адрес вручную.';
         _isAddressLookupLoading = false;
       });
     }
@@ -194,7 +198,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   String? _validateAddress(String? value) {
     final message = _requiredText(value, 'Укажите адрес');
     if (message != null) return message;
-    if (_selectedAddress == null) {
+    if (_selectedAddress == null && !_isAddressServiceUnavailable) {
       return 'Выберите адрес из вариантов, чтобы подтвердить точку на карте';
     }
     return null;
@@ -361,6 +365,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         _selectedAddress = null;
         _addressCandidates = const [];
         _addressLookupError = null;
+        _isAddressServiceUnavailable = false;
         _isAddressLookupLoading = false;
       });
     } catch (error) {
