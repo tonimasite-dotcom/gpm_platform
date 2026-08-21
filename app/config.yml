@@ -19,6 +19,7 @@ CLIENT_SECRET: change-me
 CLIENT_ID: change-me
 
 GEOCODER_API: change-me
+DADATA_API_KEY: change-me
 
 GOSUSLUGI_LOGIN: change-me
 GOSUSLUGI_PASSWORD: change-me

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
@@ -63,6 +62,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   @override
   void dispose() {
+    _addressLookupTimer?.cancel();
     _cityController.dispose();
     _dateController.dispose();
     _timeController.dispose();
@@ -135,37 +135,16 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   Future<void> _lookupAddress(String rawQuery) async {
     final city = _cityController.text.trim();
-    final query = city.isEmpty ? rawQuery : '$city, $rawQuery';
-    final uri = Uri.https(
-      'nominatim.openstreetmap.org',
-      '/search',
-      {
-        'format': 'jsonv2',
-        'addressdetails': '1',
-        'limit': '6',
-        'accept-language': 'ru',
-        'countrycodes': 'ru',
-        'q': query,
-      },
-    );
 
     try {
-      final response = await http.get(
-        uri,
-        headers: const {'Accept': 'application/json'},
+      final rawCandidates = await gpmApi.suggestAddresses(
+        query: rawQuery,
+        city: city,
       );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw StateError('address service returned ${response.statusCode}');
-      }
-
-      final decoded = jsonDecode(response.body);
-      final candidates = decoded is List
-          ? decoded
-              .whereType<Map<String, dynamic>>()
-              .map(_AddressCandidate.fromJson)
-              .whereType<_AddressCandidate>()
-              .toList()
-          : <_AddressCandidate>[];
+      final candidates = rawCandidates
+          .map(_AddressCandidate.fromJson)
+          .whereType<_AddressCandidate>()
+          .toList();
 
       if (!mounted || _addressController.text.trim() != rawQuery) return;
 
@@ -181,7 +160,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
       setState(() {
         _addressCandidates = const [];
-        _addressLookupError = 'Не удалось проверить адрес по картам: $error';
+        _addressLookupError = 'Не удалось получить подсказки адреса';
         _isAddressLookupLoading = false;
       });
     }
@@ -189,6 +168,20 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   void _selectAddress(_AddressCandidate candidate) {
     _addressLookupTimer?.cancel();
+    if (!candidate.isComplete) {
+      setState(() {
+        _selectedAddress = null;
+        _addressController.text = candidate.title;
+        _addressController.selection = TextSelection.collapsed(
+          offset: _addressController.text.length,
+        );
+        _addressCandidates = const [];
+        _addressLookupError = 'Допишите номер дома';
+        _isAddressLookupLoading = false;
+      });
+      _addressFocusNode.requestFocus();
+      return;
+    }
     setState(() {
       _selectedAddress = candidate;
       _addressController.text = candidate.title;
@@ -215,19 +208,6 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }
-  }
-
-  Iterable<String> _addressOptions(TextEditingValue value) {
-    final query = value.text.trim().toLowerCase();
-    if (query.length < 2) return const Iterable<String>.empty();
-
-    final city = _cityController.text.trim();
-    final cityPrefix = city.isEmpty ? '' : '$city, ';
-
-    return _moscowAddressSuggestions
-        .where((address) => address.toLowerCase().contains(query))
-        .map((address) => '$cityPrefix$address')
-        .take(8);
   }
 
   DateTime? _parseScheduledAt() {
@@ -587,68 +567,28 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              RawAutocomplete<String>(
-                textEditingController: _addressController,
+              TextFormField(
+                controller: _addressController,
                 focusNode: _addressFocusNode,
-                optionsBuilder: _addressOptions,
-                onSelected: (value) {
-                  _addressController.text = value;
-                  _scheduleAddressLookup(value);
-                },
-                fieldViewBuilder: (
-                  context,
-                  textEditingController,
-                  focusNode,
-                  onFieldSubmitted,
-                ) {
-                  return TextFormField(
-                    controller: textEditingController,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      labelText: 'Адрес',
-                      hintText: 'Начните вводить улицу или проспект',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: _scheduleAddressLookup,
-                    validator: _validateAddress,
-                  );
-                },
-                optionsViewBuilder: (context, onSelected, options) {
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 6,
-                      borderRadius: BorderRadius.circular(8),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxHeight: 280,
-                          maxWidth: 720,
-                        ),
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: options.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final option = options.elementAt(index);
-                            return ListTile(
-                              dense: true,
-                              leading: const Icon(Icons.place_outlined),
-                              title: Text(option),
-                              onTap: () => onSelected(option),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                decoration: InputDecoration(
+                  labelText: 'Адрес',
+                  hintText: 'Начните вводить улицу и дом',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  suffixIcon: _isAddressLookupLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
+                onChanged: _scheduleAddressLookup,
+                validator: _validateAddress,
               ),
-              if (_isAddressLookupLoading) ...[
-                const SizedBox(height: 8),
-                const LinearProgressIndicator(minHeight: 2),
-              ],
               if (_addressLookupError != null) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -822,8 +762,9 @@ class _AddressCandidate {
   final String details;
   final String street;
   final String? houseNumber;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
+  final bool isComplete;
 
   const _AddressCandidate({
     required this.title,
@@ -832,42 +773,33 @@ class _AddressCandidate {
     required this.houseNumber,
     required this.latitude,
     required this.longitude,
+    required this.isComplete,
   });
 
   static _AddressCandidate? fromJson(Map<String, dynamic> json) {
-    final lat = double.tryParse(json['lat']?.toString() ?? '');
-    final lon = double.tryParse(json['lon']?.toString() ?? '');
-    final displayName = json['display_name']?.toString().trim();
-    if (lat == null || lon == null || displayName == null || displayName.isEmpty) {
-      return null;
-    }
-
-    final address = json['address'];
-    final street = address is Map ? address['road']?.toString().trim() : null;
-    final houseNumber =
-        address is Map ? address['house_number']?.toString().trim() : null;
-    final building =
-        address is Map ? address['building']?.toString().trim() : null;
-    final title = address is Map
-        ? [street, houseNumber, building]
-            .where((part) => part != null && part.toString().trim().isNotEmpty)
-            .map((part) => part.toString().trim())
-            .join(', ')
-        : '';
+    final title = json['title']?.toString().trim() ?? '';
+    if (title.isEmpty) return null;
+    final latitude = double.tryParse(json['latitude']?.toString() ?? '');
+    final longitude = double.tryParse(json['longitude']?.toString() ?? '');
+    final houseNumber = json['house_number']?.toString().trim();
 
     return _AddressCandidate(
-      title: title.isEmpty ? displayName : title,
-      details: displayName,
-      street: street?.isNotEmpty == true ? street! : displayName,
-      houseNumber: houseNumber?.isNotEmpty == true ? houseNumber : building,
-      latitude: lat,
-      longitude: lon,
+      title: title,
+      details: json['details']?.toString().trim() ?? title,
+      street: json['street']?.toString().trim() ?? title,
+      houseNumber: houseNumber?.isNotEmpty == true ? houseNumber : null,
+      latitude: latitude,
+      longitude: longitude,
+      isComplete: json['complete'] == true &&
+          latitude != null &&
+          longitude != null &&
+          houseNumber?.isNotEmpty == true,
     );
   }
 
   String get mapImageUrl {
-    final lat = latitude.toStringAsFixed(6);
-    final lon = longitude.toStringAsFixed(6);
+    final lat = latitude!.toStringAsFixed(6);
+    final lon = longitude!.toStringAsFixed(6);
     return 'https://staticmap.openstreetmap.de/staticmap.php'
         '?center=$lat,$lon&zoom=16&size=720x260&markers=$lat,$lon,red-pushpin';
   }
@@ -902,7 +834,12 @@ class _AddressCandidatesList extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: const Icon(Icons.check_circle_outline),
+              trailing: Icon(
+                candidates[index].isComplete
+                    ? Icons.check_circle_outline
+                    : Icons.arrow_forward_ios,
+                size: candidates[index].isComplete ? 24 : 16,
+              ),
               onTap: () => onSelected(candidates[index]),
             ),
           ],
@@ -968,8 +905,8 @@ class _SelectedAddressPreview extends StatelessWidget {
                 Text(candidate.details),
                 const SizedBox(height: 6),
                 Text(
-                  '${candidate.latitude.toStringAsFixed(6)}, '
-                  '${candidate.longitude.toStringAsFixed(6)}',
+                  '${candidate.latitude!.toStringAsFixed(6)}, '
+                  '${candidate.longitude!.toStringAsFixed(6)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -980,102 +917,3 @@ class _SelectedAddressPreview extends StatelessWidget {
     );
   }
 }
-const _moscowAddressSuggestions = [
-  'Ленинградский проспект',
-  'Ленинградское шоссе',
-  'Варшавское шоссе',
-  'Каширское шоссе',
-  'Дмитровское шоссе',
-  'Алтуфьевское шоссе',
-  'Волгоградский проспект',
-  'Кутузовский проспект',
-  'Мичуринский проспект',
-  'Нахимовский проспект',
-  'Рязанский проспект',
-  'Севастопольский проспект',
-  'Ленинский проспект',
-  'Проспект Мира',
-  'Проспект Вернадского',
-  'Проспект Андропова',
-  'Проспект Маршала Жукова',
-  'Улица Новый Арбат',
-  'Улица Арбат',
-  'Тверская улица',
-  '1-я Тверская-Ямская улица',
-  'Садовая-Кудринская улица',
-  'Садовая-Самотечная улица',
-  'Большая Садовая улица',
-  'Пятницкая улица',
-  'Большая Ордынка',
-  'Мясницкая улица',
-  'Покровка',
-  'Сретенка',
-  'Неглинная улица',
-  'Новая Басманная улица',
-  'Старая Басманная улица',
-  'Бауманская улица',
-  'Большая Семеновская улица',
-  'Электрозаводская улица',
-  'Профсоюзная улица',
-  'Вавилова улица',
-  'Улица Гарибальди',
-  'Улица Обручева',
-  'Улица Академика Королева',
-  'Улица Академика Янгеля',
-  'Улица 1905 года',
-  'Улица Красная Пресня',
-  'Пресненская набережная',
-  'Шмитовский проезд',
-  'Хорошевское шоссе',
-  'Звенигородское шоссе',
-  'Бутырская улица',
-  'Новослободская улица',
-  'Сущевский Вал',
-  'Складочная улица',
-  'Шереметьевская улица',
-  'Люблинская улица',
-  'Шоссейная улица',
-  'Люблинская улица',
-  'Коровинское шоссе',
-  'Пятницкое шоссе',
-  'Ярославское шоссе',
-  'Щелковское шоссе',
-  'Открытое шоссе',
-  'Большая Черкизовская улица',
-  'Измайловское шоссе',
-  'Перовская улица',
-  'Зеленый проспект',
-  'Свободный проспект',
-  'Шоссе Энтузиастов',
-  'Авиамоторная улица',
-  'Нижегородская улица',
-  'Рогожский Вал',
-  'Таганская улица',
-  'Марксистская улица',
-  'Павелецкая площадь',
-  'Дербеневская набережная',
-  'Дубининская улица',
-  'Большая Тульская улица',
-  'Автозаводская улица',
-  'Велозаводская улица',
-  'Кантемировская улица',
-  'Промышленная улица',
-  'Дорожная улица',
-  'Подольских Курсантов улица',
-  'Можайское шоссе',
-  'Рублевское шоссе',
-  'Аминьевское шоссе',
-  'Очаковское шоссе',
-  'Рябиновая улица',
-  'Генерала Дорохова улица',
-  'Минская улица',
-  'Мосфильмовская улица',
-  'Ломоносовский проспект',
-  'Университетский проспект',
-  'Комсомольский проспект',
-  'Фрунзенская набережная',
-  'Большая Пироговская улица',
-  'Хамовнический Вал',
-  'Остоженка',
-  'Пречистенка',
-];

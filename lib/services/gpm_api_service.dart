@@ -190,6 +190,55 @@ class GpmApiService {
     removeDemoValue(_authRoleStorageKey);
   }
 
+  Future<List<Map<String, dynamic>>> suggestAddresses({
+    required String query,
+    String city = '',
+  }) async {
+    if (_appApiUrl.trim().isEmpty || _appAccessToken.trim().isEmpty) {
+      throw StateError('Сервис адресов не настроен');
+    }
+
+    final response = await http.post(
+      Uri.parse(_appApiUrl).resolve('/app-api/me/address-suggestions'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${_appAccessToken.trim()}',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'query': query.trim(),
+        'city': city.trim(),
+      }),
+    );
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      logout();
+      throw StateError('Сессия истекла. Войдите снова');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      var message = 'Сервис адресов временно недоступен';
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['detail'] != null) {
+          message = decoded['detail'].toString();
+        }
+      } catch (_) {}
+      throw StateError(message);
+    }
+
+    final decoded = jsonDecode(response.body);
+    final suggestions = decoded is Map ? decoded['suggestions'] : null;
+    if (suggestions is! List) return const [];
+    return suggestions
+        .whereType<Map>()
+        .map(
+          (item) => item.map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        )
+        .toList();
+  }
+
   bool isExternalOrder(Map<String, dynamic> order) {
     return _isExternalSource(order['source']);
   }

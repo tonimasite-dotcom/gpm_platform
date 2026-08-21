@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import base64
@@ -8,6 +9,8 @@ from contextlib import contextmanager
 import sqlite3
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest, urlopen
 
 import yaml
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -22,6 +25,10 @@ LEGACY_SQLITE_DB_FILE = BASE_DIR / "crm_app_orders.sqlite3"
 TABLE_NAME = "gpm_app_orders"
 LEGACY_TABLE_NAME = "crm_app_orders"
 APP_ROLES = {"client", "worker", "logist"}
+DADATA_SUGGEST_URL = (
+    "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address"
+)
+ADDRESS_SUGGEST_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 
 try:
     import psycopg2
@@ -257,6 +264,93 @@ def check_app_credentials(username: str, password: str) -> None:
         raise HTTPException(status_code=401, detail="invalid login or password")
 
 
+def _optional_float(value: Any) -> float | None:
+    try:
+        return float(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def fetch_address_suggestions(query: str, city: str) -> list[dict[str, Any]]:
+    api_key = get_setting("DADATA_API_KEY")
+    if not api_key or api_key == "change-me":
+        raise HTTPException(status_code=503, detail="address suggestions are not configured")
+
+    cache_key = f"{city.strip().lower()}|{query.strip().lower()}"
+    cached = ADDRESS_SUGGEST_CACHE.get(cache_key)
+    if cached and time.time() - cached[0] < 300:
+        return cached[1]
+
+    search_text = ", ".join(part for part in (city.strip(), query.strip()) if part)
+    payload = json.dumps({"query": search_text, "count": 7}).encode("utf-8")
+    request = UrlRequest(
+        DADATA_SUGGEST_URL,
+        data=payload,
+        method="POST",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urlopen(request, timeout=8) as response:
+            raw_data = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        if error.code in (401, 403):
+            raise HTTPException(
+                status_code=503,
+                detail="address service authorization failed",
+            ) from error
+        if error.code == 429:
+            raise HTTPException(
+                status_code=503,
+                detail="address suggestion limit reached",
+            ) from error
+        raise HTTPException(status_code=502, detail="address service error") from error
+    except (URLError, TimeoutError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=502, detail="address service unavailable") from error
+
+    suggestions: list[dict[str, Any]] = []
+    for item in raw_data.get("suggestions", []):
+        if not isinstance(item, dict):
+            continue
+        data = item.get("data")
+        if not isinstance(data, dict):
+            data = {}
+        title = str(item.get("value") or "").strip()
+        if not title:
+            continue
+
+        street = str(
+            data.get("street_with_type")
+            or data.get("settlement_with_type")
+            or data.get("city_with_type")
+            or title
+        ).strip()
+        house_number = str(data.get("house") or "").strip() or None
+        latitude = _optional_float(data.get("geo_lat"))
+        longitude = _optional_float(data.get("geo_lon"))
+        suggestions.append(
+            {
+                "title": title,
+                "details": str(item.get("unrestricted_value") or title).strip(),
+                "street": street,
+                "house_number": house_number,
+                "latitude": latitude,
+                "longitude": longitude,
+                "complete": bool(house_number and latitude is not None and longitude is not None),
+                "provider": "dadata",
+            }
+        )
+
+    if len(ADDRESS_SUGGEST_CACHE) >= 500:
+        ADDRESS_SUGGEST_CACHE.clear()
+    ADDRESS_SUGGEST_CACHE[cache_key] = (time.time(), suggestions)
+    return suggestions
+
+
 def save_order(order: dict[str, Any]) -> None:
     init_db()
     if is_postgres_enabled():
@@ -452,6 +546,30 @@ async def me(
         "username": str(user.get("sub") or ""),
         "role": str(user.get("role") or ""),
     }
+
+
+@app.post("/app-api/me/address-suggestions")
+async def address_suggestions(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, list[dict[str, Any]]]:
+    current_user(authorization)
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be an object")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    query = str(payload.get("query") or "").strip()
+    city = str(payload.get("city") or "").strip()
+    if len(query) < 3:
+        return {"suggestions": []}
+    if len(query) > 300 or len(city) > 120:
+        raise HTTPException(status_code=400, detail="address query is too long")
+
+    suggestions = await asyncio.to_thread(fetch_address_suggestions, query, city)
+    return {"suggestions": suggestions}
 
 
 @app.get("/app-api/me/orders")
