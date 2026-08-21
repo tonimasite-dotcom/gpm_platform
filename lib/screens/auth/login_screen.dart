@@ -76,35 +76,72 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GpmColors.page,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight - 40),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const _GpmAuthLogo(),
-                      const SizedBox(height: 28),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: _role == null
-                            ? _buildRoleSelection()
-                            : _buildAuthentication(),
+      backgroundColor: const Color(0xFFEDE9E4),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontalPadding = constraints.maxWidth > 520 ? 18.0 : 0.0;
+          return Stack(
+            children: [
+              const Positioned.fill(child: _AuthBackdrop()),
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: 430,
+                        minHeight: constraints.maxHeight,
                       ),
-                    ],
+                      child: Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: GpmColors.page,
+                          borderRadius: BorderRadius.circular(
+                            constraints.maxWidth > 520 ? 28 : 0,
+                          ),
+                          boxShadow: constraints.maxWidth > 520
+                              ? const [
+                                  BoxShadow(
+                                    color: Color(0x26000000),
+                                    blurRadius: 32,
+                                    offset: Offset(0, 12),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _GpmAuthHero(),
+                            Transform.translate(
+                              offset: const Offset(0, -18),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                                decoration: const BoxDecoration(
+                                  color: GpmColors.page,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(28),
+                                  ),
+                                ),
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  child: _role == null
+                                      ? _buildRoleSelection()
+                                      : _buildAuthentication(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -116,7 +153,9 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       children: [
         Text(
           'Выберите роль',
-          style: Theme.of(context).textTheme.headlineSmall,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontSize: 26,
+              ),
         ),
         const SizedBox(height: 20),
         for (final option in _roleOptions) ...[
@@ -141,7 +180,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
             label: const Text('Изменить роль'),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         Row(
           children: [
             Icon(selectedRole.icon, color: GpmColors.red),
@@ -184,6 +223,12 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                     _authMode = selection.first;
                     _error = null;
                   }),
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         if (_authMode == _AuthMode.login)
@@ -353,23 +398,23 @@ class _RoleCard extends StatelessWidget {
     return Material(
       color: GpmColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: GpmColors.line),
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFE8E3E0)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(17),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: GpmColors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(option.icon, color: GpmColors.red),
               ),
@@ -397,9 +442,15 @@ class _RoleCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Padding(
-                padding: EdgeInsets.only(top: 10),
-                child: Icon(Icons.arrow_forward_ios, size: 16),
+              Container(
+                width: 30,
+                height: 30,
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  color: GpmColors.page,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.arrow_forward_ios, size: 14),
               ),
             ],
           ),
@@ -409,42 +460,155 @@ class _RoleCard extends StatelessWidget {
   }
 }
 
-class _GpmAuthLogo extends StatelessWidget {
-  const _GpmAuthLogo();
+class _GpmAuthHero extends StatelessWidget {
+  const _GpmAuthHero();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Image.network(
-          'assets/assets/images/gpm_logo.png?v=gpm-auth-logo-2',
-          width: 56,
-          height: 56,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: GpmColors.red,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.engineering,
-              color: Colors.white,
-              size: 32,
+    return SizedBox(
+      height: 220,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFFFF8F3), Color(0xFFFFE9ED)],
+                ),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        const Text(
-          'GPM',
-          style: TextStyle(
-            color: GpmColors.black,
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
+          const Positioned(
+            top: -42,
+            right: -34,
+            child: _DecorativeBubble(
+              size: 150,
+              color: Color(0x24F8B800),
+            ),
           ),
+          const Positioned(
+            left: -50,
+            bottom: -56,
+            child: _DecorativeBubble(
+              size: 150,
+              color: Color(0x18FF1744),
+            ),
+          ),
+          Positioned(
+            top: 34,
+            left: 28,
+            child: Transform.rotate(
+              angle: -0.16,
+              child: Container(
+                width: 42,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: GpmColors.yellow.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 34,
+            bottom: 46,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: GpmColors.red,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 92,
+                  height: 92,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: GpmColors.red.withValues(alpha: 0.14),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Image.network(
+                    'assets/assets/images/gpm_logo.png?v=gpm-mobile-auth-3',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.engineering,
+                      color: GpmColors.red,
+                      size: 54,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'GPM',
+                  style: TextStyle(
+                    color: GpmColors.black,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Заказы, люди и работа в одном месте',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        color: GpmColors.graphite.withValues(alpha: 0.68),
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DecorativeBubble extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _DecorativeBubble({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+class _AuthBackdrop extends StatelessWidget {
+  const _AuthBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFF2EEE9), Color(0xFFE8E2DC)],
         ),
-      ],
+      ),
     );
   }
 }
