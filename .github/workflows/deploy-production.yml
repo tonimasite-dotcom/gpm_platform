@@ -1,0 +1,195 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Component to deploy
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  BACKEND_HOST: 46.149.71.147
+  FRONTEND_HOST: 186.246.10.163
+  SSH_USER: root
+  FLUTTER_VERSION: 3.38.5
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Flutter
+        if: inputs.target == 'all' || inputs.target == 'frontend'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Create public production config
+        if: inputs.target == 'all' || inputs.target == 'frontend'
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'GPM_APP_MODE=api' \
+            'GPM_APP_API_URL=https://app-api.gpmbot.ru' \
+            > .env
+
+      - name: Validate and build frontend
+        if: inputs.target == 'all' || inputs.target == 'frontend'
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter analyze --no-pub
+          flutter build web --release --base-href /
+          test -f build/web/index.html
+          test -f build/web/main.dart.js
+          test -f build/web/assets/.env
+          test -f build/web/assets/assets/images/gpm_logo.png
+          tar -C build/web -czf "/tmp/gpm-web-${GITHUB_SHA}.tar.gz" .
+
+      - name: Configure verified SSH access
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+          test -s "$HOME/.ssh/known_hosts"
+
+      - name: Deploy backend
+        if: inputs.target == 'all' || inputs.target == 'backend'
+        shell: bash
+        run: |
+          ssh -o BatchMode=yes "${SSH_USER}@${BACKEND_HOST}" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          cd /opt/gpm/gpm_platform
+
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "Backend repository has tracked local changes; deployment stopped." >&2
+            exit 1
+          fi
+
+          STAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_DIR="/opt/gpm/backups/$STAMP"
+          mkdir -p "$BACKUP_DIR"
+          git rev-parse HEAD > "$BACKUP_DIR/commit-before-deploy.txt"
+          git bundle create "$BACKUP_DIR/repository-before-deploy.bundle" HEAD
+
+          git fetch origin main
+          git merge --ff-only origin/main
+          python3 -m py_compile app/app_orders_api.py
+
+          systemctl restart gpm-app-api.service
+
+          for attempt in $(seq 1 15); do
+            if [ "$(systemctl is-active gpm-app-api.service)" = active ] && \
+               curl --fail --silent --show-error https://app-api.gpmbot.ru/health \
+                 | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("status") == "ok" else 1)'; then
+              git rev-parse --short HEAD
+              echo "Backend deployment completed. Backup: $BACKUP_DIR"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Backend health check failed. Backup: $BACKUP_DIR" >&2
+          journalctl -u gpm-app-api.service -n 80 --no-pager >&2
+          exit 1
+          REMOTE
+      - name: Upload frontend artifact
+        if: inputs.target == 'all' || inputs.target == 'frontend'
+        shell: bash
+        run: |
+          scp -o BatchMode=yes \
+            "/tmp/gpm-web-${GITHUB_SHA}.tar.gz" \
+            "${SSH_USER}@${FRONTEND_HOST}:/tmp/gpm-web-${GITHUB_SHA}.tar.gz"
+
+      - name: Deploy frontend atomically
+        if: inputs.target == 'all' || inputs.target == 'frontend'
+        shell: bash
+        run: |
+          ssh -o BatchMode=yes "${SSH_USER}@${FRONTEND_HOST}" \
+            "ARCHIVE='/tmp/gpm-web-${GITHUB_SHA}.tar.gz' bash -se" <<'REMOTE'
+          set -euo pipefail
+
+          STAMP=$(date +%Y%m%d_%H%M%S)
+          LIVE=/var/www/gpm-app
+          STAGE="/var/www/gpm-app-stage-$STAMP"
+          PREVIOUS="/var/www/gpm-app-previous-$STAMP"
+          FAILED="/var/www/gpm-app-failed-$STAMP"
+          BACKUP_DIR="/opt/gpm/front-backups/$STAMP"
+          SWAPPED=0
+
+          rollback() {
+            status=$?
+            if [ "$SWAPPED" -eq 1 ] && [ -d "$PREVIOUS" ]; then
+              echo "Frontend verification failed; restoring previous version." >&2
+              mv "$LIVE" "$FAILED"
+              mv "$PREVIOUS" "$LIVE"
+              nginx -t
+              systemctl reload nginx
+            fi
+            exit "$status"
+          }
+          trap rollback ERR
+
+          mkdir -p "$STAGE" "$BACKUP_DIR"
+          tar -xzf "$ARCHIVE" -C "$STAGE"
+
+          test -f "$STAGE/index.html"
+          test -f "$STAGE/main.dart.js"
+          test -f "$STAGE/assets/.env"
+          test -f "$STAGE/assets/assets/images/gpm_logo.png"
+          grep -Fxq 'GPM_APP_MODE=api' "$STAGE/assets/.env"
+          grep -Fxq 'GPM_APP_API_URL=https://app-api.gpmbot.ru' "$STAGE/assets/.env"
+
+          cp -a "$LIVE" "$BACKUP_DIR/gpm-app-before-deploy"
+          find "$STAGE" -type d -exec chmod 755 {} \;
+          find "$STAGE" -type f -exec chmod 644 {} \;
+          chown -R www-data:www-data "$STAGE"
+
+          nginx -t
+          mv "$LIVE" "$PREVIOUS"
+          mv "$STAGE" "$LIVE"
+          SWAPPED=1
+
+          nginx -t
+          systemctl reload nginx
+          curl --fail --silent --show-error https://app.gpmbot.ru/ >/dev/null
+          curl --fail --silent --show-error https://app.gpmbot.ru/assets/.env \
+            | grep -Fq 'GPM_APP_API_URL=https://app-api.gpmbot.ru'
+
+          SWAPPED=0
+          trap - ERR
+          rm -f "$ARCHIVE"
+          echo "Frontend deployment completed. Backup: $BACKUP_DIR"
+          echo "Previous version: $PREVIOUS"
+          REMOTE
