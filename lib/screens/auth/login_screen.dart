@@ -118,14 +118,6 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           'Выберите роль',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Мы откроем подходящий вам кабинет.',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: GpmColors.graphite),
-        ),
         const SizedBox(height: 20),
         for (final option in _roleOptions) ...[
           _RoleCard(option: option, onTap: () => _selectRole(option.value)),
@@ -326,7 +318,7 @@ class _RoleOption {
 const _roleOptions = [
   _RoleOption(
     value: 'client',
-    title: 'Я клиент',
+    title: 'Клиент',
     shortTitle: 'клиент',
     description:
         'Создаёт заявки, следит за выполнением и общается с логистом.',
@@ -334,7 +326,7 @@ const _roleOptions = [
   ),
   _RoleOption(
     value: 'worker',
-    title: 'Я исполнитель',
+    title: 'Исполнитель',
     shortTitle: 'исполнитель',
     description:
         'Выбирает доступные заказы, откликается на работу и получает выплаты.',
@@ -342,7 +334,7 @@ const _roleOptions = [
   ),
   _RoleOption(
     value: 'logist',
-    title: 'Я логист',
+    title: 'Логист',
     shortTitle: 'логист',
     description:
         'Управляет заявками, назначает исполнителей и контролирует работу.',
@@ -424,11 +416,24 @@ class _GpmAuthLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Image.asset(
-          'assets/images/gpm_logo.png',
-          width: 48,
-          height: 48,
+        Image.network(
+          'assets/assets/images/gpm_logo.png?v=gpm-auth-logo-2',
+          width: 56,
+          height: 56,
           fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: GpmColors.red,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.engineering,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         const Text(
