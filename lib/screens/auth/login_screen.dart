@@ -16,10 +16,11 @@ class GpmLoginScreen extends StatefulWidget {
 }
 
 class _GpmLoginScreenState extends State<GpmLoginScreen> {
-  final _usernameController = TextEditingController(text: 'logist');
+  final _usernameController = TextEditingController(text: 'admin');
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  String _role = 'client';
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _error;
@@ -42,6 +43,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
     final result = await gpmApi.login(
       username: _usernameController.text,
       password: _passwordController.text,
+      role: _role,
     );
 
     if (!mounted) return;
@@ -94,8 +96,54 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                     ),
                     const SizedBox(height: 28),
                     Text(
-                      'Вход для логиста',
+                      'Кто вы?',
                       style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Column(
+                      children: [
+                        for (final option in const [
+                          (
+                            'client',
+                            'Я клиент',
+                            Icons.business_center_outlined,
+                          ),
+                          (
+                            'worker',
+                            'Я исполнитель',
+                            Icons.engineering_outlined,
+                          ),
+                          (
+                            'logist',
+                            'Я логист',
+                            Icons.assignment_ind_outlined,
+                          ),
+                        ]) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  setState(() => _role = option.$1),
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                backgroundColor: _role == option.$1
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                    : null,
+                              ),
+                              icon: Icon(option.$3),
+                              label: Text(option.$2),
+                            ),
+                          ),
+                          if (option.$1 != 'logist')
+                            const SizedBox(height: 8),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 18),
                     TextFormField(

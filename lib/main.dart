@@ -80,7 +80,16 @@ class DevRoleSwitcher extends StatefulWidget {
 }
 
 class _DevRoleSwitcherState extends State<DevRoleSwitcher> {
-  DevRole _role = DevRole.logist;
+  late DevRole _role;
+
+  @override
+  void initState() {
+    super.initState();
+    _role = DevRole.values.firstWhere(
+      (role) => role.name == gpmApi.currentRole,
+      orElse: () => DevRole.logist,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,24 +142,32 @@ class _GpmHeader extends StatelessWidget {
             const _GpmLogo(),
             const SizedBox(width: 18),
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SegmentedButton<DevRole>(
-                  segments: DevRole.values
-                      .map(
-                        (role) => ButtonSegment<DevRole>(
-                          value: role,
-                          icon: Icon(role.icon),
-                          label: Text(role.label),
-                        ),
-                      )
-                      .toList(),
-                  selected: {role},
-                  onSelectionChanged: (selection) {
-                    onRoleChanged(selection.first);
-                  },
-                ),
-              ),
+              child: gpmApi.requiresAuth
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Chip(
+                        avatar: Icon(role.icon, size: 18),
+                        label: Text(role.label),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SegmentedButton<DevRole>(
+                        segments: DevRole.values
+                            .map(
+                              (item) => ButtonSegment<DevRole>(
+                                value: item,
+                                icon: Icon(item.icon),
+                                label: Text(item.label),
+                              ),
+                            )
+                            .toList(),
+                        selected: {role},
+                        onSelectionChanged: (selection) {
+                          onRoleChanged(selection.first);
+                        },
+                      ),
+                    ),
             ),
             if (gpmApi.requiresAuth) ...[
               const SizedBox(width: 8),

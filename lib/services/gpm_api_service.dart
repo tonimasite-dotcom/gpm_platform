@@ -12,6 +12,7 @@ class GpmApiService {
   static const demoWorkerId = 'worker-demo-1';
   static const _authTokenStorageKey = 'gpm_app_access_token_v1';
   static const _authUsernameStorageKey = 'gpm_app_username_v1';
+  static const _authRoleStorageKey = 'gpm_app_role_v1';
   static const demoWorkerName = 'Иван Петров';
 
   late String _appApiUrl;
@@ -19,6 +20,7 @@ class GpmApiService {
   late String _appMode;
   late String _appAccessToken;
   late String _appUsername;
+  late String _appRole;
   final List<Map<String, dynamic>> _demoOrders = [
     {
       'id': '1001',
@@ -109,6 +111,7 @@ class GpmApiService {
     _appMode = (dotenv.env['GPM_APP_MODE'] ?? 'demo').trim().toLowerCase();
     _appAccessToken = readDemoValue(_authTokenStorageKey) ?? '';
     _appUsername = readDemoValue(_authUsernameStorageKey) ?? '';
+    _appRole = readDemoValue(_authRoleStorageKey) ?? 'logist';
     // Не бросаем исключение если backend не задан — работаем в демо-режиме
     if (usesLocalPersistence) {
       _loadDemoState();
@@ -126,10 +129,12 @@ class GpmApiService {
   bool get hasAuthSession =>
       !requiresAuth || _appAccessToken.trim().isNotEmpty;
   String get currentUsername => _appUsername;
+  String get currentRole => _appRole;
 
   Future<Map<String, dynamic>> login({
     required String username,
     required String password,
+    required String role,
   }) async {
     if (_appApiUrl.trim().isEmpty) {
       return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
@@ -145,6 +150,7 @@ class GpmApiService {
         body: jsonEncode({
           'username': username.trim(),
           'password': password,
+          'role': role,
         }),
       );
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -165,8 +171,10 @@ class GpmApiService {
 
       _appAccessToken = token;
       _appUsername = decoded['username']?.toString() ?? username.trim();
+      _appRole = decoded['role']?.toString() ?? role;
       writeDemoValue(_authTokenStorageKey, _appAccessToken);
       writeDemoValue(_authUsernameStorageKey, _appUsername);
+      writeDemoValue(_authRoleStorageKey, _appRole);
       return {'success': true};
     } catch (error) {
       return {'success': false, 'error': error.toString()};
@@ -176,8 +184,10 @@ class GpmApiService {
   void logout() {
     _appAccessToken = '';
     _appUsername = '';
+    _appRole = 'logist';
     removeDemoValue(_authTokenStorageKey);
     removeDemoValue(_authUsernameStorageKey);
+    removeDemoValue(_authRoleStorageKey);
   }
 
   bool isExternalOrder(Map<String, dynamic> order) {

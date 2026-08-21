@@ -21,6 +21,7 @@ DEFAULT_SQLITE_DB_FILE = BASE_DIR / "gpm_app_orders.sqlite3"
 LEGACY_SQLITE_DB_FILE = BASE_DIR / "crm_app_orders.sqlite3"
 TABLE_NAME = "gpm_app_orders"
 LEGACY_TABLE_NAME = "crm_app_orders"
+APP_ROLES = {"client", "worker", "logist"}
 
 try:
     import psycopg2
@@ -234,16 +235,22 @@ def current_user(authorization: str | None) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="authorization required")
 
     payload = decode_access_token(token)
-    if payload.get("role") != "logist":
+    if payload.get("role") not in APP_ROLES:
         raise HTTPException(status_code=403, detail="insufficient permissions")
     return payload
 
 
-def check_logist_credentials(username: str, password: str) -> None:
-    expected_username = get_setting("GPM_APP_LOGIST_USERNAME", "logist") or "logist"
-    expected_password = get_setting("GPM_APP_LOGIST_PASSWORD")
+def check_app_credentials(username: str, password: str) -> None:
+    expected_username = (
+        os.getenv("GPM_APP_USERNAME")
+        or get_setting("GPM_APP_LOGIST_USERNAME", "logist")
+        or "logist"
+    )
+    expected_password = os.getenv("GPM_APP_PASSWORD") or get_setting(
+        "GPM_APP_LOGIST_PASSWORD"
+    )
     if not expected_password:
-        raise HTTPException(status_code=503, detail="logist login is not configured")
+        raise HTTPException(status_code=503, detail="app login is not configured")
     if not secure_compare(username, expected_username):
         raise HTTPException(status_code=401, detail="invalid login or password")
     if not secure_compare(password, expected_password):
@@ -423,12 +430,15 @@ async def login(request: Request) -> dict[str, Any]:
 
     username = str(payload.get("username") or "").strip()
     password = str(payload.get("password") or "")
-    check_logist_credentials(username, password)
+    role = str(payload.get("role") or "logist").strip().lower()
+    if role not in APP_ROLES:
+        raise HTTPException(status_code=400, detail="invalid app role")
+    check_app_credentials(username, password)
 
     return {
-        "access_token": create_access_token(username, "logist"),
+        "access_token": create_access_token(username, role),
         "token_type": "bearer",
-        "role": "logist",
+        "role": role,
         "username": username,
     }
 
