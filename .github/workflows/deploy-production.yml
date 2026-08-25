@@ -189,7 +189,7 @@ jobs:
           set -a
           . /root/gpm-app-env
           set +a
-          "$NEW_VENV/bin/python" -c 'import app.app_orders_api; import fastapi, psycopg2, uvicorn, yaml'
+          "$NEW_VENV/bin/python" -c 'import app.app_orders_api as api; api.validate_runtime_configuration(); import fastapi, psycopg2, uvicorn, yaml'
 
           if [ "$OLD_VENV_KIND" = directory ]; then
             mv .venv "$BACKUP_DIR/venv-before-deploy"
