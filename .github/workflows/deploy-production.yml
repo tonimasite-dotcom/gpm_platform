@@ -124,8 +124,18 @@ jobs:
 
           STAMP=$(date +%Y%m%d_%H%M%S)
           BACKUP_DIR="/opt/gpm/backups/$STAMP"
+          VENV_ROOT=/opt/gpm/venvs
+          NEW_VENV="$VENV_ROOT/gpm-app-${DEPLOY_SHA}"
           mkdir -p "$BACKUP_DIR"
+          mkdir -p "$VENV_ROOT"
           OLD_BACKEND_SHA=$(git rev-parse HEAD)
+          OLD_VENV_KIND=directory
+          OLD_VENV_TARGET=""
+          VENV_SWITCHED=0
+          if [ -L .venv ]; then
+            OLD_VENV_KIND=symlink
+            OLD_VENV_TARGET=$(readlink -f .venv)
+          fi
           printf '%s\n' "$OLD_BACKEND_SHA" > "$BACKUP_DIR/commit-before-deploy.txt"
           git bundle create "$BACKUP_DIR/repository-before-deploy.bundle" HEAD
 
@@ -140,6 +150,14 @@ jobs:
             trap - ERR TERM HUP
             echo "Backend deployment failed; restoring $OLD_BACKEND_SHA." >&2
             git reset --hard "$OLD_BACKEND_SHA"
+            if [ "$VENV_SWITCHED" -eq 1 ]; then
+              unlink .venv
+              if [ "$OLD_VENV_KIND" = symlink ]; then
+                ln -s "$OLD_VENV_TARGET" .venv
+              else
+                mv "$BACKUP_DIR/venv-before-deploy" .venv
+              fi
+            fi
             systemctl restart gpm-app-api.service
             exit "$status"
           }
@@ -149,9 +167,37 @@ jobs:
           grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*https://app\.gpmbot\.ru' /root/gpm-app-env
           grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*http://localhost:8090' /root/gpm-app-env
           grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*http://127\.0\.0\.1:8090' /root/gpm-app-env
-          python3 -m compileall -q app main.py tests
-          python3 -c 'import fastapi, psycopg2, uvicorn, yaml'
-          python3 -m pip check
+          for role in CLIENT WORKER LOGIST; do
+            grep -Eq "^GPM_APP_${role}_USERNAME=.+" /root/gpm-app-env
+            grep -Eq "^GPM_APP_${role}_PASSWORD=.{12,}$" /root/gpm-app-env
+          done
+          if grep -Eq '^GPM_APP_(USERNAME|PASSWORD|ROLE)=' /root/gpm-app-env; then
+            echo "Legacy shared app credentials must be removed before deployment." >&2
+            false
+          fi
+
+          if [ ! -x "$NEW_VENV/bin/python" ]; then
+            python3 -m venv "$NEW_VENV"
+          fi
+          "$NEW_VENV/bin/python" -m pip install --disable-pip-version-check \
+            --upgrade pip
+          "$NEW_VENV/bin/python" -m pip install --disable-pip-version-check \
+            -r requirements-api.lock
+          "$NEW_VENV/bin/python" -m pip check
+          "$NEW_VENV/bin/python" -m compileall -q app main.py tests
+          "$NEW_VENV/bin/python" -m unittest discover -s tests -p 'test_*.py'
+          set -a
+          . /root/gpm-app-env
+          set +a
+          "$NEW_VENV/bin/python" -c 'import app.app_orders_api; import fastapi, psycopg2, uvicorn, yaml'
+
+          if [ "$OLD_VENV_KIND" = directory ]; then
+            mv .venv "$BACKUP_DIR/venv-before-deploy"
+          else
+            unlink .venv
+          fi
+          ln -s "$NEW_VENV" .venv
+          VENV_SWITCHED=1
 
           systemctl restart gpm-app-api.service
 

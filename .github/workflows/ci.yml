@@ -61,6 +61,10 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Create synthetic test config
+        run: |
+          printf '%s\n' 'GPM_APP_MODE=demo' > .env
+
       - name: Validate Flutter application
         run: |
           flutter pub get
