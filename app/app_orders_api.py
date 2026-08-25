@@ -6,10 +6,12 @@ import hashlib
 import hmac
 import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 import sqlite3
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request as UrlRequest, urlopen
 
 import yaml
@@ -29,6 +31,34 @@ DADATA_SUGGEST_URL = (
     "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address"
 )
 ADDRESS_SUGGEST_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+PLACEHOLDER_VALUES = {
+    "",
+    "admin",
+    "change-me",
+    "changeme",
+    "password",
+    "replace-me",
+    "secret",
+    "token",
+}
+ORDER_STATUSES = {
+    "NEW",
+    "PROCESSED",
+    "IN_PROCESS",
+    "DONE_PENDING",
+    "CONVERTED",
+    "JUNK",
+}
+PUBLIC_ORDER_SOURCES = {"manual", "external", "crm"}
+WORKFLOW_FIELDS = {"status", "assigned_worker_ids", "applications"}
+ALLOWED_STATUS_TRANSITIONS = {
+    "NEW": {"PROCESSED", "JUNK"},
+    "PROCESSED": {"IN_PROCESS", "JUNK"},
+    "IN_PROCESS": {"DONE_PENDING", "JUNK"},
+    "DONE_PENDING": {"IN_PROCESS", "CONVERTED", "JUNK"},
+    "CONVERTED": set(),
+    "JUNK": set(),
+}
 
 try:
     import psycopg2
@@ -59,8 +89,65 @@ def get_setting(name: str, default: str | None = None) -> str | None:
 
 
 def parse_allowed_origins() -> list[str]:
-    raw = get_setting("GPM_APP_ALLOWED_ORIGINS", "*") or "*"
+    raw = get_setting(
+        "GPM_APP_ALLOWED_ORIGINS",
+        "http://127.0.0.1:8090,http://localhost:8090",
+    ) or ""
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def is_placeholder(value: str | None) -> bool:
+    return (value or "").strip().lower() in PLACEHOLDER_VALUES
+
+
+def is_production_environment() -> bool:
+    return (get_setting("GPM_APP_ENV", "development") or "").strip().lower() in {
+        "prod",
+        "production",
+    }
+
+
+def validate_runtime_configuration() -> None:
+    if not is_production_environment():
+        return
+
+    if not postgres_dsn():
+        raise RuntimeError("GPM_APP_DATABASE_URL is required in production")
+
+    origins = parse_allowed_origins()
+    if os.getenv("GPM_APP_ALLOWED_ORIGINS") is None:
+        raise RuntimeError("GPM_APP_ALLOWED_ORIGINS must be set in production env")
+    if not origins or "*" in origins:
+        raise RuntimeError("explicit GPM_APP_ALLOWED_ORIGINS are required in production")
+    for origin in origins:
+        parsed_origin = urlsplit(origin)
+        if (
+            parsed_origin.scheme not in {"http", "https"}
+            or not parsed_origin.netloc
+            or parsed_origin.path not in {"", "/"}
+            or parsed_origin.query
+            or parsed_origin.fragment
+        ):
+            raise RuntimeError("GPM_APP_ALLOWED_ORIGINS contains an invalid origin")
+
+    required_secrets = {
+        "GPM_APP_API_TOKEN": get_setting("GPM_APP_API_TOKEN"),
+        "GPM_APP_JWT_SECRET": get_setting("GPM_APP_JWT_SECRET"),
+    }
+    for name, value in required_secrets.items():
+        if is_placeholder(value):
+            raise RuntimeError(f"{name} must be configured in production")
+
+    jwt_value = required_secrets["GPM_APP_JWT_SECRET"] or ""
+    if len(jwt_value.encode("utf-8")) < 32:
+        raise RuntimeError("GPM_APP_JWT_SECRET must contain at least 32 bytes")
+
+    accounts = configured_app_accounts(strict=True)
+    if not accounts:
+        raise RuntimeError("at least one server-assigned app account is required")
+    for account in accounts:
+        if len(account["password"]) < 12:
+            raise RuntimeError("production app account passwords need at least 12 characters")
 
 
 def postgres_dsn() -> str | None:
@@ -109,8 +196,15 @@ def db_connection():
 
     db_file = sqlite_db_file()
     db_file.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_file) as connection:
+    connection = sqlite3.connect(db_file)
+    try:
         yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def init_db() -> None:
@@ -158,7 +252,9 @@ def init_db() -> None:
 
 def check_token(token: str | None) -> None:
     expected = get_setting("GPM_APP_API_TOKEN") or get_setting("CRM_API_KEY")
-    if expected and token != expected:
+    if is_placeholder(expected):
+        raise HTTPException(status_code=503, detail="integration auth is not configured")
+    if not token or not secure_compare(token, expected or ""):
         raise HTTPException(status_code=401, detail="invalid app token")
 
 
@@ -168,9 +264,9 @@ def secure_compare(left: str, right: str) -> bool:
 
 def jwt_secret() -> str:
     secret = get_setting("GPM_APP_JWT_SECRET")
-    if not secret:
+    if is_placeholder(secret) or len((secret or "").encode("utf-8")) < 32:
         raise HTTPException(status_code=503, detail="app auth is not configured")
-    return secret
+    return secret or ""
 
 
 def b64url_encode(raw: bytes) -> str:
@@ -221,13 +317,20 @@ def decode_access_token(token: str) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="invalid bearer token")
 
     try:
+        header = json.loads(b64url_decode(header_part))
         payload = json.loads(b64url_decode(payload_part))
-    except (json.JSONDecodeError, ValueError) as error:
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
         raise HTTPException(status_code=401, detail="invalid bearer token") from error
 
+    if not isinstance(header, dict) or header.get("alg") != "HS256":
+        raise HTTPException(status_code=401, detail="invalid bearer token")
     if not isinstance(payload, dict):
         raise HTTPException(status_code=401, detail="invalid bearer token")
-    if int(payload.get("exp", 0)) < int(time.time()):
+    try:
+        expires_at = int(payload.get("exp", 0))
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=401, detail="invalid bearer token") from error
+    if expires_at < int(time.time()):
         raise HTTPException(status_code=401, detail="bearer token expired")
 
     return payload
@@ -247,21 +350,70 @@ def current_user(authorization: str | None) -> dict[str, Any]:
     return payload
 
 
-def check_app_credentials(username: str, password: str) -> None:
-    expected_username = (
-        os.getenv("GPM_APP_USERNAME")
-        or get_setting("GPM_APP_LOGIST_USERNAME", "logist")
-        or "logist"
-    )
-    expected_password = os.getenv("GPM_APP_PASSWORD") or get_setting(
-        "GPM_APP_LOGIST_PASSWORD"
-    )
-    if not expected_password:
+def configured_app_accounts(*, strict: bool = False) -> list[dict[str, str]]:
+    accounts: list[dict[str, str]] = []
+    seen_usernames: set[str] = set()
+
+    for role in sorted(APP_ROLES):
+        prefix = f"GPM_APP_{role.upper()}"
+        username = (get_setting(f"{prefix}_USERNAME") or "").strip()
+        password = get_setting(f"{prefix}_PASSWORD") or ""
+        if not username and not password:
+            continue
+        if not username or not password:
+            raise RuntimeError(f"{prefix}_USERNAME and {prefix}_PASSWORD must be set together")
+        if is_placeholder(username) or is_placeholder(password):
+            if strict:
+                raise RuntimeError(f"{prefix} uses an unsafe placeholder credential")
+            continue
+        if username in seen_usernames:
+            raise RuntimeError("app account usernames must be unique")
+        seen_usernames.add(username)
+        accounts.append({"username": username, "password": password, "role": role})
+
+    legacy_username = (get_setting("GPM_APP_USERNAME") or "").strip()
+    legacy_password = get_setting("GPM_APP_PASSWORD") or ""
+    legacy_role = (get_setting("GPM_APP_ROLE") or "").strip().lower()
+    if legacy_username or legacy_password or legacy_role:
+        if legacy_role not in APP_ROLES:
+            raise RuntimeError("GPM_APP_ROLE must define the server-assigned account role")
+        if not is_placeholder(legacy_username) and not is_placeholder(legacy_password):
+            if not legacy_username or not legacy_password:
+                raise RuntimeError("GPM_APP_USERNAME and GPM_APP_PASSWORD must be set together")
+            if legacy_username in seen_usernames:
+                raise RuntimeError("app account usernames must be unique")
+            accounts.append(
+                {
+                    "username": legacy_username,
+                    "password": legacy_password,
+                    "role": legacy_role,
+                }
+            )
+
+    return accounts
+
+
+def check_app_credentials(username: str, password: str) -> dict[str, str]:
+    try:
+        accounts = configured_app_accounts()
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail="app login is not configured") from error
+    if not accounts:
         raise HTTPException(status_code=503, detail="app login is not configured")
-    if not secure_compare(username, expected_username):
+
+    matched_account = next(
+        (
+            account
+            for account in accounts
+            if secure_compare(username, account["username"])
+        ),
+        None,
+    )
+    expected_password = matched_account["password"] if matched_account else "!" * 32
+    password_matches = secure_compare(password, expected_password)
+    if matched_account is None or not password_matches:
         raise HTTPException(status_code=401, detail="invalid login or password")
-    if not secure_compare(password, expected_password):
-        raise HTTPException(status_code=401, detail="invalid login or password")
+    return matched_account
 
 
 def _optional_float(value: Any) -> float | None:
@@ -353,33 +505,38 @@ def fetch_address_suggestions(query: str, city: str) -> list[dict[str, Any]]:
 
 def save_order(order: dict[str, Any]) -> None:
     init_db()
-    if is_postgres_enabled():
-        with db_connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"""
-                    INSERT INTO {TABLE_NAME}(order_id, data, updated_at)
-                    VALUES (%s, %s::jsonb, NOW())
-                    ON CONFLICT(order_id) DO UPDATE SET
-                        data = excluded.data,
-                        updated_at = NOW()
-                    """,
-                    (order["external_order_id"], json.dumps(order, ensure_ascii=False)),
-                )
+    with db_connection() as connection:
+        write_order_in_connection(connection, order)
+        if is_postgres_enabled():
             connection.commit()
+
+
+def write_order_in_connection(connection: Any, order: dict[str, Any]) -> None:
+    serialized = json.dumps(order, ensure_ascii=False)
+    if is_postgres_enabled():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {TABLE_NAME}(order_id, data, updated_at)
+                VALUES (%s, %s::jsonb, NOW())
+                ON CONFLICT(order_id) DO UPDATE SET
+                    data = excluded.data,
+                    updated_at = NOW()
+                """,
+                (order["external_order_id"], serialized),
+            )
         return
 
-    with db_connection() as connection:
-        connection.execute(
-            f"""
-            INSERT INTO {TABLE_NAME}(order_id, data, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(order_id) DO UPDATE SET
-                data = excluded.data,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (order["external_order_id"], json.dumps(order, ensure_ascii=False)),
-        )
+    connection.execute(
+        f"""
+        INSERT INTO {TABLE_NAME}(order_id, data, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(order_id) DO UPDATE SET
+            data = excluded.data,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (order["external_order_id"], serialized),
+    )
 
 
 def list_orders() -> list[dict[str, Any]]:
@@ -405,31 +562,97 @@ def list_orders() -> list[dict[str, Any]]:
 
 def get_order(order_id: str) -> dict[str, Any] | None:
     init_db()
+    with db_connection() as connection:
+        return read_order_in_connection(connection, order_id)
+
+
+def read_order_in_connection(
+    connection: Any,
+    order_id: str,
+    *,
+    for_update: bool = False,
+) -> dict[str, Any] | None:
     if is_postgres_enabled():
-        with db_connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"""
-                    SELECT data FROM {TABLE_NAME}
-                    WHERE order_id = %s OR data->>'id' = %s
-                    LIMIT 1
-                    """,
-                    (order_id, order_id),
-                )
-                row = cursor.fetchone()
+        lock_clause = " FOR UPDATE" if for_update else ""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT data FROM {TABLE_NAME}
+                WHERE order_id = %s OR data->>'id' = %s
+                LIMIT 1{lock_clause}
+                """,
+                (order_id, order_id),
+            )
+            row = cursor.fetchone()
         if row is None:
             return None
         return row[0] if isinstance(row[0], dict) else json.loads(row[0])
 
-    with db_connection() as connection:
-        row = connection.execute(
-            f"SELECT data FROM {TABLE_NAME} WHERE order_id = ? LIMIT 1",
-            (order_id,),
-        ).fetchone()
+    row = connection.execute(
+        f"SELECT data FROM {TABLE_NAME} WHERE order_id = ? LIMIT 1",
+        (order_id,),
+    ).fetchone()
     return None if row is None else json.loads(row[0])
 
 
-def normalize_external_order(payload: dict[str, Any]) -> dict[str, Any]:
+def check_database_health() -> str:
+    with db_connection() as connection:
+        if is_postgres_enabled():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                row = cursor.fetchone()
+        else:
+            row = connection.execute("SELECT 1").fetchone()
+    if not row or int(row[0]) != 1:
+        raise RuntimeError("database health check failed")
+    return "postgres" if is_postgres_enabled() else "sqlite"
+
+
+def bounded_text(
+    value: Any,
+    field: str,
+    *,
+    max_length: int,
+    required: bool = False,
+) -> str:
+    if isinstance(value, (dict, list, tuple, set)):
+        raise ValueError(f"{field} must be text")
+    text = str(value or "").strip()
+    if required and not text:
+        raise ValueError(f"{field} is required")
+    if len(text) > max_length:
+        raise ValueError(f"{field} is too long")
+    if any(ord(character) < 32 and character not in "\t\n" for character in text):
+        raise ValueError(f"{field} contains control characters")
+    return text
+
+
+def bounded_integer(
+    value: Any,
+    field: str,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{field} must be an integer") from error
+    if isinstance(value, float) and not value.is_integer():
+        raise ValueError(f"{field} must be an integer")
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{field} must be between {minimum} and {maximum}")
+    return parsed
+
+
+def normalize_external_order(
+    payload: dict[str, Any],
+    *,
+    created_by: str | None = None,
+    created_by_role: str | None = None,
+) -> dict[str, Any]:
     order_data = payload.get("order_data")
     if not isinstance(order_data, dict):
         raise ValueError("order_data is required")
@@ -446,35 +669,118 @@ def normalize_external_order(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(info, dict):
         raise ValueError("order_data.info is required")
 
-    order_number = str(order_data.get("order_number") or "").strip()
-    if not order_number:
-        raise ValueError("order_data.order_number is required")
+    order_number = bounded_text(
+        order_data.get("order_number"),
+        "order_data.order_number",
+        max_length=120,
+        required=True,
+    )
+    if any(ord(character) < 32 for character in order_number):
+        raise ValueError("order_data.order_number contains control characters")
 
     additional = info.get("additional", "")
     if isinstance(additional, (list, dict)):
         additional = json.dumps(additional, ensure_ascii=False)
-    additional = str(additional).replace("\\xa0", " ")
+    additional = bounded_text(
+        str(additional).replace("\\xa0", " "),
+        "order_data.info.additional",
+        max_length=2000,
+    )
 
     rf_only = "Только РФ" in additional or "RF only" in additional
-    address = info.get("address") or info.get("address_street") or "Адрес не указан"
+    address = bounded_text(
+        info.get("address") or info.get("address_street") or "Адрес не указан",
+        "order_data.info.address",
+        max_length=500,
+        required=True,
+    )
 
+    source = str(payload.get("source") or "external").strip().lower()
+    if source not in PUBLIC_ORDER_SOURCES:
+        raise ValueError("unsupported order source")
+
+    scheduled_at = bounded_text(
+        completion_date.get("date"),
+        "order_data.completion_date.date",
+        max_length=80,
+        required=True,
+    )
+    if created_by is not None:
+        try:
+            parsed_schedule = datetime.fromisoformat(
+                scheduled_at.replace("Z", "+00:00")
+            )
+        except ValueError as error:
+            raise ValueError("scheduled date must be ISO 8601") from error
+        if parsed_schedule.tzinfo is None:
+            raise ValueError("scheduled date must include a timezone")
+        seconds_until_start = (
+            parsed_schedule.astimezone(timezone.utc) - datetime.now(timezone.utc)
+        ).total_seconds()
+        if seconds_until_start < 30 * 60:
+            raise ValueError("scheduled date must be at least 30 minutes ahead")
+        if seconds_until_start > 366 * 24 * 60 * 60:
+            raise ValueError("scheduled date must be within one year")
+    workers_count = bounded_integer(
+        loaders.get("loader_count"),
+        "order_data.loaders.loader_count",
+        minimum=1,
+        maximum=100,
+    )
+    raw_hours = order_data.get("hours")
+    if raw_hours in (None, ""):
+        raw_hours = order_data.get("min_time", 4)
+    hours = bounded_integer(
+        raw_hours,
+        "order_data.hours",
+        minimum=1,
+        maximum=24,
+    )
+    min_time = bounded_integer(
+        order_data.get("min_time", hours),
+        "order_data.min_time",
+        minimum=1,
+        maximum=24,
+    )
     return {
         "id": order_number,
         "title": f"Заявка № {order_number}",
         "address": address,
-        "workers_count": loaders.get("loader_count", 0),
-        "hours": order_data.get("hours") or order_data.get("min_time", 4),
-        "description": (order_data.get("note", "") or "")[:800],
-        "client_email": payload.get("client_email", ""),
-        "client_phone": payload.get("client_phone", ""),
-        "scheduled_at": completion_date.get("date"),
-        "city": payload.get("city") or order_data.get("city") or "",
-        "source": "external",
-        "source_system": str(payload.get("source_system") or "workstaff"),
+        "workers_count": workers_count,
+        "hours": hours,
+        "description": bounded_text(
+            order_data.get("note"),
+            "order_data.note",
+            max_length=800,
+        ),
+        "client_email": bounded_text(
+            payload.get("client_email"),
+            "client_email",
+            max_length=254,
+        ),
+        "client_phone": bounded_text(
+            payload.get("client_phone"),
+            "client_phone",
+            max_length=40,
+        ),
+        "scheduled_at": scheduled_at,
+        "city": bounded_text(
+            payload.get("city") or order_data.get("city"),
+            "city",
+            max_length=120,
+        ),
+        "source": source,
+        "source_system": bounded_text(
+            payload.get("source_system")
+            or ("gpm-app" if source == "manual" else "workstaff"),
+            "source_system",
+            max_length=80,
+            required=True,
+        ),
         "external_order_id": order_number,
         "metro": info.get("metro_station"),
         "national": "yes" if rf_only else "every",
-        "min_time": order_data.get("min_time", 4),
+        "min_time": min_time,
         "price_per_hour": order_data.get("price_per_hour"),
         "price_regular": order_data.get("price_regular"),
         "price_state": order_data.get("price_state"),
@@ -492,24 +798,225 @@ def normalize_external_order(payload: dict[str, Any]) -> dict[str, Any]:
         "address_number": info.get("address_number") or "0",
         "address_lat": info.get("address_lat") or 0,
         "address_lon": info.get("address_lon") or 0,
-        "source_payload": payload,
         "status": "NEW",
-        "created_at": completion_date.get("date"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": created_by,
+        "created_by_role": created_by_role,
         "assigned_worker_ids": [],
         "applications": [],
     }
 
 
+def merge_existing_workflow_state(
+    incoming: dict[str, Any],
+    existing: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not existing:
+        return incoming
+
+    merged = dict(incoming)
+    for field in WORKFLOW_FIELDS:
+        if field in existing:
+            merged[field] = existing[field]
+    for field in ("created_at", "created_by", "created_by_role"):
+        if existing.get(field) not in (None, ""):
+            merged[field] = existing[field]
+    return merged
+
+
+def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
+    role = str(user.get("role") or "")
+    visible = dict(order)
+    visible.pop("source_payload", None)
+    if role == "worker":
+        for field in (
+            "client_email",
+            "client_phone",
+            "telegram_username",
+            "logist_phone",
+            "created_by",
+            "created_by_role",
+        ):
+            visible.pop(field, None)
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        if str(user.get("sub") or "") not in assigned:
+            for field in (
+                "address",
+                "address_street",
+                "address_number",
+                "address_lat",
+                "address_lon",
+            ):
+                visible.pop(field, None)
+    return visible
+
+
+def orders_for_user(
+    orders: list[dict[str, Any]],
+    user: dict[str, Any],
+) -> list[dict[str, Any]]:
+    role = str(user.get("role") or "")
+    username = str(user.get("sub") or "")
+    if role == "client":
+        orders = [order for order in orders if order.get("created_by") == username]
+    elif role == "worker":
+        orders = [
+            order
+            for order in orders
+            if str(order.get("status") or "") == "PROCESSED"
+            or (
+                str(user.get("sub") or "")
+                in [str(item) for item in order.get("assigned_worker_ids") or []]
+                and str(order.get("status") or "")
+                in {"IN_PROCESS", "DONE_PENDING", "CONVERTED"}
+            )
+        ]
+    return [order_for_user(order, user) for order in orders]
+
+
+def require_role(user: dict[str, Any], *allowed_roles: str) -> None:
+    if user.get("role") not in allowed_roles:
+        raise HTTPException(status_code=403, detail="insufficient permissions")
+
+
+def validate_order_patch(
+    order: dict[str, Any],
+    patch: dict[str, Any],
+    *,
+    actor: dict[str, Any] | None,
+    integration: bool,
+) -> dict[str, Any]:
+    allowed_fields = WORKFLOW_FIELDS if integration else {"status"}
+    unknown_fields = set(patch) - allowed_fields
+    if unknown_fields:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unsupported fields: {', '.join(sorted(unknown_fields))}",
+        )
+
+    normalized: dict[str, Any] = {}
+    if "status" in patch:
+        status = str(patch["status"] or "").strip().upper()
+        if status not in ORDER_STATUSES:
+            raise HTTPException(status_code=422, detail="invalid order status")
+        current_status = str(order.get("status") or "").strip().upper()
+        allowed_targets = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+        if status != current_status and status not in allowed_targets:
+            raise HTTPException(status_code=409, detail="invalid order status transition")
+        normalized["status"] = status
+
+    if integration and "assigned_worker_ids" in patch:
+        worker_ids = patch["assigned_worker_ids"]
+        if not isinstance(worker_ids, list) or len(worker_ids) > 100:
+            raise HTTPException(status_code=422, detail="invalid assigned_worker_ids")
+        normalized["assigned_worker_ids"] = [
+            str(worker_id)[:120]
+            for worker_id in worker_ids
+            if str(worker_id).strip()
+        ]
+
+    if integration and "applications" in patch:
+        applications = patch["applications"]
+        if not isinstance(applications, list) or len(applications) > 100:
+            raise HTTPException(status_code=422, detail="invalid applications")
+        if not all(isinstance(item, dict) for item in applications):
+            raise HTTPException(status_code=422, detail="invalid applications")
+        normalized["applications"] = applications
+
+    if actor is not None:
+        role = str(actor.get("role") or "")
+        username = str(actor.get("sub") or "")
+        target_status = normalized.get("status")
+        if role == "logist":
+            pass
+        elif role == "client":
+            if (
+                order.get("created_by") != username
+                or str(order.get("status") or "").upper() != "NEW"
+                or target_status != "JUNK"
+            ):
+                raise HTTPException(status_code=403, detail="insufficient permissions")
+        elif role == "worker":
+            assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+            if (
+                username not in assigned
+                or str(order.get("status") or "").upper() != "IN_PROCESS"
+                or target_status != "DONE_PENDING"
+            ):
+                raise HTTPException(status_code=403, detail="insufficient permissions")
+        else:
+            raise HTTPException(status_code=403, detail="insufficient permissions")
+
+    return normalized
+
+
+def persist_published_order(
+    incoming: dict[str, Any],
+    *,
+    actor: dict[str, Any] | None,
+) -> dict[str, Any]:
+    init_db()
+    with db_connection() as connection:
+        if not is_postgres_enabled():
+            connection.execute("BEGIN IMMEDIATE")
+        existing = read_order_in_connection(
+            connection,
+            incoming["external_order_id"],
+            for_update=True,
+        )
+        if actor is not None and existing is not None:
+            raise HTTPException(status_code=409, detail="order number already exists")
+        order = merge_existing_workflow_state(incoming, existing)
+        write_order_in_connection(connection, order)
+        if is_postgres_enabled():
+            connection.commit()
+    return order
+
+
+def patch_order_atomically(
+    order_id: str,
+    patch: dict[str, Any],
+    *,
+    actor: dict[str, Any] | None,
+    integration: bool,
+) -> dict[str, Any]:
+    init_db()
+    with db_connection() as connection:
+        if not is_postgres_enabled():
+            connection.execute("BEGIN IMMEDIATE")
+        order = read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        normalized_patch = validate_order_patch(
+            order,
+            patch,
+            actor=actor,
+            integration=integration,
+        )
+        if not normalized_patch:
+            raise HTTPException(status_code=422, detail="empty order patch")
+        order.update(normalized_patch)
+        write_order_in_connection(connection, order)
+        if is_postgres_enabled():
+            connection.commit()
+    return order
+
+
 @app.on_event("startup")
 async def startup() -> None:
-    init_db()
+    validate_runtime_configuration()
+    await asyncio.to_thread(init_db)
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    try:
+        storage = await asyncio.to_thread(check_database_health)
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="database unavailable") from error
     return {
         "status": "ok",
-        "storage": "postgres" if is_postgres_enabled() else "sqlite",
+        "storage": storage,
     }
 
 
@@ -524,10 +1031,10 @@ async def login(request: Request) -> dict[str, Any]:
 
     username = str(payload.get("username") or "").strip()
     password = str(payload.get("password") or "")
-    role = str(payload.get("role") or "logist").strip().lower()
-    if role not in APP_ROLES:
-        raise HTTPException(status_code=400, detail="invalid app role")
-    check_app_credentials(username, password)
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="login and password are required")
+    account = check_app_credentials(username, password)
+    role = account["role"]
 
     return {
         "access_token": create_access_token(username, role),
@@ -576,8 +1083,9 @@ async def address_suggestions(
 async def get_my_orders(
     authorization: str | None = Header(default=None),
 ) -> dict[str, list[dict[str, Any]]]:
-    current_user(authorization)
-    return {"orders": list_orders()}
+    user = current_user(authorization)
+    orders = await asyncio.to_thread(list_orders)
+    return {"orders": orders_for_user(orders, user)}
 
 
 @app.post("/app-api/me/orders")
@@ -585,8 +1093,9 @@ async def publish_my_order(
     request: Request,
     authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    current_user(authorization)
-    return await publish_order_payload(request)
+    user = current_user(authorization)
+    require_role(user, "client", "logist")
+    return await publish_order_payload(request, actor=user)
 
 
 @app.post("/app-api/orders")
@@ -595,21 +1104,45 @@ async def publish_order(
     x_gpm_app_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     check_token(x_gpm_app_token)
-    return await publish_order_payload(request)
+    return await publish_order_payload(request, integration=True)
 
 
-async def publish_order_payload(request: Request) -> dict[str, Any]:
+async def publish_order_payload(
+    request: Request,
+    *,
+    actor: dict[str, Any] | None = None,
+    integration: bool = False,
+) -> dict[str, Any]:
     try:
         payload = await request.json()
         if not isinstance(payload, dict):
             raise ValueError("payload must be an object")
-        order = normalize_external_order(payload)
+        payload = dict(payload)
+        if actor is not None:
+            payload["source"] = "manual"
+            payload["source_system"] = "gpm-app"
+        elif integration:
+            payload.setdefault("source", "external")
+        order = normalize_external_order(
+            payload,
+            created_by=str(actor.get("sub") or "") if actor else None,
+            created_by_role=str(actor.get("role") or "") if actor else None,
+        )
     except (json.JSONDecodeError, ValueError, TypeError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
-    save_order(order)
+    order = await asyncio.to_thread(
+        persist_published_order,
+        order,
+        actor=actor,
+    )
 
-    return {"success": True, "order_number": order["external_order_id"]}
+    response_order = order_for_user(order, actor) if actor else order
+    return {
+        "success": True,
+        "order_number": order["external_order_id"],
+        "order": response_order,
+    }
 
 
 @app.get("/app-api/orders")
@@ -617,7 +1150,7 @@ async def get_orders(
     x_gpm_app_token: str | None = Header(default=None),
 ) -> dict[str, list[dict[str, Any]]]:
     check_token(x_gpm_app_token)
-    return {"orders": list_orders()}
+    return {"orders": await asyncio.to_thread(list_orders)}
 
 
 @app.patch("/app-api/orders/{order_id}")
@@ -627,7 +1160,7 @@ async def update_order(
     x_gpm_app_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     check_token(x_gpm_app_token)
-    return await update_order_payload(order_id, request)
+    return await update_order_payload(order_id, request, integration=True)
 
 
 @app.patch("/app-api/me/orders/{order_id}")
@@ -636,15 +1169,17 @@ async def update_my_order(
     request: Request,
     authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    current_user(authorization)
-    return await update_order_payload(order_id, request)
+    user = current_user(authorization)
+    return await update_order_payload(order_id, request, actor=user)
 
 
-async def update_order_payload(order_id: str, request: Request) -> dict[str, Any]:
-    order = get_order(order_id)
-    if order is None:
-        raise HTTPException(status_code=404, detail="order not found")
-
+async def update_order_payload(
+    order_id: str,
+    request: Request,
+    *,
+    actor: dict[str, Any] | None = None,
+    integration: bool = False,
+) -> dict[str, Any]:
     try:
         patch = await request.json()
         if not isinstance(patch, dict):
@@ -652,14 +1187,14 @@ async def update_order_payload(order_id: str, request: Request) -> dict[str, Any
     except (json.JSONDecodeError, ValueError, TypeError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
-    allowed_fields = {
-        "status",
-        "assigned_worker_ids",
-        "applications",
+    order = await asyncio.to_thread(
+        patch_order_atomically,
+        order_id,
+        patch,
+        actor=actor,
+        integration=integration,
+    )
+    return {
+        "success": True,
+        "order": order_for_user(order, actor) if actor else order,
     }
-    for key, value in patch.items():
-        if key in allowed_fields:
-            order[key] = value
-
-    save_order(order)
-    return {"success": True, "order": order}

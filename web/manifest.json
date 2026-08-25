@@ -1,12 +1,11 @@
 {
-    "name": "gpm_platform",
-    "short_name": "gpm_platform",
+    "name": "GPM Платформа",
+    "short_name": "GPM",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F5F5F5",
+    "theme_color": "#D20A3C",
+    "description": "Закрытая тестовая версия платформы заказов и исполнителей GPM.",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class GpmColors {
-  static const red = Color(0xFFFF1744);
+  // Darkened from the original accent so white text meets WCAG AA contrast.
+  static const red = Color(0xFFD20A3C);
   static const yellow = Color(0xFFF8B800);
   static const black = Color(0xFF111111);
   static const graphite = Color(0xFF343434);
@@ -124,8 +125,9 @@ ThemeData buildGpmTheme() {
               : GpmColors.surface,
         ),
         foregroundColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? Colors.white : GpmColors.black,
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.white
+              : GpmColors.black,
         ),
         side: const WidgetStatePropertyAll(BorderSide(color: GpmColors.line)),
         shape: WidgetStatePropertyAll(

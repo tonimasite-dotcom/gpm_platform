@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
+import '../../widgets/feature_unavailable.dart';
 
 class WorkerFinanceScreen extends StatefulWidget {
   const WorkerFinanceScreen({super.key});
@@ -16,7 +17,8 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
   @override
   void initState() {
     super.initState();
-    _ordersFuture = _loadCompletedOrders();
+    _ordersFuture =
+        gpmApi.isApiMode ? Future.value(const []) : _loadCompletedOrders();
   }
 
   Future<List<Map<String, dynamic>>> _loadCompletedOrders() async {
@@ -37,6 +39,15 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (gpmApi.isApiMode) {
+      return const FeatureUnavailable(
+        title: 'Финансовый модуль готовится',
+        message: 'Начисления и выплаты появятся после серверного расчёта, '
+            'договорной модели и чеков. Демонстрационный баланс в production не '
+            'показывается.',
+        icon: Icons.account_balance_wallet_outlined,
+      );
+    }
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _ordersFuture,
       builder: (context, snapshot) {

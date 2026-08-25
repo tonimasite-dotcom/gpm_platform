@@ -4,6 +4,7 @@ import '../../main.dart' show gpmApi, chatService;
 import '../../models/chat_models.dart';
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
+import '../../widgets/feature_unavailable.dart';
 import 'chat_conversation_screen.dart';
 
 class ChatThreadsScreen extends StatefulWidget {
@@ -25,7 +26,8 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   @override
   void initState() {
     super.initState();
-    _threadsFuture = _loadThreads();
+    _threadsFuture =
+        gpmApi.isApiMode ? Future.value(const _ThreadsData()) : _loadThreads();
   }
 
   Future<_ThreadsData> _loadThreads() async {
@@ -53,6 +55,15 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (gpmApi.isApiMode) {
+      return const FeatureUnavailable(
+        title: 'Чаты пока недоступны',
+        message: 'Серверная история переписки и разделение участников ещё не '
+            'реализованы. Локальный демонстрационный чат отключён, чтобы данные '
+            'разных пользователей не смешивались.',
+        icon: Icons.chat_bubble_outline,
+      );
+    }
     return FutureBuilder<_ThreadsData>(
       future: _threadsFuture,
       builder: (context, snapshot) {
@@ -149,8 +160,9 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
               thread.type == ChatThreadType.workerLogist ||
               thread.type == ChatThreadType.clientWorker)
           .toList(),
-      _ThreadFilter.support =>
-        threads.where((thread) => thread.type == ChatThreadType.support).toList(),
+      _ThreadFilter.support => threads
+          .where((thread) => thread.type == ChatThreadType.support)
+          .toList(),
       _ThreadFilter.archived =>
         threads.where((thread) => thread.isArchived).toList(),
     };
@@ -450,9 +462,8 @@ class _ThreadCard extends StatelessWidget {
     final orderTitle = order?['title']?.toString();
     return switch (thread.type) {
       ChatThreadType.support => 'Поддержка 24/7',
-      ChatThreadType.clientWorker => role == ChatRole.worker
-          ? 'Клиент по заказу'
-          : 'Исполнитель по заказу',
+      ChatThreadType.clientWorker =>
+        role == ChatRole.worker ? 'Клиент по заказу' : 'Исполнитель по заказу',
       ChatThreadType.clientLogist => orderTitle ?? 'Заказ',
       ChatThreadType.workerLogist => 'Координация выхода',
     };

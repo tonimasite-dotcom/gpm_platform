@@ -1,3 +1,6 @@
+# LEGACY TELEGRAM BOT ONLY. Do not install this freeze for the active API or
+# production: it contains outdated packages with known vulnerabilities. The bot
+# must remain disabled until it is migrated to a supported dependency stack.
 aerich==0.7.1
 aiofiles==23.1.0
 aiogram==2.25.1

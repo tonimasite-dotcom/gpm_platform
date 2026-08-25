@@ -1,4 +1,15 @@
 # from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import os
+
+if (
+    __name__ == '__main__'
+    and os.getenv('GPM_ENABLE_LEGACY_BOT', '').strip().lower() != 'true'
+):
+    raise SystemExit(
+        'Legacy Telegram bot is disabled by default. '
+        'Complete its security and personal-data review before enabling it.'
+    )
+
 from aiogram import Dispatcher
 from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
@@ -129,7 +140,6 @@ async def on_shutdown(dp):
 
 
 if __name__ == '__main__':
-
     start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,

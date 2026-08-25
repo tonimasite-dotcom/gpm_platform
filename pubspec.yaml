@@ -1,17 +1,19 @@
 name: gpm_platform
-description: "A new Flutter project."
+description: "GPM platform for clients, workers and logisticians."
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.0
+  sdk: ^3.8.0
 
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
   flutter_dotenv: ^5.1.0
   http: ^1.2.0
   web: ^1.1.1

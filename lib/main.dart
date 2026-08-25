@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/auth/login_screen.dart';
 import 'screens/client/client_home_screen.dart';
@@ -21,7 +22,24 @@ void main() async {
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {
-    dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo');
+    runApp(const _ConfigurationErrorApp());
+    return;
+  }
+
+  final mode = (dotenv.env['GPM_APP_MODE'] ?? '').trim().toLowerCase();
+  final apiUrl = (dotenv.env['GPM_APP_API_URL'] ?? '').trim();
+  final validMode = mode == 'demo' || mode == 'api' || mode == 'production';
+  final parsedApiUrl = Uri.tryParse(apiUrl);
+  final validApiConfiguration = mode == 'demo' ||
+      (parsedApiUrl != null &&
+          parsedApiUrl.hasScheme &&
+          parsedApiUrl.host.isNotEmpty &&
+          (parsedApiUrl.scheme == 'https' ||
+              parsedApiUrl.host == 'localhost' ||
+              parsedApiUrl.host == '127.0.0.1'));
+  if (!validMode || !validApiConfiguration) {
+    runApp(const _ConfigurationErrorApp());
+    return;
   }
 
   gpmApi = GpmApiService();
@@ -40,18 +58,61 @@ class GpmApp extends StatefulWidget {
 }
 
 class _GpmAppState extends State<GpmApp> {
+  @override
+  void initState() {
+    super.initState();
+    gpmApi.onSessionExpired = _refreshSession;
+  }
+
+  @override
+  void dispose() {
+    if (gpmApi.onSessionExpired == _refreshSession) {
+      gpmApi.onSessionExpired = null;
+    }
+    super.dispose();
+  }
+
   void _refreshSession() {
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GPM Платформа',
+      debugShowCheckedModeBanner: false,
       theme: buildGpmTheme(),
+      locale: const Locale('ru', 'RU'),
+      supportedLocales: const [Locale('ru', 'RU')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: gpmApi.requiresAuth && !gpmApi.hasAuthSession
           ? GpmLoginScreen(onSignedIn: _refreshSession)
           : DevRoleSwitcher(onSignedOut: _refreshSession),
+    );
+  }
+}
+
+class _ConfigurationErrorApp extends StatelessWidget {
+  const _ConfigurationErrorApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('ru', 'RU'),
+      supportedLocales: const [Locale('ru', 'RU')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      home: const Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Приложение не настроено. Обратитесь к администратору GPM.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -175,6 +236,7 @@ class _GpmHeader extends StatelessWidget {
                 tooltip: 'Выйти',
                 onPressed: () {
                   gpmApi.logout();
+                  chatService = ChatService();
                   onSignedOut();
                 },
                 icon: const Icon(Icons.logout),

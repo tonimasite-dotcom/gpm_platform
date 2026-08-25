@@ -13,7 +13,7 @@ class GpmLoginScreen extends StatefulWidget {
 }
 
 class _GpmLoginScreenState extends State<GpmLoginScreen> {
-  final _usernameController = TextEditingController(text: 'admin');
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -157,6 +157,27 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                 fontSize: 26,
               ),
         ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF4D6),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE0A800)),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.science_outlined, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Закрытое тестирование. Не вводите реальные паспортные, банковские и иные чувствительные данные.',
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 20),
         for (final option in _roleOptions) ...[
           _RoleCard(option: option, onTap: () => _selectRole(option.value)),
@@ -240,71 +261,73 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
   }
 
   Widget _buildLoginForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            controller: _usernameController,
-            decoration: const InputDecoration(
-              labelText: 'Логин',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            textInputAction: TextInputAction.next,
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'Введите логин'
-                : null,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Пароль',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                tooltip: _obscurePassword
-                    ? 'Показать пароль'
-                    : 'Скрыть пароль',
-                onPressed: () => setState(
-                  () => _obscurePassword = !_obscurePassword,
-                ),
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _usernameController,
+              autofillHints: const [AutofillHints.username],
+              decoration: const InputDecoration(
+                labelText: 'Логин',
+                prefixIcon: Icon(Icons.person_outline),
               ),
+              textInputAction: TextInputAction.next,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Введите логин'
+                  : null,
             ),
-            onFieldSubmitted: (_) => _submit(),
-            validator: (value) => value == null || value.isEmpty
-                ? 'Введите пароль'
-                : null,
-          ),
-          if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: const TextStyle(
-                color: GpmColors.red,
-                fontWeight: FontWeight.w700,
+            TextFormField(
+              controller: _passwordController,
+              autofillHints: const [AutofillHints.password],
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Пароль',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  tooltip:
+                      _obscurePassword ? 'Показать пароль' : 'Скрыть пароль',
+                  onPressed: () => setState(
+                    () => _obscurePassword = !_obscurePassword,
+                  ),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
               ),
+              onFieldSubmitted: (_) => _submit(),
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Введите пароль' : null,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  color: GpmColors.red,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _isLoading ? null : _submit,
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.login),
+              label: const Text('Войти'),
             ),
           ],
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: _isLoading ? null : _submit,
-            icon: _isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.login),
-            label: const Text('Войти'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -333,7 +356,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           const SizedBox(height: 8),
           const Text(
             'Самостоятельная регистрация пока готовится. '
-            'На этапе тестирования используйте вход admin/admin.',
+            'Для участия в закрытом тестировании запросите доступ у администратора GPM.',
             textAlign: TextAlign.center,
           ),
         ],
@@ -365,8 +388,7 @@ const _roleOptions = [
     value: 'client',
     title: 'Клиент',
     shortTitle: 'клиент',
-    description:
-        'Создаёт заявки, следит за выполнением и общается с логистом.',
+    description: 'Создаёт заявки, следит за выполнением и общается с логистом.',
     icon: Icons.business_center_outlined,
   ),
   _RoleOption(
@@ -543,8 +565,8 @@ class _GpmAuthHero extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Image.network(
-                    'assets/assets/images/gpm_logo.png?v=gpm-mobile-auth-3',
+                  child: Image.asset(
+                    'assets/images/gpm_logo.png',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.engineering,

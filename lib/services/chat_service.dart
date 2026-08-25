@@ -228,7 +228,7 @@ class ChatService {
         senderRole: ChatRole.system,
         senderName: 'GPM',
         text:
-            'Чат создан по заказу "$orderTitle". Переписка хранится в GPM для контроля качества и разрешения спорных ситуаций.',
+            'Демонстрационный чат создан по заказу "$orderTitle". Переписка хранится только на этом устройстве и не отправляется другим пользователям.',
         createdAt: createdAt,
         isSystem: true,
       ),

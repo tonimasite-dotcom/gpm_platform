@@ -252,6 +252,16 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
   }
 
   Future<void> applyToOrder() async {
+    if (gpmApi.isApiMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Отклики будут доступны после запуска серверных профилей и назначений.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => isApplying = true);
 
     try {
@@ -290,6 +300,16 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
   }
 
   Future<void> completeOrder() async {
+    if (gpmApi.isApiMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Завершение заказа будет доступно после серверного назначения.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => isCompleting = true);
 
     try {
@@ -331,11 +351,11 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
     final orderId = order['id']?.toString() ?? '';
     final shortOrderId = orderId.length > 8 ? orderId.substring(0, 8) : orderId;
     final applicationStatus = order['worker_application_status'];
-    final canApply = applicationStatus == null && order['status'] == 'PROCESSED';
+    final canApply =
+        applicationStatus == null && order['status'] == 'PROCESSED';
     final isAssigned = order['is_assigned_to_worker'] == true;
-    final canComplete =
-        isAssigned &&
-            (order['status'] == 'PROCESSED' || order['status'] == 'IN_PROCESS');
+    final canComplete = isAssigned &&
+        (order['status'] == 'PROCESSED' || order['status'] == 'IN_PROCESS');
 
     return Scaffold(
       appBar: AppBar(title: Text('Заказ #$shortOrderId')),
@@ -350,8 +370,12 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
             ),
             const SizedBox(height: 16),
             _OrderFact(label: 'Город', value: order['city']),
-            _OrderFact(label: 'Номер заказа', value: order['external_order_id'] ?? order['id']),
-            _OrderFact(label: 'Дата и время выполнения работ', value: _formatSchedule(order['scheduled_at'])),
+            _OrderFact(
+                label: 'Номер заказа',
+                value: order['external_order_id'] ?? order['id']),
+            _OrderFact(
+                label: 'Дата и время выполнения работ',
+                value: _formatSchedule(order['scheduled_at'])),
             _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
             _OrderFact(label: 'Гражданство РФ', value: _nationalText(order)),
             _OrderFact(label: 'Режим работы', value: _workModeText(order)),
@@ -366,12 +390,19 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
               value: _priceText(order['legal_price']),
             ),
             if (order['work_mode'] == 'shift')
-              _OrderFact(label: 'Описание смены', value: order['shift_description'])
+              _OrderFact(
+                  label: 'Описание смены', value: order['shift_description'])
             else ...[
-              _OrderFact(label: 'Ставка (штатный постоянного графика)', value: order['price_regular']),
-              _OrderFact(label: 'Ставка (штатный свободного графика)', value: order['price_state']),
-              _OrderFact(label: 'Ставка (наемник)', value: order['price_per_hour']),
-              _OrderFact(label: 'Минимальная оплата', value: _minPayText(order)),
+              _OrderFact(
+                  label: 'Ставка (штатный постоянного графика)',
+                  value: order['price_regular']),
+              _OrderFact(
+                  label: 'Ставка (штатный свободного графика)',
+                  value: order['price_state']),
+              _OrderFact(
+                  label: 'Ставка (наемник)', value: order['price_per_hour']),
+              _OrderFact(
+                  label: 'Минимальная оплата', value: _minPayText(order)),
             ],
             const SizedBox(height: 8),
             _StatusPill(

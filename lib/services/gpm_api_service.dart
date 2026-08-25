@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -13,6 +14,7 @@ class GpmApiService {
   static const _authTokenStorageKey = 'gpm_app_access_token_v1';
   static const _authUsernameStorageKey = 'gpm_app_username_v1';
   static const _authRoleStorageKey = 'gpm_app_role_v1';
+  static const _requestTimeout = Duration(seconds: 15);
   static const demoWorkerName = 'Иван Петров';
 
   late String _appApiUrl;
@@ -21,6 +23,7 @@ class GpmApiService {
   late String _appAccessToken;
   late String _appUsername;
   late String _appRole;
+  void Function()? onSessionExpired;
   final List<Map<String, dynamic>> _demoOrders = [
     {
       'id': '1001',
@@ -126,8 +129,7 @@ class GpmApiService {
   bool get hasAppBackend => _appApiUrl.trim().isNotEmpty;
   bool get usesLocalPersistence => !isApiMode || !hasAppBackend;
   bool get requiresAuth => isApiMode && hasAppBackend;
-  bool get hasAuthSession =>
-      !requiresAuth || _appAccessToken.trim().isNotEmpty;
+  bool get hasAuthSession => !requiresAuth || _appAccessToken.trim().isNotEmpty;
   String get currentUsername => _appUsername;
   String get currentRole => _appRole;
 
@@ -141,18 +143,20 @@ class GpmApiService {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse(_appApiUrl).resolve('/app-api/auth/login'),
-        headers: const {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'username': username.trim(),
-          'password': password,
-          'role': role,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse(_appApiUrl).resolve('/app-api/auth/login'),
+            headers: const {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'username': username.trim(),
+              'password': password,
+              'role': role,
+            }),
+          )
+          .timeout(_requestTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {
           'success': false,
@@ -168,14 +172,30 @@ class GpmApiService {
       if (token.isEmpty) {
         return {'success': false, 'error': 'Сервер не вернул токен'};
       }
+      final authenticatedRole = decoded['role']?.toString() ?? '';
+      if (!const {'client', 'worker', 'logist'}.contains(authenticatedRole)) {
+        return {'success': false, 'error': 'Сервер вернул некорректную роль'};
+      }
+      if (authenticatedRole != role) {
+        return {
+          'success': false,
+          'error': 'Эта учётная запись относится к другой роли.',
+        };
+      }
 
       _appAccessToken = token;
       _appUsername = decoded['username']?.toString() ?? username.trim();
-      _appRole = decoded['role']?.toString() ?? role;
+      _appRole = authenticatedRole;
       writeDemoValue(_authTokenStorageKey, _appAccessToken);
       writeDemoValue(_authUsernameStorageKey, _appUsername);
       writeDemoValue(_authRoleStorageKey, _appRole);
       return {'success': true};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'error':
+            'Сервер не ответил вовремя. Проверьте подключение и повторите.',
+      };
     } catch (error) {
       return {'success': false, 'error': error.toString()};
     }
@@ -188,6 +208,18 @@ class GpmApiService {
     removeDemoValue(_authTokenStorageKey);
     removeDemoValue(_authUsernameStorageKey);
     removeDemoValue(_authRoleStorageKey);
+    if (isApiMode) {
+      // Production does not have server-backed profiles/chats yet. Remove their
+      // local copies so the next account on this device cannot see them.
+      for (final key in const [
+        'gpm_chat_state_v1',
+        'gpm.client.profile.v1',
+        'gpm.logist.profile.v1',
+        'gpm_demo_state_v1',
+      ]) {
+        removeDemoValue(key);
+      }
+    }
   }
 
   Future<List<Map<String, dynamic>>> suggestAddresses({
@@ -198,21 +230,24 @@ class GpmApiService {
       throw StateError('Сервис адресов не настроен');
     }
 
-    final response = await http.post(
-      Uri.parse(_appApiUrl).resolve('/app-api/me/address-suggestions'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer ${_appAccessToken.trim()}',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'query': query.trim(),
-        'city': city.trim(),
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse(_appApiUrl).resolve('/app-api/me/address-suggestions'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${_appAccessToken.trim()}',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'query': query.trim(),
+            'city': city.trim(),
+          }),
+        )
+        .timeout(_requestTimeout);
 
     if (response.statusCode == 401 || response.statusCode == 403) {
       logout();
+      onSessionExpired?.call();
       throw StateError('Сессия истекла. Войдите снова');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -398,6 +433,8 @@ class GpmApiService {
         shiftDescription!.trim(),
     ].join('\n');
     final externalPayload = {
+      'source': effectiveSource,
+      'source_system': 'gpm-app',
       'telegram_username': (telegramUsername ?? '').replaceFirst('@', ''),
       'client_email': clientEmail,
       'client_phone': clientPhone,
@@ -430,14 +467,30 @@ class GpmApiService {
       },
     };
 
-    if (effectiveSource == sourceExternal) {
+    if ((isApiMode && hasAppBackend) || effectiveSource == sourceExternal) {
       final published = await _publishAppOrder(externalPayload);
       if (published['success'] == true) {
-        await _syncAppPublishedOrders();
-        final syncedOrder = await getOrderById(effectiveExternalOrderId ?? title);
+        final returnedOrder = published['order'];
+        if (returnedOrder is Map) {
+          _upsertOrder(
+            returnedOrder.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          );
+        } else {
+          try {
+            await _syncAppPublishedOrders();
+          } catch (_) {
+            // The POST was confirmed by the server. A later refresh can retry
+            // synchronization without encouraging the user to create a duplicate.
+          }
+        }
+        final publishedOrderId = published['order_number']?.toString();
         return {
           'success': true,
-          'orderId': syncedOrder?['id'] ?? effectiveExternalOrderId ?? title,
+          'orderId': publishedOrderId?.isNotEmpty == true
+              ? publishedOrderId
+              : effectiveExternalOrderId ?? title,
           'published': true,
         };
       }
@@ -496,7 +549,6 @@ class GpmApiService {
       _saveDemoState();
       return {'success': true, 'orderId': orderId};
     }
-
   }
 
   Future<Map<String, dynamic>> _publishAppOrder(
@@ -523,15 +575,27 @@ class GpmApiService {
     }
 
     try {
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(payload),
-      );
+      final response = await http
+          .post(
+            uri,
+            headers: headers,
+            body: jsonEncode(payload),
+          )
+          .timeout(_requestTimeout);
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        if (isApiMode) {
+          logout();
+          onSessionExpired?.call();
+        }
+        return {
+          'success': false,
+          'error': 'Сессия истекла. Войдите снова.',
+        };
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {
           'success': false,
-          'error': 'GPM API ${response.statusCode}: ${response.body}',
+          'error': 'Не удалось создать заказ: ${response.statusCode}',
         };
       }
 
@@ -543,6 +607,11 @@ class GpmApiService {
         return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
       return {'success': true};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'error': 'Сервер не ответил вовремя. Заказ не был подтвержден.',
+      };
     } catch (error) {
       return {'success': false, 'error': error.toString()};
     }
@@ -565,7 +634,9 @@ class GpmApiService {
     if (!isApiMode) {
       _normalizeDemoCrmOrders();
     }
-    return _demoOrders.map((order) => Map<String, dynamic>.from(order)).toList();
+    return _demoOrders
+        .map((order) => Map<String, dynamic>.from(order))
+        .toList();
   }
 
   Future<void> _syncAppPublishedOrders() async {
@@ -583,22 +654,32 @@ class GpmApiService {
     }
 
     try {
-      final response = await http.get(uri, headers: headers);
+      final response =
+          await http.get(uri, headers: headers).timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
-        if (isApiMode) logout();
-        return;
+        if (isApiMode) {
+          logout();
+          onSessionExpired?.call();
+        }
+        throw StateError('Сессия истекла. Войдите снова.');
       }
-      if (response.statusCode < 200 || response.statusCode >= 300) return;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('Не удалось загрузить заказы: ${response.statusCode}');
+      }
 
       final decoded = jsonDecode(response.body);
       final orders = decoded is Map ? decoded['orders'] : decoded;
-      if (orders is! List) return;
+      if (orders is! List) {
+        throw const FormatException(
+            'Сервер вернул некорректный список заказов');
+      }
 
       if (isApiMode) {
         _demoOrders.clear();
       }
       for (final order in orders.whereType<Map>()) {
-        final mappedOrder = order.map((key, value) => MapEntry(key.toString(), value));
+        final mappedOrder =
+            order.map((key, value) => MapEntry(key.toString(), value));
         if (!isApiMode &&
             (mappedOrder['order_data'] is Map ||
                 mappedOrder['order_data'] is String)) {
@@ -608,7 +689,7 @@ class GpmApiService {
         }
       }
     } catch (_) {
-      return;
+      if (isApiMode) rethrow;
     }
   }
 
@@ -637,15 +718,27 @@ class GpmApiService {
     }
 
     try {
-      final response = await http.patch(
-        uri,
-        headers: headers,
-        body: jsonEncode(patch),
-      );
+      final response = await http
+          .patch(
+            uri,
+            headers: headers,
+            body: jsonEncode(patch),
+          )
+          .timeout(_requestTimeout);
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        if (isApiMode) {
+          logout();
+          onSessionExpired?.call();
+        }
+        return {
+          'success': false,
+          'error': 'Сессия истекла. Войдите снова.',
+        };
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {
           'success': false,
-          'error': 'GPM API ${response.statusCode}: ${response.body}',
+          'error': 'Не удалось изменить заказ: ${response.statusCode}',
         };
       }
 
@@ -657,6 +750,11 @@ class GpmApiService {
         return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
       return {'success': true};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'error': 'Сервер не ответил вовремя. Изменение не подтверждено.',
+      };
     } catch (error) {
       return {'success': false, 'error': error.toString()};
     }
@@ -682,7 +780,8 @@ class GpmApiService {
     final existingIndex = _demoOrders.indexWhere((existing) {
       final existingExternal = _stringValue(existing['external_order_id']);
       final existingId = _stringValue(existing['id']);
-      return (externalOrderId.isNotEmpty && existingExternal == externalOrderId) ||
+      return (externalOrderId.isNotEmpty &&
+              existingExternal == externalOrderId) ||
           (id.isNotEmpty && existingId == id);
     });
 
@@ -695,10 +794,10 @@ class GpmApiService {
     normalized['status'] = _normalizeOrderStatus(normalized['status']);
     normalized['created_at'] ??=
         normalized['scheduled_at'] ?? DateTime.now().toUtc().toIso8601String();
-    normalized['assigned_worker_ids'] =
-        List<String>.from((normalized['assigned_worker_ids'] as List?) ?? const []);
-    normalized['applications'] =
-        List<Map<String, dynamic>>.from((normalized['applications'] as List?) ?? const []);
+    normalized['assigned_worker_ids'] = List<String>.from(
+        (normalized['assigned_worker_ids'] as List?) ?? const []);
+    normalized['applications'] = List<Map<String, dynamic>>.from(
+        (normalized['applications'] as List?) ?? const []);
 
     if (existingIndex == -1) {
       _demoOrders.insert(0, normalized);
@@ -1075,7 +1174,7 @@ class GpmApiService {
     if (index == -1) return false;
 
     final order = _demoOrders[index];
-    if (hasAppBackend && _isExternalSource(order['source'])) {
+    if (hasAppBackend && isApiMode) {
       final externalOrderId = _stringValue(
         order['external_order_id'],
         fallback: leadId,

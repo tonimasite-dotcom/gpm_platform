@@ -1,24 +1,47 @@
 # GPM Platform
 
-Flutter prototype for the GPM Platform demo.
+Прототип платформы GPM: Flutter web/Android-клиент, FastAPI API и PostgreSQL.
 
-## Production Direction
+> **Текущий статус:** только закрытое тестирование на синтетических данных.
+> Нельзя вводить реальные ФИО, паспортные/банковские данные, адреса и переписку.
+> Публичный пилот допустим только после закрытия P0 из
+> `PROJECT_AUDIT_2026-08-25.md` и `LEGAL_READINESS_RU.md`.
 
-The production app should use the GPM backend and its own database as the source
-of truth:
+## Архитектура
+
+Единственным источником истины для production должен быть backend GPM:
 
 ```text
 External order system -> GPM backend -> PostgreSQL -> Flutter app
 ```
 
-Bitrix24 is not the core order workflow for this app. See
-`PRODUCTION_READINESS.md` for the current transition checklist.
+Bitrix24 не является ядром потока заказов. Legacy Telegram-бот в `main.py` по
+умолчанию выключен и не должен использоваться с реальными данными.
 
-Tracked `app/config.yml` contains placeholders only. Use server environment
-variables or ignored `app/config.local.yml` for real credentials. Rotate the
-previously tracked credentials listed in `SECRET_ROTATION.md`.
+В `app/config.yml` хранятся только placeholders. Реальные значения задаются
+переменными окружения сервера либо в игнорируемом `app/config.local.yml`.
+Исторические секреты из `SECRET_ROTATION.md` должны быть отозваны и заменены.
 
-## Live Demo
+## Режимы Flutter
+
+Публичный asset `.env` не является хранилищем секретов. Допустимы только режим
+и URL API:
+
+```text
+GPM_APP_MODE=demo
+```
+
+или:
+
+```text
+GPM_APP_MODE=api
+GPM_APP_API_URL=http://localhost:8081
+```
+
+`production` эквивалентен API-режиму с более строгой конфигурацией. В asset
+нельзя помещать токены, пароли и ключи внешних сервисов.
+
+## Demo
 
 The demo is intended to be continuously available through GitHub Pages:
 
@@ -26,30 +49,36 @@ The demo is intended to be continuously available through GitHub Pages:
 https://tonimasite-dotcom.github.io/gpm_platform/
 ```
 
-Deployment is handled by `.github/workflows/deploy-demo.yml`.
+Деплой выполняет `.github/workflows/deploy-demo.yml`; workflow всегда создаёт
+явную конфигурацию `GPM_APP_MODE=demo` и не принимает произвольный секретный
+`.env`.
 
-How updates reach the demo:
+Публикация:
 
-1. Push changes to `main`.
-2. GitHub Actions runs Flutter analyze and builds the web app.
-3. The generated `build/web` artifact is published to GitHub Pages.
+1. Изменения попадают в `main`.
+2. GitHub Actions выполняет `pub get`, анализ, widget-тесты и release-сборку.
+3. Артефакт `build/web` публикуется в GitHub Pages.
 
-GitHub repository settings required once:
+В настройках репозитория Pages source должен быть `GitHub Actions`.
 
-- Pages source: GitHub Actions.
-- Optional repository secret: `DEMO_ENV`.
+## Локальная проверка
 
-If `DEMO_ENV` is not set, CI creates an empty `.env` file and the app runs in bundled demo mode.
+Требуются Flutter `3.38.5` и Python `>=3.10`.
 
-## Getting Started
+```powershell
+flutter pub get
+flutter analyze --no-pub
+flutter test --no-pub
+python -m pip install -r requirements-api.lock
+python -m unittest discover -s tests -p "test_*.py" -v
+```
 
-This project is a starting point for a Flutter application.
+На Windows release web-сборку лучше выводить в ASCII-путь: shader compiler
+Flutter может не записать артефакт в каталог с кириллицей.
 
-A few resources to get you started if this is your first Flutter project:
+## Перед реальным пилотом
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Технические блокеры и результаты проверок описаны в
+`PROJECT_AUDIT_2026-08-25.md`, правовая матрица — в `LEGAL_READINESS_RU.md`.
+Production не следует обновлять этой веткой до миграции владельцев старых
+заказов, настройки новых серверных аккаунтов/CORS и проверки журналов доступа.

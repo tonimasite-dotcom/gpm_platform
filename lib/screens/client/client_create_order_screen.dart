@@ -44,10 +44,11 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   Timer? _addressLookupTimer;
   int _hours = 4;
   int _workersCount = 2;
-  bool _isRussianCitizenshipRequired = true;
   bool _hasElevator = true;
   String _workerCategory = 'loader';
   String _clientType = 'individual';
+  String _clientEmail = '';
+  String _clientPhone = '';
   bool _isLoading = false;
   bool _isAddressLookupLoading = false;
   List<_AddressCandidate> _addressCandidates = const [];
@@ -78,6 +79,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   }
 
   void _loadClientType() {
+    if (gpmApi.isApiMode) return;
     final raw = readDemoValue('gpm.client.profile.v1');
     if (raw == null) return;
 
@@ -87,8 +89,12 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       if (type == 'legal' || type == 'individual') {
         _clientType = type!;
       }
+      _clientEmail = data['email']?.toString().trim() ?? '';
+      _clientPhone = data['phone']?.toString().trim() ?? '';
     } catch (_) {
       _clientType = 'individual';
+      _clientEmail = '';
+      _clientPhone = '';
     }
   }
 
@@ -108,6 +114,21 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     if (text.isEmpty) return null;
     final parsed = int.tryParse(text);
     if (parsed == null || parsed < 0) return 'Укажите сумму числом';
+    return null;
+  }
+
+  String? _optionalIntegerInRange(
+    String? value, {
+    required int min,
+    required int max,
+  }) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+
+    final parsed = int.tryParse(text);
+    if (parsed == null || parsed < min || parsed > max) {
+      return 'Введите целое число от $min до $max';
+    }
     return null;
   }
 
@@ -229,7 +250,15 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         year == null ||
         hour == null ||
         minute == null ||
+        day < 1 ||
+        day > 31 ||
+        month < 1 ||
+        month > 12 ||
+        year < 1 ||
+        year > 9999 ||
+        hour < 0 ||
         hour > 23 ||
+        minute < 0 ||
         minute > 59) {
       return null;
     }
@@ -244,13 +273,61 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   String? _validateDate(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Укажите дату';
-    return _parseScheduledAt() == null ? 'Формат даты: 18.08.2026' : null;
+
+    final parts = text.split('.');
+    if (parts.length != 3) return 'Формат даты: 18.08.2026';
+
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null ||
+        month == null ||
+        year == null ||
+        day < 1 ||
+        day > 31 ||
+        month < 1 ||
+        month > 12 ||
+        year < 1 ||
+        year > 9999) {
+      return 'Формат даты: 18.08.2026';
+    }
+
+    final parsed = DateTime(year, month, day);
+    if (parsed.day != day || parsed.month != month || parsed.year != year) {
+      return 'Укажите существующую дату';
+    }
+    return null;
   }
 
   String? _validateTime(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Укажите время';
-    return _parseScheduledAt() == null ? 'Формат времени: 14:30' : null;
+
+    final parts = text.split(':');
+    if (parts.length != 2) return 'Формат времени: 14:30';
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return 'Формат времени: 14:30';
+    }
+
+    final scheduledAt = _parseScheduledAt();
+    if (scheduledAt == null) return null;
+
+    final now = DateTime.now();
+    if (scheduledAt.isBefore(now.add(const Duration(minutes: 30)))) {
+      return 'Выберите дату и время минимум через 30 минут';
+    }
+    if (scheduledAt.isAfter(now.add(const Duration(days: 365)))) {
+      return 'Заказ можно запланировать максимум на 1 год вперёд';
+    }
+    return null;
   }
 
   String _buildDescription() {
@@ -269,12 +346,70 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     return _workersCount * _hours * baseRate;
   }
 
+  Widget _buildCounters() {
+    final hoursCounter = _BoundedCounter(
+      label: 'Часы',
+      value: _hours,
+      min: 1,
+      max: 24,
+      onDecrement: () => setState(() {
+        if (_hours > 1) _hours--;
+      }),
+      onIncrement: () => setState(() {
+        if (_hours < 24) _hours++;
+      }),
+    );
+    final workersCounter = _BoundedCounter(
+      label: 'Исполнители',
+      value: _workersCount,
+      min: 1,
+      max: 50,
+      onDecrement: () => setState(() {
+        if (_workersCount > 1) _workersCount--;
+      }),
+      onIncrement: () => setState(() {
+        if (_workersCount < 50) _workersCount++;
+      }),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 360) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              hoursCounter,
+              const SizedBox(height: 12),
+              workersCounter,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: hoursCounter),
+            const SizedBox(width: 12),
+            Expanded(child: workersCounter),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     final scheduledAt = _parseScheduledAt();
-    if (!_formKey.currentState!.validate() || scheduledAt == null) {
+    final countersAreValid = _hours >= 1 &&
+        _hours <= 24 &&
+        _workersCount >= 1 &&
+        _workersCount <= 50;
+    if (!_formKey.currentState!.validate() ||
+        scheduledAt == null ||
+        !countersAreValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Заполните поля, дату и время'),
+          content:
+              Text('Проверьте поля, дату, время и количество исполнителей'),
         ),
       );
       return;
@@ -293,19 +428,17 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         address: _addressController.text.trim(),
         hours: _hours,
         workersCount: _workersCount,
-        clientEmail: 'client@gpm.ru',
-        clientPhone: '',
+        clientEmail: _clientEmail,
+        clientPhone: _clientPhone,
         scheduledAt: scheduledAt.toUtc().toIso8601String(),
         city: _cityController.text.trim(),
-        source: widget.publishImmediately
-            ? GpmApiService.sourceExternal
-            : GpmApiService.sourceManual,
+        source: GpmApiService.sourceManual,
         metro: _metroController.text.trim(),
-        national: _isRussianCitizenshipRequired ? 'yes' : 'every',
+        national: 'every',
         minTime: _hours,
         individualPrice: _clientType == 'individual' ? price : null,
         legalPrice: _clientType == 'legal' ? price : null,
-        nationality: _isRussianCitizenshipRequired ? 'ru' : 'any',
+        nationality: 'any',
         workerCategory: _workerCategory,
         workMode: 'rate',
         timezone: 'Europe/Moscow',
@@ -323,10 +456,15 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       }
 
       if (widget.publishImmediately) {
-        await gpmApi.updateOrderStatus(
+        final statusUpdated = await gpmApi.updateOrderStatus(
           result['orderId'].toString(),
           'PROCESSED',
         );
+        if (!statusUpdated) {
+          throw StateError(
+            'Заказ создан, но публикация не подтверждена. Обновите список и повторите.',
+          );
+        }
       }
 
       if (!mounted) return;
@@ -359,7 +497,6 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       setState(() {
         _hours = 4;
         _workersCount = 2;
-        _isRussianCitizenshipRequired = true;
         _hasElevator = true;
         _workerCategory = 'loader';
         _selectedAddress = null;
@@ -469,7 +606,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Формат: дата ДД.ММ.ГГГГ, время 24 часа.',
+                'Формат: дата ДД.ММ.ГГГГ, время 24 часа. '
+                'Не раньше чем через 30 минут и не позже чем через год.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -490,9 +628,14 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                       controller: _cargoWeightController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Вес, кг',
+                        labelText: 'Вес, кг (необязательно)',
                         hintText: 'Например: 300',
                         border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => _optionalIntegerInRange(
+                        value,
+                        min: 1,
+                        max: 100000,
                       ),
                     ),
                   ),
@@ -500,11 +643,18 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _floorController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                      ),
                       decoration: const InputDecoration(
-                        labelText: 'Этаж',
+                        labelText: 'Этаж (необязательно)',
                         hintText: 'Например: 4',
                         border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => _optionalIntegerInRange(
+                        value,
+                        min: -5,
+                        max: 200,
                       ),
                     ),
                   ),
@@ -518,59 +668,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 onChanged: (value) => setState(() => _hasElevator = value),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Text('Часов:'),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        if (_hours > 1) _hours--;
-                      });
-                    },
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Text(
-                    '$_hours',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _hours++;
-                      });
-                    },
-                    icon: const Icon(Icons.add),
-                  ),
-                  const Spacer(),
-                  const Text('Грузчиков:'),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        if (_workersCount > 1) _workersCount--;
-                      });
-                    },
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Text(
-                    '$_workersCount',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _workersCount++;
-                      });
-                    },
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
-              ),
+              _buildCounters(),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _addressController,
@@ -616,27 +714,19 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
               TextFormField(
                 controller: _metroController,
                 decoration: const InputDecoration(
-                  labelText: 'Метро',
-                  hintText: 'Например: Динамо',
+                  labelText: 'Метро (необязательно)',
+                  hintText: 'Например: Динамо, если рядом есть метро',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => _requiredText(value, 'Укажите метро'),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Гражданство РФ:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Да')),
-                  ButtonSegment(value: false, label: Text('Необязательно')),
-                ],
-                selected: {_isRussianCitizenshipRequired},
-                onSelectionChanged: (selection) =>
-                    setState(
-                  () => _isRussianCitizenshipRequired = selection.first,
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.verified_user_outlined),
+                title: Text('Право на законную работу'),
+                subtitle: Text(
+                  'Гражданство не используется как общий фильтр. Необходимые '
+                  'документы должен проверять серверный процесс верификации.',
                 ),
               ),
               const SizedBox(height: 12),
@@ -700,6 +790,76 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   }
 }
 
+class _BoundedCounter extends StatelessWidget {
+  final String label;
+  final int value;
+  final int min;
+  final int max;
+  final VoidCallback onDecrement;
+  final VoidCallback onIncrement;
+
+  const _BoundedCounter({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onDecrement,
+    required this.onIncrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: '$label: $value. Допустимо от $min до $max.',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: GpmColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: GpmColors.line),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '$label ($min–$max)',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Уменьшить: $label',
+                    onPressed: value > min ? onDecrement : null,
+                    icon: const Icon(Icons.remove),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '$value',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Увеличить: $label',
+                    onPressed: value < max ? onIncrement : null,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ClientPriceSection extends StatelessWidget {
   final String clientType;
   final TextEditingController controller;
@@ -748,8 +908,9 @@ class _ClientPriceSection extends StatelessWidget {
               controller: controller,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText:
-                    clientType == 'legal' ? 'Бюджет по счету, ₽' : 'Бюджет к оплате, ₽',
+                labelText: clientType == 'legal'
+                    ? 'Бюджет по счету, ₽'
+                    : 'Бюджет к оплате, ₽',
                 hintText: recommendedPrice.toString(),
                 border: OutlineInputBorder(),
               ),
@@ -800,13 +961,6 @@ class _AddressCandidate {
           longitude != null &&
           houseNumber?.isNotEmpty == true,
     );
-  }
-
-  String get mapImageUrl {
-    final lat = latitude!.toStringAsFixed(6);
-    final lon = longitude!.toStringAsFixed(6);
-    return 'https://staticmap.openstreetmap.de/staticmap.php'
-        '?center=$lat,$lon&zoom=16&size=720x260&markers=$lat,$lon,red-pushpin';
   }
 }
 
@@ -870,20 +1024,23 @@ class _SelectedAddressPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            child: Image.network(
-              candidate.mapImageUrl,
-              height: 180,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  height: 180,
-                  color: GpmColors.page,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.map_outlined, size: 44),
-                );
-              },
+          Container(
+            height: 108,
+            decoration: const BoxDecoration(
+              color: GpmColors.page,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+            ),
+            alignment: Alignment.center,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.location_on_outlined, size: 36),
+                SizedBox(height: 6),
+                Text(
+                  'Координаты адреса определены',
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
           Padding(

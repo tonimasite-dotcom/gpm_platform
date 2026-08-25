@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
+import '../../widgets/feature_unavailable.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -17,7 +18,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _profileFuture = _loadProfile();
+    _profileFuture = gpmApi.isApiMode ? Future.value(null) : _loadProfile();
   }
 
   Future<Map<String, dynamic>?> _loadProfile() {
@@ -93,6 +94,14 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (gpmApi.isApiMode) {
+      return const FeatureUnavailable(
+        title: 'Профиль и проверка исполнителя готовятся',
+        message: 'Паспорт, право на работу и статус НПД должен подтверждать '
+            'серверный процесс проверки. Самостоятельное подтверждение отключено.',
+        icon: Icons.verified_user_outlined,
+      );
+    }
     return FutureBuilder<Map<String, dynamic>?>(
       future: _profileFuture,
       builder: (context, snapshot) {

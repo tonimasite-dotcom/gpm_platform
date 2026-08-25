@@ -29,18 +29,27 @@ env:
 jobs:
   deploy:
     name: Deploy ${{ inputs.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: production
+    timeout-minutes: 30
 
     steps:
+      - name: Require a main-branch dispatch
+        if: github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          echo "Production can only be deployed from main." >&2
+          exit 1
+
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Set up Flutter
         if: inputs.target == 'all' || inputs.target == 'frontend'
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
@@ -51,7 +60,7 @@ jobs:
         shell: bash
         run: |
           printf '%s\n' \
-            'GPM_APP_MODE=api' \
+            'GPM_APP_MODE=production' \
             'GPM_APP_API_URL=https://app-api.gpmbot.ru' \
             > .env
 
@@ -62,12 +71,25 @@ jobs:
           set -euo pipefail
           flutter pub get
           flutter analyze --no-pub
+          flutter test --no-pub
           flutter build web --release --base-href /
           test -f build/web/index.html
           test -f build/web/main.dart.js
           test -f build/web/assets/.env
           test -f build/web/assets/assets/images/gpm_logo.png
           tar -C build/web -czf "/tmp/gpm-web-${GITHUB_SHA}.tar.gz" .
+
+      - name: Validate backend
+        if: inputs.target == 'all' || inputs.target == 'backend'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check \
+            -r requirements-api.lock pip-audit==2.10.1
+          python3 -m pip check
+          python3 -m pip_audit -r requirements-api.lock
+          python3 -m compileall -q app main.py tests
+          python3 -m unittest discover -s tests -p 'test_*.py'
 
       - name: Configure verified SSH access
         shell: bash
@@ -87,7 +109,10 @@ jobs:
         if: inputs.target == 'all' || inputs.target == 'backend'
         shell: bash
         run: |
-          ssh -o BatchMode=yes "${SSH_USER}@${BACKEND_HOST}" 'bash -se' <<'REMOTE'
+          ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "${SSH_USER}@${BACKEND_HOST}" \
+            "DEPLOY_SHA='${GITHUB_SHA}' bash -se" <<'REMOTE'
           set -euo pipefail
 
           cd /opt/gpm/gpm_platform
@@ -100,19 +125,47 @@ jobs:
           STAMP=$(date +%Y%m%d_%H%M%S)
           BACKUP_DIR="/opt/gpm/backups/$STAMP"
           mkdir -p "$BACKUP_DIR"
-          git rev-parse HEAD > "$BACKUP_DIR/commit-before-deploy.txt"
+          OLD_BACKEND_SHA=$(git rev-parse HEAD)
+          printf '%s\n' "$OLD_BACKEND_SHA" > "$BACKUP_DIR/commit-before-deploy.txt"
           git bundle create "$BACKUP_DIR/repository-before-deploy.bundle" HEAD
 
           git fetch origin main
-          git merge --ff-only origin/main
-          python3 -m py_compile app/app_orders_api.py
+          test "$(git rev-parse origin/main)" = "${DEPLOY_SHA}"
+          git cat-file -e "${DEPLOY_SHA}^{commit}"
+          git merge --ff-only "$DEPLOY_SHA"
+
+          rollback_backend() {
+            status=$?
+            if [ "$status" -eq 0 ]; then status=1; fi
+            trap - ERR TERM HUP
+            echo "Backend deployment failed; restoring $OLD_BACKEND_SHA." >&2
+            git reset --hard "$OLD_BACKEND_SHA"
+            systemctl restart gpm-app-api.service
+            exit "$status"
+          }
+          trap rollback_backend ERR TERM HUP
+
+          grep -Fxq 'GPM_APP_ENV=production' /root/gpm-app-env
+          grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*https://app\.gpmbot\.ru' /root/gpm-app-env
+          grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*http://localhost:8090' /root/gpm-app-env
+          grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*http://127\.0\.0\.1:8090' /root/gpm-app-env
+          python3 -m compileall -q app main.py tests
+          python3 -c 'import fastapi, psycopg2, uvicorn, yaml'
+          python3 -m pip check
 
           systemctl restart gpm-app-api.service
 
           for attempt in $(seq 1 15); do
-            if [ "$(systemctl is-active gpm-app-api.service)" = active ] && \
-               curl --fail --silent --show-error https://app-api.gpmbot.ru/health \
-                 | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("status") == "ok" else 1)'; then
+            health_response=""
+            if [ "$(systemctl is-active gpm-app-api.service)" = active ]; then
+              health_response=$(curl --fail --silent --show-error \
+                --connect-timeout 5 --max-time 10 \
+                https://app-api.gpmbot.ru/health || true)
+            fi
+            if [ -n "$health_response" ] && \
+               printf '%s' "$health_response" \
+                 | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("status") == "ok" and data.get("storage") == "postgres" else 1)'; then
+              trap - ERR TERM HUP
               git rev-parse --short HEAD
               echo "Backend deployment completed. Backup: $BACKUP_DIR"
               exit 0
@@ -122,13 +175,15 @@ jobs:
 
           echo "Backend health check failed. Backup: $BACKUP_DIR" >&2
           journalctl -u gpm-app-api.service -n 80 --no-pager >&2
-          exit 1
+          # Trigger ERR so rollback_backend restores the previous revision.
+          false
           REMOTE
       - name: Upload frontend artifact
         if: inputs.target == 'all' || inputs.target == 'frontend'
         shell: bash
         run: |
-          scp -o BatchMode=yes \
+          scp -o BatchMode=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
             "/tmp/gpm-web-${GITHUB_SHA}.tar.gz" \
             "${SSH_USER}@${FRONTEND_HOST}:/tmp/gpm-web-${GITHUB_SHA}.tar.gz"
 
@@ -136,7 +191,9 @@ jobs:
         if: inputs.target == 'all' || inputs.target == 'frontend'
         shell: bash
         run: |
-          ssh -o BatchMode=yes "${SSH_USER}@${FRONTEND_HOST}" \
+          ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "${SSH_USER}@${FRONTEND_HOST}" \
             "ARCHIVE='/tmp/gpm-web-${GITHUB_SHA}.tar.gz' bash -se" <<'REMOTE'
           set -euo pipefail
 
@@ -150,6 +207,8 @@ jobs:
 
           rollback() {
             status=$?
+            if [ "$status" -eq 0 ]; then status=1; fi
+            trap - ERR TERM HUP
             if [ "$SWAPPED" -eq 1 ] && [ -d "$PREVIOUS" ]; then
               echo "Frontend verification failed; restoring previous version." >&2
               mv "$LIVE" "$FAILED"
@@ -159,7 +218,7 @@ jobs:
             fi
             exit "$status"
           }
-          trap rollback ERR
+          trap rollback ERR TERM HUP
 
           mkdir -p "$STAGE" "$BACKUP_DIR"
           tar -xzf "$ARCHIVE" -C "$STAGE"
@@ -168,7 +227,7 @@ jobs:
           test -f "$STAGE/main.dart.js"
           test -f "$STAGE/assets/.env"
           test -f "$STAGE/assets/assets/images/gpm_logo.png"
-          grep -Fxq 'GPM_APP_MODE=api' "$STAGE/assets/.env"
+          grep -Fxq 'GPM_APP_MODE=production' "$STAGE/assets/.env"
           grep -Fxq 'GPM_APP_API_URL=https://app-api.gpmbot.ru' "$STAGE/assets/.env"
 
           cp -a "$LIVE" "$BACKUP_DIR/gpm-app-before-deploy"
@@ -183,12 +242,14 @@ jobs:
 
           nginx -t
           systemctl reload nginx
-          curl --fail --silent --show-error https://app.gpmbot.ru/ >/dev/null
-          curl --fail --silent --show-error https://app.gpmbot.ru/assets/.env \
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+            https://app.gpmbot.ru/ >/dev/null
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+            https://app.gpmbot.ru/assets/.env \
             | grep -Fq 'GPM_APP_API_URL=https://app-api.gpmbot.ru'
 
           SWAPPED=0
-          trap - ERR
+          trap - ERR TERM HUP
           rm -f "$ARCHIVE"
           echo "Frontend deployment completed. Backup: $BACKUP_DIR"
           echo "Previous version: $PREVIOUS"

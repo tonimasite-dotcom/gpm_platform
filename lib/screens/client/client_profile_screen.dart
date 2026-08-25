@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
+import '../../widgets/feature_unavailable.dart';
 
 class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
@@ -39,7 +41,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    if (gpmApi.isApiMode) {
+      _profileLoaded = true;
+    } else {
+      _loadProfile();
+    }
   }
 
   @override
@@ -139,6 +145,16 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (gpmApi.isApiMode) {
+      return const FeatureUnavailable(
+        title: 'Профиль клиента готовится',
+        message:
+            'Профиль и реквизиты должны храниться на сервере с привязкой к '
+            'учётной записи. Локальное сохранение чувствительных данных отключено '
+            'для production-режима.',
+        icon: Icons.account_circle_outlined,
+      );
+    }
     if (!_profileLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -243,7 +259,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               TextFormField(
                 controller: _contactController,
                 decoration: InputDecoration(
-                  labelText: isLegal ? 'Контактное лицо' : 'Как к вам обращаться',
+                  labelText:
+                      isLegal ? 'Контактное лицо' : 'Как к вам обращаться',
                   border: const OutlineInputBorder(),
                 ),
                 validator: (value) => _required(value, 'Укажите контакт'),

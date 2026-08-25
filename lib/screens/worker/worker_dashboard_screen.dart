@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
+import '../../widgets/feature_unavailable.dart';
 
 class WorkerDashboardScreen extends StatelessWidget {
   const WorkerDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    if (gpmApi.isApiMode) {
+      return const FeatureUnavailable(
+        title: 'Сводка исполнителя готовится',
+        message: 'Активные заказы, рейтинг и выплаты будут рассчитаны сервером '
+            'после появления персональных аккаунтов и назначений. Фиктивные '
+            'показатели в production отключены.',
+        icon: Icons.dashboard_outlined,
+      );
+    }
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [

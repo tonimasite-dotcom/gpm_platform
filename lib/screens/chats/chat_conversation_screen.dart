@@ -627,15 +627,19 @@ class _Composer extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            FilledButton(
-              onPressed: isSending ? null : onSend,
-              child: isSending
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send),
+            Tooltip(
+              message: 'Отправить сообщение',
+              child: FilledButton(
+                onPressed: isSending ? null : onSend,
+                child: isSending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send,
+                        semanticLabel: 'Отправить сообщение'),
+              ),
             ),
           ],
         ),

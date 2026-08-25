@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
+import '../../widgets/feature_unavailable.dart';
 
 class LogistProfileScreen extends StatefulWidget {
   const LogistProfileScreen({super.key});
@@ -34,7 +36,11 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    if (gpmApi.isApiMode) {
+      _profileLoaded = true;
+    } else {
+      _loadProfile();
+    }
   }
 
   @override
@@ -60,7 +66,8 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
       _notifyNewOrders = data['notify_new_orders'] != false;
       _nameController.text = data['name']?.toString() ?? _nameController.text;
       _phoneController.text = data['phone']?.toString() ?? '';
-      _emailController.text = data['email']?.toString() ?? _emailController.text;
+      _emailController.text =
+          data['email']?.toString() ?? _emailController.text;
       _telegramController.text = data['telegram']?.toString() ?? '';
       _cityController.text = data['cities']?.toString() ?? _cityController.text;
       _maxOrdersController.text =
@@ -108,6 +115,14 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (gpmApi.isApiMode) {
+      return const FeatureUnavailable(
+        title: 'Права логиста задаёт администратор',
+        message: 'Production-права нельзя менять в локальном профиле. Экран '
+            'будет доступен после внедрения серверных учётных записей и RBAC.',
+        icon: Icons.admin_panel_settings_outlined,
+      );
+    }
     if (!_profileLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
