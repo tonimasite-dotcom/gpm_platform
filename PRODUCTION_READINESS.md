@@ -21,6 +21,8 @@ or payouts.
 - The app orders API can use PostgreSQL through `GPM_APP_DATABASE_URL`.
 - Human app users authenticate through `/app-api/auth/login` and read orders
   through `/app-api/me/orders`.
+- Production currently has three separate server-assigned transition accounts
+  (`client`, `worker`, `logist`); the former shared `admin/admin` is disabled.
 - SQLite remains a local development fallback only.
 
 ## Production Requirements
@@ -40,18 +42,23 @@ or payouts.
 ## Required Environment
 
 ```bash
+GPM_APP_ENV=production
 GPM_APP_DATABASE_URL=postgresql://user:password@host:5432/database
 GPM_APP_API_TOKEN=<server-side integration token>
 GPM_APP_JWT_SECRET=<server-side JWT signing secret>
+GPM_APP_CLIENT_USERNAME=client
+GPM_APP_CLIENT_PASSWORD=<temporary client password>
+GPM_APP_WORKER_USERNAME=worker
+GPM_APP_WORKER_PASSWORD=<temporary worker password>
 GPM_APP_LOGIST_USERNAME=logist
 GPM_APP_LOGIST_PASSWORD=<temporary logist password>
-GPM_APP_ALLOWED_ORIGINS=https://your-app-domain.ru
+GPM_APP_ALLOWED_ORIGINS=https://app.gpmbot.ru,http://localhost:8090,http://127.0.0.1:8090
 ```
 
 Frontend production builds should use only public app settings:
 
 ```bash
-GPM_APP_MODE=api
+GPM_APP_MODE=production
 GPM_APP_API_URL=https://app-api.gpmbot.ru
 ```
 

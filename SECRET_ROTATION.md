@@ -7,6 +7,12 @@ Do not paste replacement secrets into chat, Git, docs, screenshots, or web
 assets. Put them into server environment variables or an ignored
 `app/config.local.yml` only where local development needs them.
 
+Post-deploy note, 2026-08-25: the former shared `admin/admin` app credential was
+removed from production and separate random transition passwords were generated
+for `client`, `worker`, and `logist`. This confirms only the app-account change;
+it does not prove that every historical integration credential below was
+rotated. Keep the remaining checklist open until the owner records completion.
+
 ## Rotate Now
 
 - Telegram bot tokens:
@@ -38,6 +44,8 @@ assets. Put them into server environment variables or an ignored
   - `GPM_APP_API_TOKEN`
 - GPM app user auth:
   - `GPM_APP_JWT_SECRET`
+  - `GPM_APP_CLIENT_PASSWORD`
+  - `GPM_APP_WORKER_PASSWORD`
   - `GPM_APP_LOGIST_PASSWORD`
 - Supabase demo values previously embedded into demo web builds:
   - review project access and RLS policies

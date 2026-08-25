@@ -28,8 +28,16 @@ For an `all` deployment the workflow:
 
 The backend deployment stops when tracked local changes exist on the production
 checkout. Before updating it creates a Git bundle and records the previous commit
-under `/opt/gpm/backups`. The frontend is copied under `/opt/gpm/front-backups`
-before every switch.
+under `/opt/gpm/backups`. It installs the locked API dependencies into a
+versioned virtualenv, validates the complete production runtime configuration,
+runs backend tests and atomically switches `.venv`; rollback restores both the
+previous commit and previous environment. The frontend is copied under
+`/opt/gpm/front-backups` before every atomic switch.
+
+Production must already contain three server-assigned accounts (`client`,
+`worker`, `logist`) and must not contain legacy shared `GPM_APP_USERNAME`,
+`GPM_APP_PASSWORD` or `GPM_APP_ROLE`. Account passwords remain only in the
+root-owned server environment and never enter Actions logs or frontend assets.
 
 ## Run a deployment
 
