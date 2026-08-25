@@ -41,7 +41,7 @@ hyperframe==6.0.1
 hyperlink==19.0.0
 idna==2.8
 incremental==16.10.1
-iso8601==1.1.0
+iso8601==2.1.0
 kaitaistruct==0.10
 keyring==18.0.1
 launchpadlib==1.10.13
