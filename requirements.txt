@@ -92,6 +92,6 @@ typing-extensions==4.11.0
 typing-extensions==4.11.0
 tzlocal==5.0.1
 webdriver-manager==4.0.1
-yadisk-async==1.4.3
+yadisk-async==1.4.5
 yarl==1.9.2
 
