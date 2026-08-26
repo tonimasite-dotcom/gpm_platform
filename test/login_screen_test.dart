@@ -27,8 +27,7 @@ void main() {
     expect(usernameField.controller?.text, isEmpty);
   });
 
-  testWidgets('registration notice directs tester to administrator',
-      (tester) async {
+  testWidgets('registration requires a one-time invitation', (tester) async {
     await tester.pumpWidget(buildSubject());
     final workerRole = find.text('Исполнитель');
     await tester.ensureVisible(workerRole);
@@ -39,8 +38,9 @@ void main() {
     await tester.tap(registrationTab);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('запросите доступ у администратора GPM'),
-        findsOneWidget);
+    expect(find.textContaining('Регистрация по приглашению'), findsOneWidget);
+    expect(find.text('Код приглашения'), findsOneWidget);
+    expect(find.textContaining('одноразовый код'), findsOneWidget);
     expect(find.textContaining('admin/admin'), findsNothing);
   });
 }

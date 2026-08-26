@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 
+from app import account_invite_cli
 from app import app_orders_api as api
 
 
@@ -47,6 +48,7 @@ class ActiveApiTests(unittest.TestCase):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(f"DROP TABLE IF EXISTS {api.SESSIONS_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.INVITATIONS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.AUDIT_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.ACCOUNTS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.MIGRATIONS_TABLE_NAME}")
@@ -63,6 +65,16 @@ class ActiveApiTests(unittest.TestCase):
         }
         with patch.dict(os.environ, environment, clear=True):
             api.init_db()
+            invitation = api.create_account_invitation(
+                "postgres-worker",
+                "worker",
+                created_by="ci",
+            )
+            invited_account = api.redeem_account_invitation(
+                invitation["token"],
+                "Strong synthetic password 42!",
+                expected_role="worker",
+            )
             account = api.check_app_credentials(
                 "postgres-client",
                 "a-strong-test-password",
@@ -73,6 +85,7 @@ class ActiveApiTests(unittest.TestCase):
                 api.current_user(f"Bearer {account['access_token']}")
 
         self.assertEqual(caught.exception.status_code, 401)
+        self.assertEqual(invited_account["role"], "worker")
 
     def test_api_lock_contains_all_direct_pins(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
@@ -275,6 +288,171 @@ class ActiveApiTests(unittest.TestCase):
                 connection.close()
             self.assertEqual(failed_count, api.LOGIN_FAILURE_LIMIT)
             self.assertIsNotNone(locked_until)
+
+    def test_invitation_creates_db_account_and_cannot_be_replayed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "accounts.sqlite3")
+            environment = {
+                "GPM_APP_JWT_SECRET": "x" * 32,
+                "GPM_APP_SQLITE_DB_FILE": db_path,
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                api.init_db()
+                invitation = api.create_account_invitation(
+                    "tester-client",
+                    "client",
+                    created_by="owner",
+                )
+                account = api.redeem_account_invitation(
+                    invitation["token"],
+                    "Strong synthetic password 42!",
+                    expected_role="client",
+                )
+                logged_in = api.check_app_credentials(
+                    "tester-client",
+                    "Strong synthetic password 42!",
+                )
+                with self.assertRaises(HTTPException) as replayed:
+                    api.redeem_account_invitation(
+                        invitation["token"],
+                        "Another strong password 43!",
+                        expected_role="client",
+                    )
+
+            self.assertEqual(account["role"], "client")
+            self.assertEqual(logged_in["account_id"], account["account_id"])
+            self.assertEqual(replayed.exception.status_code, 400)
+            connection = sqlite3.connect(db_path)
+            try:
+                token_hash, used_at = connection.execute(
+                    f"SELECT token_hash, used_at FROM {api.INVITATIONS_TABLE_NAME}"
+                ).fetchone()
+                audit_outcomes = connection.execute(
+                    f"""
+                    SELECT outcome FROM {api.AUDIT_TABLE_NAME}
+                    WHERE event_type = 'invitation_redeemed'
+                    ORDER BY occurred_at
+                    """
+                ).fetchall()
+            finally:
+                connection.close()
+            self.assertNotEqual(token_hash, invitation["token"])
+            self.assertEqual(token_hash, api.invitation_token_hash(invitation["token"]))
+            self.assertIsNotNone(used_at)
+            self.assertEqual(audit_outcomes, [("success",), ("failure",)])
+
+    def test_invitation_role_mismatch_does_not_consume_token(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "accounts.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                },
+                clear=True,
+            ):
+                api.init_db()
+                invitation = api.create_account_invitation(
+                    "tester-worker",
+                    "worker",
+                    created_by="owner",
+                )
+                with self.assertRaises(HTTPException):
+                    api.redeem_account_invitation(
+                        invitation["token"],
+                        "Strong synthetic password 42!",
+                        expected_role="client",
+                    )
+                with self.assertRaises(HTTPException):
+                    api.redeem_account_invitation(
+                        invitation["token"],
+                        "tester-worker-password-42",
+                        expected_role="worker",
+                    )
+                account = api.redeem_account_invitation(
+                    invitation["token"],
+                    "Strong synthetic password 42!",
+                    expected_role="worker",
+                )
+
+            self.assertEqual(account["role"], "worker")
+
+    def test_expired_invitation_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "accounts.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                },
+                clear=True,
+            ):
+                api.init_db()
+                invitation = api.create_account_invitation(
+                    "tester-logist",
+                    "logist",
+                    created_by="owner",
+                )
+                connection = sqlite3.connect(db_path)
+                try:
+                    connection.execute(
+                        f"UPDATE {api.INVITATIONS_TABLE_NAME} SET expires_at = ?",
+                        ((datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),),
+                    )
+                    connection.commit()
+                finally:
+                    connection.close()
+                with self.assertRaises(HTTPException) as caught:
+                    api.redeem_account_invitation(
+                        invitation["token"],
+                        "Strong synthetic password 42!",
+                        expected_role="logist",
+                    )
+
+            self.assertEqual(caught.exception.status_code, 400)
+
+    def test_cli_creates_three_role_invitations_in_protected_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "accounts.sqlite3")
+            output = Path(temp_dir) / "tester-invitations.json"
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                },
+                clear=True,
+            ):
+                accounts = account_invite_cli.create_test_user_invitations(
+                    prefix="tester-001",
+                    created_by="owner",
+                    output=output,
+                )
+
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            invitations = payload["invitations"]
+            self.assertEqual(
+                {account["role"] for account in accounts},
+                {"client", "worker", "logist"},
+            )
+            self.assertEqual(len(invitations), 3)
+            self.assertEqual(len({item["token"] for item in invitations}), 3)
+            connection = sqlite3.connect(db_path)
+            try:
+                token_hashes = {
+                    row[0]
+                    for row in connection.execute(
+                        f"SELECT token_hash FROM {api.INVITATIONS_TABLE_NAME}"
+                    ).fetchall()
+                }
+            finally:
+                connection.close()
+            self.assertEqual(
+                token_hashes,
+                {api.invitation_token_hash(item["token"]) for item in invitations},
+            )
 
     def test_terminal_order_cannot_be_cancelled(self) -> None:
         order = api.normalize_external_order(

@@ -4,6 +4,7 @@ import os
 import base64
 import hashlib
 import hmac
+import secrets
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -31,14 +32,19 @@ ACCOUNTS_TABLE_NAME = "gpm_app_accounts"
 SESSIONS_TABLE_NAME = "gpm_app_sessions"
 AUDIT_TABLE_NAME = "gpm_app_audit_log"
 MIGRATIONS_TABLE_NAME = "gpm_app_schema_migrations"
+INVITATIONS_TABLE_NAME = "gpm_app_account_invitations"
 APP_ROLES = {"client", "worker", "logist"}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
+INVITATION_SCHEMA_VERSION = "0002_account_invitations"
 ACCESS_TOKEN_TTL = timedelta(hours=12)
+INVITATION_TTL = timedelta(days=3)
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_LOCKOUT_DURATION = timedelta(minutes=15)
 PASSWORD_SCRYPT_N = 2**14
 PASSWORD_SCRYPT_R = 8
 PASSWORD_SCRYPT_P = 1
+MIN_PASSWORD_LENGTH = 12
+MAX_PASSWORD_LENGTH = 256
 DADATA_SUGGEST_URL = (
     "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address"
 )
@@ -270,6 +276,36 @@ def create_auth_schema(connection: Any) -> None:
             )
             cursor.execute(
                 f"""
+                CREATE TABLE IF NOT EXISTS {INVITATIONS_TABLE_NAME} (
+                    invitation_id TEXT PRIMARY KEY,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    username TEXT NOT NULL,
+                    username_normalized TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('client', 'worker', 'logist')),
+                    created_by TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    used_at TIMESTAMPTZ,
+                    revoked_at TIMESTAMPTZ,
+                    account_id TEXT REFERENCES {ACCOUNTS_TABLE_NAME}(account_id)
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE INDEX IF NOT EXISTS gpm_app_invitations_username_idx
+                ON {INVITATIONS_TABLE_NAME}(username_normalized)
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE UNIQUE INDEX IF NOT EXISTS gpm_app_invitations_active_username_idx
+                ON {INVITATIONS_TABLE_NAME}(username_normalized)
+                WHERE used_at IS NULL AND revoked_at IS NULL
+                """
+            )
+            cursor.execute(
+                f"""
                 CREATE TABLE IF NOT EXISTS {SESSIONS_TABLE_NAME} (
                     session_id TEXT PRIMARY KEY,
                     account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
@@ -315,6 +351,14 @@ def create_auth_schema(connection: Any) -> None:
                 """,
                 (ACCOUNT_SCHEMA_VERSION,),
             )
+            cursor.execute(
+                f"""
+                INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
+                VALUES (%s)
+                ON CONFLICT (version) DO NOTHING
+                """,
+                (INVITATION_SCHEMA_VERSION,),
+            )
         return
 
     connection.execute(
@@ -341,6 +385,36 @@ def create_auth_schema(connection: Any) -> None:
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             last_login_at TEXT
         )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {INVITATIONS_TABLE_NAME} (
+            invitation_id TEXT PRIMARY KEY,
+            token_hash TEXT NOT NULL UNIQUE,
+            username TEXT NOT NULL,
+            username_normalized TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('client', 'worker', 'logist')),
+            created_by TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at TEXT NOT NULL,
+            used_at TEXT,
+            revoked_at TEXT,
+            account_id TEXT REFERENCES {ACCOUNTS_TABLE_NAME}(account_id)
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS gpm_app_invitations_username_idx
+        ON {INVITATIONS_TABLE_NAME}(username_normalized)
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE UNIQUE INDEX IF NOT EXISTS gpm_app_invitations_active_username_idx
+        ON {INVITATIONS_TABLE_NAME}(username_normalized)
+        WHERE used_at IS NULL AND revoked_at IS NULL
         """
     )
     connection.execute(
@@ -387,6 +461,12 @@ def create_auth_schema(connection: Any) -> None:
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (ACCOUNT_SCHEMA_VERSION,),
+    )
+    connection.execute(
+        f"""
+        INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
+        """,
+        (INVITATION_SCHEMA_VERSION,),
     )
 
 
@@ -788,6 +868,296 @@ def dummy_password_hash() -> str:
     if _DUMMY_PASSWORD_HASH is None:
         _DUMMY_PASSWORD_HASH = hash_password("gpm-invalid-password-candidate")
     return _DUMMY_PASSWORD_HASH
+
+
+def normalize_invitation_token(token: str) -> str:
+    return token.strip()
+
+
+def invitation_token_hash(token: str) -> str:
+    return hashlib.sha256(normalize_invitation_token(token).encode("utf-8")).hexdigest()
+
+
+def validate_invitation_username(username: str) -> str:
+    cleaned = username.strip()
+    if not 3 <= len(cleaned) <= 64:
+        raise ValueError("username must contain between 3 and 64 characters")
+    if not all(character.isalnum() or character in {".", "_", "-"} for character in cleaned):
+        raise ValueError("username contains unsupported characters")
+    if is_placeholder(cleaned):
+        raise ValueError("username is not allowed")
+    return cleaned
+
+
+def validate_new_password(password: str, username: str) -> None:
+    if not MIN_PASSWORD_LENGTH <= len(password) <= MAX_PASSWORD_LENGTH:
+        raise ValueError(
+            f"password must contain between {MIN_PASSWORD_LENGTH} and "
+            f"{MAX_PASSWORD_LENGTH} characters"
+        )
+    if is_placeholder(password) or normalize_username(username) in password.casefold():
+        raise ValueError("password is too easy to guess")
+
+
+def create_account_invitation(
+    username: str,
+    role: str,
+    *,
+    created_by: str,
+    ttl: timedelta = INVITATION_TTL,
+) -> dict[str, Any]:
+    username = validate_invitation_username(username)
+    normalized_username = normalize_username(username)
+    role = role.strip().lower()
+    if role not in APP_ROLES:
+        raise ValueError("invalid account role")
+    if not timedelta(minutes=5) <= ttl <= timedelta(days=14):
+        raise ValueError("invitation lifetime must be between 5 minutes and 14 days")
+    if not created_by.strip():
+        raise ValueError("invitation creator is required")
+
+    token = secrets.token_urlsafe(32)
+    token_digest = invitation_token_hash(token)
+    now = utc_now()
+    expires_at = now + ttl
+    invitation_id = str(uuid4())
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+            account_row = connection.execute(
+                f"SELECT account_id FROM {ACCOUNTS_TABLE_NAME} WHERE username_normalized = ?",
+                (normalized_username,),
+            ).fetchone()
+            if account_row is not None:
+                raise ValueError("an account with this username already exists")
+            connection.execute(
+                f"""
+                UPDATE {INVITATIONS_TABLE_NAME}
+                SET revoked_at = ?
+                WHERE username_normalized = ? AND used_at IS NULL AND revoked_at IS NULL
+                """,
+                (serialize_datetime(now), normalized_username),
+            )
+            connection.execute(
+                f"""
+                INSERT INTO {INVITATIONS_TABLE_NAME}(
+                    invitation_id, token_hash, username, username_normalized,
+                    role, created_by, created_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    invitation_id,
+                    token_digest,
+                    username,
+                    normalized_username,
+                    role,
+                    created_by.strip()[:120],
+                    serialize_datetime(now),
+                    serialize_datetime(expires_at),
+                ),
+            )
+        else:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT account_id FROM {ACCOUNTS_TABLE_NAME} WHERE username_normalized = %s",
+                    (normalized_username,),
+                )
+                if cursor.fetchone() is not None:
+                    raise ValueError("an account with this username already exists")
+                cursor.execute(
+                    f"""
+                    UPDATE {INVITATIONS_TABLE_NAME}
+                    SET revoked_at = %s
+                    WHERE username_normalized = %s
+                      AND used_at IS NULL AND revoked_at IS NULL
+                    """,
+                    (serialize_datetime(now), normalized_username),
+                )
+                cursor.execute(
+                    f"""
+                    INSERT INTO {INVITATIONS_TABLE_NAME}(
+                        invitation_id, token_hash, username, username_normalized,
+                        role, created_by, created_at, expires_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        invitation_id,
+                        token_digest,
+                        username,
+                        normalized_username,
+                        role,
+                        created_by.strip()[:120],
+                        serialize_datetime(now),
+                        serialize_datetime(expires_at),
+                    ),
+                )
+        record_audit_event_in_connection(
+            connection,
+            event_type="invitation_created",
+            outcome="success",
+            actor_username=created_by.strip()[:120],
+            target_type="invitation",
+            target_id=invitation_id,
+            details={"username": username, "role": role, "expires_at": serialize_datetime(expires_at)},
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return {
+        "invitation_id": invitation_id,
+        "token": token,
+        "username": username,
+        "role": role,
+        "expires_at": serialize_datetime(expires_at),
+    }
+
+
+def redeem_account_invitation(
+    token: str,
+    password: str,
+    *,
+    expected_role: str | None = None,
+    audit_details: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    normalized_token = normalize_invitation_token(token)
+    if not 20 <= len(normalized_token) <= 200:
+        raise HTTPException(status_code=400, detail="invalid or expired invitation")
+    token_digest = invitation_token_hash(normalized_token)
+    now = utc_now()
+    result: dict[str, str] | None = None
+    failure_reason: str | None = None
+
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                f"""
+                SELECT invitation_id, username, role, expires_at, used_at, revoked_at
+                FROM {INVITATIONS_TABLE_NAME} WHERE token_hash = ?
+                """,
+                (token_digest,),
+            ).fetchone()
+        else:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT invitation_id, username, role, expires_at, used_at, revoked_at
+                    FROM {INVITATIONS_TABLE_NAME} WHERE token_hash = %s FOR UPDATE
+                    """,
+                    (token_digest,),
+                )
+                row = cursor.fetchone()
+
+        expires_at = parse_db_datetime(row[3]) if row is not None else None
+        invitation_valid = bool(
+            row is not None
+            and expires_at is not None
+            and expires_at > now
+            and row[4] is None
+            and row[5] is None
+        )
+        role = str(row[2]) if row is not None else ""
+        username = str(row[1]) if row is not None else ""
+        if not invitation_valid:
+            failure_reason = "invalid_or_expired"
+        elif expected_role and expected_role.strip().lower() != role:
+            failure_reason = "role_mismatch"
+        else:
+            try:
+                validate_new_password(password, username)
+            except ValueError:
+                failure_reason = "password_policy"
+
+        if failure_reason is None and row is not None:
+            normalized_username = normalize_username(username)
+            if _is_sqlite_connection(connection):
+                existing = connection.execute(
+                    f"SELECT account_id FROM {ACCOUNTS_TABLE_NAME} WHERE username_normalized = ?",
+                    (normalized_username,),
+                ).fetchone()
+            else:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"SELECT account_id FROM {ACCOUNTS_TABLE_NAME} WHERE username_normalized = %s",
+                        (normalized_username,),
+                    )
+                    existing = cursor.fetchone()
+            if existing is not None:
+                failure_reason = "username_exists"
+
+        if failure_reason is None and row is not None:
+            account_id = str(uuid4())
+            password_hash = hash_password(password)
+            values = (
+                account_id,
+                username,
+                normalize_username(username),
+                password_hash,
+                role,
+                serialize_datetime(now),
+                serialize_datetime(now),
+            )
+            if _is_sqlite_connection(connection):
+                connection.execute(
+                    f"""
+                    INSERT INTO {ACCOUNTS_TABLE_NAME}(
+                        account_id, username, username_normalized, password_hash,
+                        role, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    values,
+                )
+                connection.execute(
+                    f"""
+                    UPDATE {INVITATIONS_TABLE_NAME}
+                    SET used_at = ?, account_id = ? WHERE invitation_id = ?
+                    """,
+                    (serialize_datetime(now), account_id, str(row[0])),
+                )
+            else:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"""
+                        INSERT INTO {ACCOUNTS_TABLE_NAME}(
+                            account_id, username, username_normalized, password_hash,
+                            role, created_at, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        values,
+                    )
+                    cursor.execute(
+                        f"""
+                        UPDATE {INVITATIONS_TABLE_NAME}
+                        SET used_at = %s, account_id = %s WHERE invitation_id = %s
+                        """,
+                        (serialize_datetime(now), account_id, str(row[0])),
+                    )
+            record_audit_event_in_connection(
+                connection,
+                event_type="invitation_redeemed",
+                outcome="success",
+                actor_account_id=account_id,
+                actor_username=username,
+                target_type="account",
+                target_id=account_id,
+                details={**(audit_details or {}), "role": role, "invitation_id": str(row[0])},
+            )
+            result = {"account_id": account_id, "username": username, "role": role}
+        else:
+            record_audit_event_in_connection(
+                connection,
+                event_type="invitation_redeemed",
+                outcome="failure",
+                actor_username=username or None,
+                target_type="invitation",
+                target_id=str(row[0]) if row is not None else None,
+                details={**(audit_details or {}), "reason": failure_reason},
+            )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+
+    if result is None:
+        raise HTTPException(status_code=400, detail="invalid or expired invitation")
+    return result
 
 
 def configured_app_accounts(*, strict: bool = False) -> list[dict[str, str]]:
@@ -1691,6 +2061,47 @@ async def health() -> dict[str, str]:
     return {
         "status": "ok",
         "storage": storage,
+    }
+
+
+@app.post("/app-api/auth/register")
+async def register_with_invitation(request: Request) -> dict[str, Any]:
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be an object")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    invitation = str(payload.get("invitation") or "").strip()
+    password = str(payload.get("password") or "")
+    password_confirmation = str(payload.get("password_confirmation") or "")
+    expected_role = str(payload.get("role") or "").strip().lower() or None
+    if not invitation or not password:
+        raise HTTPException(status_code=400, detail="invitation and password are required")
+    if (
+        len(invitation) > 200
+        or len(password) > MAX_PASSWORD_LENGTH
+        or len(password_confirmation) > MAX_PASSWORD_LENGTH
+    ):
+        raise HTTPException(status_code=400, detail="invalid registration payload")
+    if password != password_confirmation:
+        raise HTTPException(status_code=400, detail="passwords do not match")
+    audit_details = {
+        "remote_ip": request.client.host if request.client else None,
+        "user_agent": (request.headers.get("user-agent") or "")[:256],
+    }
+    account = await asyncio.to_thread(
+        redeem_account_invitation,
+        invitation,
+        password,
+        expected_role=expected_role,
+        audit_details=audit_details,
+    )
+    return {
+        "success": True,
+        "username": account["username"],
+        "role": account["role"],
     }
 
 

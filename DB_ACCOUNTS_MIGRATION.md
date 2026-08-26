@@ -16,6 +16,8 @@ Schema version `0001_db_accounts` creates:
 - `gpm_app_audit_log` — append-only application events for account bootstrap,
   login attempts and logout;
 - `gpm_app_schema_migrations` — applied schema versions.
+- `gpm_app_account_invitations` — one-time hashed invitations for closed
+  onboarding; see `INVITE_REGISTRATION.md`.
 
 JWTs now contain a stable account ID and session ID. Every authenticated request
 checks that the account is active, the token versions match and the session has
@@ -60,6 +62,8 @@ Their retention and possible legal-hold status must be decided separately.
 ## Deliberate limits of this increment
 
 This foundation does not expose public registration, password recovery, contact
-verification, account administration or subject-data deletion. Those flows need
-approved product rules and separate permission/API tests before real users are
-allowed. The current release status remains closed testing on synthetic data.
+verification, account administration or subject-data deletion. Invite-only
+registration is limited to pre-provisioned roles and usernames. The remaining
+flows need approved product rules and separate permission/API tests before real
+users are allowed. The current release status remains closed testing on
+synthetic data.

@@ -15,13 +15,18 @@ class GpmLoginScreen extends StatefulWidget {
 class _GpmLoginScreenState extends State<GpmLoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _invitationController = TextEditingController();
+  final _registrationPasswordController = TextEditingController();
+  final _registrationPasswordConfirmationController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _registrationFormKey = GlobalKey<FormState>();
 
   String? _role;
   _AuthMode _authMode = _AuthMode.login;
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _error;
+  String? _notice;
 
   _RoleOption get _selectedRole =>
       _roleOptions.firstWhere((option) => option.value == _role);
@@ -30,6 +35,9 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _invitationController.dispose();
+    _registrationPasswordController.dispose();
+    _registrationPasswordConfirmationController.dispose();
     super.dispose();
   }
 
@@ -38,6 +46,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       _role = role;
       _authMode = _AuthMode.login;
       _error = null;
+      _notice = null;
     });
   }
 
@@ -47,6 +56,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       _authMode = _AuthMode.login;
       _passwordController.clear();
       _error = null;
+      _notice = null;
     });
   }
 
@@ -71,6 +81,40 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           : result['error']?.toString() ?? 'Не удалось войти';
     });
     if (result['success'] == true) widget.onSignedIn();
+  }
+
+  Future<void> _submitRegistration() async {
+    if (_role == null || !_registrationFormKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _notice = null;
+    });
+    final result = await gpmApi.registerWithInvitation(
+      invitation: _invitationController.text,
+      password: _registrationPasswordController.text,
+      passwordConfirmation: _registrationPasswordConfirmationController.text,
+      role: _role!,
+    );
+    if (!mounted) return;
+    if (result['success'] == true) {
+      final username = result['username']?.toString() ?? '';
+      _usernameController.text = username;
+      _passwordController.clear();
+      _invitationController.clear();
+      _registrationPasswordController.clear();
+      _registrationPasswordConfirmationController.clear();
+      setState(() {
+        _isLoading = false;
+        _authMode = _AuthMode.login;
+        _notice = 'Аккаунт $username создан. Введите выбранный пароль для входа.';
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = false;
+      _error = result['error']?.toString() ?? 'Не удалось принять приглашение';
+    });
   }
 
   @override
@@ -223,6 +267,18 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
               ?.copyWith(color: GpmColors.graphite),
         ),
         const SizedBox(height: 20),
+        if (_notice != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6F4EA),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF6AA875)),
+            ),
+            child: Text(_notice!),
+          ),
+          const SizedBox(height: 16),
+        ],
         SegmentedButton<_AuthMode>(
           segments: const [
             ButtonSegment(
@@ -241,8 +297,9 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           onSelectionChanged: _isLoading
               ? null
               : (selection) => setState(() {
-                    _authMode = selection.first;
-                    _error = null;
+                     _authMode = selection.first;
+                     _error = null;
+                     _notice = null;
                   }),
           style: ButtonStyle(
             minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
@@ -255,7 +312,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
         if (_authMode == _AuthMode.login)
           _buildLoginForm()
         else
-          _buildRegistrationNotice(selectedRole),
+          _buildInvitationRegistration(selectedRole),
       ],
     );
   }
@@ -332,22 +389,14 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
     );
   }
 
-  Widget _buildRegistrationNotice(_RoleOption role) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: GpmColors.surface,
-        border: Border.all(color: GpmColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
+  Widget _buildInvitationRegistration(_RoleOption role) {
+    return Form(
+      key: _registrationFormKey,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.construction_outlined,
-              size: 38, color: GpmColors.red),
-          const SizedBox(height: 12),
           Text(
-            'Регистрация: ${role.shortTitle}',
-            textAlign: TextAlign.center,
+            'Регистрация по приглашению: ${role.shortTitle}',
             style: Theme.of(context)
                 .textTheme
                 .titleMedium
@@ -355,9 +404,68 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Самостоятельная регистрация пока готовится. '
-            'Для участия в закрытом тестировании запросите доступ у администратора GPM.',
-            textAlign: TextAlign.center,
+            'Получите одноразовый код у администратора тестирования. Роль и логин уже закреплены в приглашении.',
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _invitationController,
+            decoration: const InputDecoration(
+              labelText: 'Код приглашения',
+              prefixIcon: Icon(Icons.vpn_key_outlined),
+            ),
+            autocorrect: false,
+            enableSuggestions: false,
+            validator: (value) => value == null || value.trim().length < 20
+                ? 'Введите действующий код приглашения'
+                : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _registrationPasswordController,
+            decoration: const InputDecoration(
+              labelText: 'Новый пароль',
+              prefixIcon: Icon(Icons.lock_outline),
+              helperText: 'Не менее 12 символов',
+            ),
+            obscureText: true,
+            validator: (value) => value == null || value.length < 12
+                ? 'Пароль должен содержать не менее 12 символов'
+                : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _registrationPasswordConfirmationController,
+            decoration: const InputDecoration(
+              labelText: 'Повторите пароль',
+              prefixIcon: Icon(Icons.lock_reset_outlined),
+            ),
+            obscureText: true,
+            onFieldSubmitted: (_) => _submitRegistration(),
+            validator: (value) => value != _registrationPasswordController.text
+                ? 'Пароли не совпадают'
+                : null,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: const TextStyle(
+                color: GpmColors.red,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: _isLoading ? null : _submitRegistration,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.person_add_alt_1_outlined),
+            label: const Text('Создать аккаунт'),
           ),
         ],
       ),

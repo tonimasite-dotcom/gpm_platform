@@ -133,6 +133,63 @@ class GpmApiService {
   String get currentUsername => _appUsername;
   String get currentRole => _appRole;
 
+  Future<Map<String, dynamic>> registerWithInvitation({
+    required String invitation,
+    required String password,
+    required String passwordConfirmation,
+    required String role,
+  }) async {
+    if (_appApiUrl.trim().isEmpty) {
+      return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
+    }
+    try {
+      final response = await http
+          .post(
+            Uri.parse(_appApiUrl).resolve('/app-api/auth/register'),
+            headers: const {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'invitation': invitation.trim(),
+              'password': password,
+              'password_confirmation': passwordConfirmation,
+              'role': role,
+            }),
+          )
+          .timeout(_requestTimeout);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final detail = decoded is Map ? decoded['detail']?.toString() ?? '' : '';
+        return {
+          'success': false,
+          'error': detail == 'invalid or expired invitation'
+              ? 'Приглашение недействительно, уже использовано или истекло.'
+              : 'Не удалось принять приглашение',
+        };
+      }
+      if (decoded is! Map || decoded['success'] != true) {
+        return {'success': false, 'error': 'Некорректный ответ сервера'};
+      }
+      final registeredRole = decoded['role']?.toString() ?? '';
+      if (registeredRole != role) {
+        return {'success': false, 'error': 'Приглашение относится к другой роли'};
+      }
+      return {
+        'success': true,
+        'username': decoded['username']?.toString() ?? '',
+        'role': registeredRole,
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'error': 'Сервер не ответил вовремя. Попробуйте ещё раз.',
+      };
+    } catch (_) {
+      return {'success': false, 'error': 'Не удалось принять приглашение'};
+    }
+  }
+
   Future<Map<String, dynamic>> login({
     required String username,
     required String password,
