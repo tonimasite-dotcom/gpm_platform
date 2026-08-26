@@ -23,6 +23,11 @@ or payouts.
   through `/app-api/me/orders`.
 - Production currently has three separate server-assigned transition accounts
   (`client`, `worker`, `logist`); the former shared `admin/admin` is disabled.
+- Accounts, sessions, audit events and one-time invitations are stored in
+  PostgreSQL.
+- Profiles, dashboards and chats are server-backed. Applications and
+  assignments persist inside the order document; worker finance is derived from
+  completed orders and is not a payment ledger.
 - SQLite remains a local development fallback only.
 
 ## Production Requirements

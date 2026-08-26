@@ -34,6 +34,10 @@ runs backend tests and atomically switches `.venv`; rollback restores both the
 previous commit and previous environment. The frontend is copied under
 `/opt/gpm/front-backups` before every atomic switch.
 
+The workflow does not create a PostgreSQL dump. Before any schema or data
+change, create a separate encrypted/permission-restricted dump, verify it with
+`pg_restore --list`, record its path, and keep it through the rollback window.
+
 For the first DB-backed account migration, production must retain the three
 server-assigned bootstrap accounts (`client`, `worker`, `logist`). Startup
 imports them only when the accounts table is empty and stores only versioned
