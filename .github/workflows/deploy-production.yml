@@ -167,10 +167,6 @@ jobs:
           grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*https://app\.gpmbot\.ru' /root/gpm-app-env
           grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*http://localhost:8090' /root/gpm-app-env
           grep -Eq '^GPM_APP_ALLOWED_ORIGINS=.*http://127\.0\.0\.1:8090' /root/gpm-app-env
-          for role in CLIENT WORKER LOGIST; do
-            grep -Eq "^GPM_APP_${role}_USERNAME=.+" /root/gpm-app-env
-            grep -Eq "^GPM_APP_${role}_PASSWORD=.{12,}$" /root/gpm-app-env
-          done
           if grep -Eq '^GPM_APP_(USERNAME|PASSWORD|ROLE)=' /root/gpm-app-env; then
             echo "Legacy shared app credentials must be removed before deployment." >&2
             false
@@ -189,7 +185,7 @@ jobs:
           set -a
           . /root/gpm-app-env
           set +a
-          "$NEW_VENV/bin/python" -c 'import app.app_orders_api as api; api.validate_runtime_configuration(); import fastapi, psycopg2, uvicorn, yaml'
+          "$NEW_VENV/bin/python" -c 'import app.app_orders_api as api; api.validate_runtime_configuration(); api.validate_account_source_configuration(); import fastapi, psycopg2, uvicorn, yaml'
 
           if [ "$OLD_VENV_KIND" = directory ]; then
             mv .venv "$BACKUP_DIR/venv-before-deploy"

@@ -1,5 +1,6 @@
 import json
 import os
+import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -34,6 +35,45 @@ def sample_payload(*, source: str = "external") -> dict:
 
 
 class ActiveApiTests(unittest.TestCase):
+    @unittest.skipUnless(
+        os.getenv("GPM_TEST_POSTGRES_URL"),
+        "GPM_TEST_POSTGRES_URL is only configured in backend CI",
+    )
+    def test_postgres_account_schema_login_and_revocation(self) -> None:
+        dsn = os.environ["GPM_TEST_POSTGRES_URL"]
+        if api.psycopg2 is None:
+            self.fail("psycopg2 is required for the PostgreSQL integration test")
+        connection = api.psycopg2.connect(dsn)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f"DROP TABLE IF EXISTS {api.SESSIONS_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.AUDIT_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.ACCOUNTS_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.MIGRATIONS_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.TABLE_NAME}")
+            connection.commit()
+        finally:
+            connection.close()
+
+        environment = {
+            "GPM_APP_DATABASE_URL": dsn,
+            "GPM_APP_CLIENT_USERNAME": "postgres-client",
+            "GPM_APP_CLIENT_PASSWORD": "a-strong-test-password",
+            "GPM_APP_JWT_SECRET": "x" * 32,
+        }
+        with patch.dict(os.environ, environment, clear=True):
+            api.init_db()
+            account = api.check_app_credentials(
+                "postgres-client",
+                "a-strong-test-password",
+            )
+            user = api.current_user(f"Bearer {account['access_token']}")
+            api.revoke_session(user)
+            with self.assertRaises(HTTPException) as caught:
+                api.current_user(f"Bearer {account['access_token']}")
+
+        self.assertEqual(caught.exception.status_code, 401)
+
     def test_api_lock_contains_all_direct_pins(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
 
@@ -146,20 +186,95 @@ class ActiveApiTests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 422)
 
     def test_server_assigns_role_from_account(self) -> None:
-        with patch.dict(
-            os.environ,
-            {
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "accounts.sqlite3")
+            environment = {
                 "GPM_APP_CLIENT_USERNAME": "client-1",
                 "GPM_APP_CLIENT_PASSWORD": "a-strong-test-password",
-            },
-            clear=True,
-        ):
-            account = api.check_app_credentials(
-                "client-1",
-                "a-strong-test-password",
-            )
+                "GPM_APP_JWT_SECRET": "x" * 32,
+                "GPM_APP_SQLITE_DB_FILE": db_path,
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                api.init_db()
+                account = api.check_app_credentials(
+                    "client-1",
+                    "a-strong-test-password",
+                )
 
-        self.assertEqual(account["role"], "client")
+            self.assertEqual(account["role"], "client")
+            self.assertNotEqual(account["account_id"], "client-1")
+
+            connection = sqlite3.connect(db_path)
+            try:
+                password_hash = connection.execute(
+                    f"SELECT password_hash FROM {api.ACCOUNTS_TABLE_NAME}"
+                ).fetchone()[0]
+                audit_events = connection.execute(
+                    f"SELECT event_type, outcome FROM {api.AUDIT_TABLE_NAME}"
+                ).fetchall()
+            finally:
+                connection.close()
+            self.assertTrue(password_hash.startswith("scrypt$"))
+            self.assertNotIn("a-strong-test-password", password_hash)
+            self.assertIn(("account_bootstrapped", "success"), audit_events)
+            self.assertIn(("login", "success"), audit_events)
+
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_ENV": "production",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                },
+                clear=True,
+            ):
+                api.validate_account_source_configuration()
+                db_account = api.check_app_credentials(
+                    "client-1",
+                    "a-strong-test-password",
+                )
+                user = api.current_user(f"Bearer {account['access_token']}")
+                self.assertEqual(user["sub"], account["account_id"])
+                self.assertEqual(user["username"], "client-1")
+                api.revoke_session(user)
+                with self.assertRaises(HTTPException) as caught:
+                    api.current_user(f"Bearer {account['access_token']}")
+                api.revoke_session(
+                    api.current_user(f"Bearer {db_account['access_token']}")
+                )
+
+            self.assertEqual(caught.exception.status_code, 401)
+
+    def test_account_is_locked_after_repeated_failed_logins(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "accounts.sqlite3")
+            environment = {
+                "GPM_APP_WORKER_USERNAME": "worker-1",
+                "GPM_APP_WORKER_PASSWORD": "a-strong-test-password",
+                "GPM_APP_JWT_SECRET": "x" * 32,
+                "GPM_APP_SQLITE_DB_FILE": db_path,
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                api.init_db()
+                for _ in range(api.LOGIN_FAILURE_LIMIT):
+                    with self.assertRaises(HTTPException):
+                        api.check_app_credentials("worker-1", "wrong-password")
+                with self.assertRaises(HTTPException) as caught:
+                    api.check_app_credentials("worker-1", "a-strong-test-password")
+
+            self.assertEqual(caught.exception.status_code, 401)
+            connection = sqlite3.connect(db_path)
+            try:
+                failed_count, locked_until = connection.execute(
+                    f"""
+                    SELECT failed_login_count, locked_until
+                    FROM {api.ACCOUNTS_TABLE_NAME}
+                    """
+                ).fetchone()
+            finally:
+                connection.close()
+            self.assertEqual(failed_count, api.LOGIN_FAILURE_LIMIT)
+            self.assertIsNotNone(locked_until)
 
     def test_terminal_order_cannot_be_cancelled(self) -> None:
         order = api.normalize_external_order(
@@ -194,10 +309,18 @@ class ActiveApiTests(unittest.TestCase):
             {"GPM_APP_JWT_SECRET": "x" * 32},
             clear=False,
         ):
-            token = api.create_access_token("client-1", "client")
+            token = api.create_access_token(
+                "account-1",
+                "client-1",
+                "client",
+                "session-1",
+                1,
+                datetime.now(timezone.utc) + timedelta(hours=12),
+            )
             payload = api.decode_access_token(token)
 
-        self.assertEqual(payload["sub"], "client-1")
+        self.assertEqual(payload["sub"], "account-1")
+        self.assertEqual(payload["username"], "client-1")
         self.assertEqual(payload["role"], "client")
 
         header_part, payload_part, _ = token.split(".")

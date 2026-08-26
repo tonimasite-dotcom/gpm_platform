@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -235,7 +237,7 @@ class _GpmHeader extends StatelessWidget {
               IconButton(
                 tooltip: 'Выйти',
                 onPressed: () {
-                  gpmApi.logout();
+                  unawaited(gpmApi.logout());
                   chatService = ChatService();
                   onSignedOut();
                 },

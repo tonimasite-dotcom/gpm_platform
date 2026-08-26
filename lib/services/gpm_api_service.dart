@@ -201,7 +201,29 @@ class GpmApiService {
     }
   }
 
-  void logout() {
+  Future<void> logout() async {
+    final accessToken = _appAccessToken.trim();
+    _clearLocalSession();
+    if (!isApiMode || _appApiUrl.trim().isEmpty || accessToken.isEmpty) {
+      return;
+    }
+    try {
+      await http
+          .post(
+            Uri.parse(_appApiUrl).resolve('/app-api/auth/logout'),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $accessToken',
+            },
+          )
+          .timeout(_requestTimeout);
+    } catch (_) {
+      // The local session is already cleared. An expired or unreachable server
+      // session will become unusable at its normal expiry time.
+    }
+  }
+
+  void _clearLocalSession() {
     _appAccessToken = '';
     _appUsername = '';
     _appRole = 'logist';
@@ -246,7 +268,7 @@ class GpmApiService {
         .timeout(_requestTimeout);
 
     if (response.statusCode == 401 || response.statusCode == 403) {
-      logout();
+      _clearLocalSession();
       onSessionExpired?.call();
       throw StateError('Сессия истекла. Войдите снова');
     }
@@ -584,7 +606,7 @@ class GpmApiService {
           .timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
         if (isApiMode) {
-          logout();
+          _clearLocalSession();
           onSessionExpired?.call();
         }
         return {
@@ -658,7 +680,7 @@ class GpmApiService {
           await http.get(uri, headers: headers).timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
         if (isApiMode) {
-          logout();
+          _clearLocalSession();
           onSessionExpired?.call();
         }
         throw StateError('Сессия истекла. Войдите снова.');
@@ -727,7 +749,7 @@ class GpmApiService {
           .timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
         if (isApiMode) {
-          logout();
+          _clearLocalSession();
           onSessionExpired?.call();
         }
         return {

@@ -18,6 +18,22 @@ jobs:
   backend:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: gpm_test
+          POSTGRES_USER: gpm_test
+          POSTGRES_PASSWORD: synthetic-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gpm_test -d gpm_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GPM_TEST_POSTGRES_URL: postgresql://gpm_test:synthetic-test-password@127.0.0.1:5432/gpm_test
 
     steps:
       - name: Checkout

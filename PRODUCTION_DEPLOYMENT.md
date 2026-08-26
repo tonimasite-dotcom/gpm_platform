@@ -34,10 +34,15 @@ runs backend tests and atomically switches `.venv`; rollback restores both the
 previous commit and previous environment. The frontend is copied under
 `/opt/gpm/front-backups` before every atomic switch.
 
-Production must already contain three server-assigned accounts (`client`,
-`worker`, `logist`) and must not contain legacy shared `GPM_APP_USERNAME`,
-`GPM_APP_PASSWORD` or `GPM_APP_ROLE`. Account passwords remain only in the
-root-owned server environment and never enter Actions logs or frontend assets.
+For the first DB-backed account migration, production must retain the three
+server-assigned bootstrap accounts (`client`, `worker`, `logist`). Startup
+imports them only when the accounts table is empty and stores only versioned
+password hashes. Follow `DB_ACCOUNTS_MIGRATION.md`; keep the bootstrap values
+through the rollback window and remove them only in a separately backed-up,
+verified step. Later deployments may use existing active DB accounts without
+the bootstrap variables. Legacy shared `GPM_APP_USERNAME`, `GPM_APP_PASSWORD`
+and `GPM_APP_ROLE` remain forbidden. Passwords, hashes and session tokens never
+enter Actions logs or frontend assets.
 
 ## Run a deployment
 

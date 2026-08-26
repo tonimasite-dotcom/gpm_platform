@@ -6,13 +6,14 @@ import hashlib
 import hmac
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import sqlite3
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request as UrlRequest, urlopen
+from uuid import uuid4
 
 import yaml
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -26,7 +27,18 @@ DEFAULT_SQLITE_DB_FILE = BASE_DIR / "gpm_app_orders.sqlite3"
 LEGACY_SQLITE_DB_FILE = BASE_DIR / "crm_app_orders.sqlite3"
 TABLE_NAME = "gpm_app_orders"
 LEGACY_TABLE_NAME = "crm_app_orders"
+ACCOUNTS_TABLE_NAME = "gpm_app_accounts"
+SESSIONS_TABLE_NAME = "gpm_app_sessions"
+AUDIT_TABLE_NAME = "gpm_app_audit_log"
+MIGRATIONS_TABLE_NAME = "gpm_app_schema_migrations"
 APP_ROLES = {"client", "worker", "logist"}
+ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
+ACCESS_TOKEN_TTL = timedelta(hours=12)
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_LOCKOUT_DURATION = timedelta(minutes=15)
+PASSWORD_SCRYPT_N = 2**14
+PASSWORD_SCRYPT_R = 8
+PASSWORD_SCRYPT_P = 1
 DADATA_SUGGEST_URL = (
     "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address"
 )
@@ -142,14 +154,6 @@ def validate_runtime_configuration() -> None:
     if len(jwt_value.encode("utf-8")) < 32:
         raise RuntimeError("GPM_APP_JWT_SECRET must contain at least 32 bytes")
 
-    accounts = configured_app_accounts(strict=True)
-    if not accounts:
-        raise RuntimeError("at least one server-assigned app account is required")
-    for account in accounts:
-        if len(account["password"]) < 12:
-            raise RuntimeError("production app account passwords need at least 12 characters")
-
-
 def postgres_dsn() -> str | None:
     dsn = get_setting("GPM_APP_DATABASE_URL") or get_setting("DATABASE_URL")
     if dsn and dsn.startswith("postgresql+asyncpg://"):
@@ -197,6 +201,7 @@ def db_connection():
     db_file = sqlite_db_file()
     db_file.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(db_file)
+    connection.execute("PRAGMA foreign_keys = ON")
     try:
         yield connection
         connection.commit()
@@ -205,6 +210,302 @@ def db_connection():
         raise
     finally:
         connection.close()
+
+
+def _is_sqlite_connection(connection: Any) -> bool:
+    return isinstance(connection, sqlite3.Connection)
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def serialize_datetime(value: datetime) -> str:
+    return value.astimezone(timezone.utc).isoformat()
+
+
+def parse_db_datetime(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def create_auth_schema(connection: Any) -> None:
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {MIGRATIONS_TABLE_NAME} (
+                    version TEXT PRIMARY KEY,
+                    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {ACCOUNTS_TABLE_NAME} (
+                    account_id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    username_normalized TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('client', 'worker', 'logist')),
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    failed_login_count INTEGER NOT NULL DEFAULT 0,
+                    locked_until TIMESTAMPTZ,
+                    token_version INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    last_login_at TIMESTAMPTZ
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {SESSIONS_TABLE_NAME} (
+                    session_id TEXT PRIMARY KEY,
+                    account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    token_version INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    revoked_at TIMESTAMPTZ
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE INDEX IF NOT EXISTS gpm_app_sessions_account_idx
+                ON {SESSIONS_TABLE_NAME}(account_id)
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {AUDIT_TABLE_NAME} (
+                    event_id TEXT PRIMARY KEY,
+                    occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    actor_account_id TEXT,
+                    actor_username TEXT,
+                    event_type TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    target_type TEXT,
+                    target_id TEXT,
+                    details JSONB NOT NULL DEFAULT '{{}}'::jsonb
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE INDEX IF NOT EXISTS gpm_app_audit_occurred_idx
+                ON {AUDIT_TABLE_NAME}(occurred_at)
+                """
+            )
+            cursor.execute(
+                f"""
+                INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
+                VALUES (%s)
+                ON CONFLICT (version) DO NOTHING
+                """,
+                (ACCOUNT_SCHEMA_VERSION,),
+            )
+        return
+
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {MIGRATIONS_TABLE_NAME} (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {ACCOUNTS_TABLE_NAME} (
+            account_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            username_normalized TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('client', 'worker', 'logist')),
+            is_active INTEGER NOT NULL DEFAULT 1,
+            failed_login_count INTEGER NOT NULL DEFAULT 0,
+            locked_until TEXT,
+            token_version INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_login_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {SESSIONS_TABLE_NAME} (
+            session_id TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            token_version INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at TEXT NOT NULL,
+            revoked_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS gpm_app_sessions_account_idx
+        ON {SESSIONS_TABLE_NAME}(account_id)
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {AUDIT_TABLE_NAME} (
+            event_id TEXT PRIMARY KEY,
+            occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actor_account_id TEXT,
+            actor_username TEXT,
+            event_type TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            target_type TEXT,
+            target_id TEXT,
+            details TEXT NOT NULL DEFAULT '{{}}'
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS gpm_app_audit_occurred_idx
+        ON {AUDIT_TABLE_NAME}(occurred_at)
+        """
+    )
+    connection.execute(
+        f"""
+        INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
+        """,
+        (ACCOUNT_SCHEMA_VERSION,),
+    )
+
+
+def count_accounts_in_connection(connection: Any, *, active_only: bool = False) -> int:
+    predicate = " WHERE is_active = TRUE" if active_only else ""
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM {ACCOUNTS_TABLE_NAME}{predicate}")
+            return int(cursor.fetchone()[0])
+    predicate = " WHERE is_active = 1" if active_only else ""
+    row = connection.execute(
+        f"SELECT COUNT(*) FROM {ACCOUNTS_TABLE_NAME}{predicate}"
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def database_has_active_accounts() -> bool:
+    try:
+        with db_connection() as connection:
+            return count_accounts_in_connection(connection, active_only=True) > 0
+    except Exception:
+        return False
+
+
+def record_audit_event_in_connection(
+    connection: Any,
+    *,
+    event_type: str,
+    outcome: str,
+    actor_account_id: str | None = None,
+    actor_username: str | None = None,
+    target_type: str | None = None,
+    target_id: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> None:
+    values = (
+        str(uuid4()),
+        serialize_datetime(utc_now()),
+        actor_account_id,
+        actor_username,
+        event_type,
+        outcome,
+        target_type,
+        target_id,
+        json.dumps(details or {}, ensure_ascii=False, separators=(",", ":")),
+    )
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {AUDIT_TABLE_NAME}(
+                    event_id, occurred_at, actor_account_id, actor_username,
+                    event_type, outcome, target_type, target_id, details
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                """,
+                values,
+            )
+        return
+    connection.execute(
+        f"""
+        INSERT INTO {AUDIT_TABLE_NAME}(
+            event_id, occurred_at, actor_account_id, actor_username,
+            event_type, outcome, target_type, target_id, details
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        values,
+    )
+
+
+def bootstrap_configured_accounts(connection: Any) -> int:
+    if count_accounts_in_connection(connection) > 0:
+        return 0
+
+    accounts = configured_app_accounts(strict=is_production_environment())
+    for account in accounts:
+        account_id = str(uuid4())
+        username = account["username"].strip()
+        values = (
+            account_id,
+            username,
+            normalize_username(username),
+            hash_password(account["password"]),
+            account["role"],
+            serialize_datetime(utc_now()),
+            serialize_datetime(utc_now()),
+        )
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {ACCOUNTS_TABLE_NAME}(
+                        account_id, username, username_normalized, password_hash,
+                        role, created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (username_normalized) DO NOTHING
+                    """,
+                    values,
+                )
+        else:
+            connection.execute(
+                f"""
+                INSERT OR IGNORE INTO {ACCOUNTS_TABLE_NAME}(
+                    account_id, username, username_normalized, password_hash,
+                    role, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                values,
+            )
+        record_audit_event_in_connection(
+            connection,
+            event_type="account_bootstrapped",
+            outcome="success",
+            actor_account_id=account_id,
+            actor_username=username,
+            target_type="account",
+            target_id=account_id,
+            details={"role": account["role"]},
+        )
+    return len(accounts)
 
 
 def init_db() -> None:
@@ -220,6 +521,8 @@ def init_db() -> None:
                     )
                     """
                 )
+            create_auth_schema(connection)
+            bootstrap_configured_accounts(connection)
             connection.commit()
         return
 
@@ -248,6 +551,8 @@ def init_db() -> None:
             SELECT order_id, data, updated_at FROM {LEGACY_TABLE_NAME}
             """
         )
+        create_auth_schema(connection)
+        bootstrap_configured_accounts(connection)
 
 
 def check_token(token: str | None) -> None:
@@ -287,14 +592,24 @@ def jwt_sign(message: str) -> str:
     return b64url_encode(signature)
 
 
-def create_access_token(username: str, role: str) -> str:
+def create_access_token(
+    account_id: str,
+    username: str,
+    role: str,
+    session_id: str,
+    token_version: int,
+    expires_at: datetime,
+) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
-        "sub": username,
+        "sub": account_id,
+        "username": username,
         "role": role,
+        "sid": session_id,
+        "ver": token_version,
         "iat": now,
-        "exp": now + 60 * 60 * 12,
+        "exp": int(expires_at.timestamp()),
     }
     signing_input = ".".join(
         [
@@ -345,9 +660,134 @@ def current_user(authorization: str | None) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="authorization required")
 
     payload = decode_access_token(token)
-    if payload.get("role") not in APP_ROLES:
-        raise HTTPException(status_code=403, detail="insufficient permissions")
-    return payload
+    account_id = str(payload.get("sub") or "")
+    session_id = str(payload.get("sid") or "")
+    role = str(payload.get("role") or "")
+    try:
+        token_version = int(payload.get("ver", 0))
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=401, detail="invalid bearer token") from error
+    if not account_id or not session_id or role not in APP_ROLES or token_version < 1:
+        raise HTTPException(status_code=401, detail="invalid bearer token")
+
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT a.account_id, a.username, a.role, a.is_active,
+                           a.token_version, s.expires_at, s.revoked_at,
+                           s.token_version
+                    FROM {SESSIONS_TABLE_NAME} s
+                    JOIN {ACCOUNTS_TABLE_NAME} a ON a.account_id = s.account_id
+                    WHERE s.session_id = %s
+                    """,
+                    (session_id,),
+                )
+                row = cursor.fetchone()
+        else:
+            row = connection.execute(
+                f"""
+                SELECT a.account_id, a.username, a.role, a.is_active,
+                       a.token_version, s.expires_at, s.revoked_at,
+                       s.token_version
+                FROM {SESSIONS_TABLE_NAME} s
+                JOIN {ACCOUNTS_TABLE_NAME} a ON a.account_id = s.account_id
+                WHERE s.session_id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=401, detail="invalid bearer token")
+    session_expires_at = parse_db_datetime(row[5])
+    if (
+        str(row[0]) != account_id
+        or str(row[2]) != role
+        or not bool(row[3])
+        or int(row[4]) != token_version
+        or int(row[7]) != token_version
+        or row[6] is not None
+        or session_expires_at is None
+        or session_expires_at <= utc_now()
+    ):
+        raise HTTPException(status_code=401, detail="invalid bearer token")
+    return {
+        **payload,
+        "sub": account_id,
+        "username": str(row[1]),
+        "role": str(row[2]),
+    }
+
+
+async def authenticated_user(authorization: str | None) -> dict[str, Any]:
+    return await asyncio.to_thread(current_user, authorization)
+
+
+def normalize_username(username: str) -> str:
+    return username.strip().casefold()
+
+
+def hash_password(password: str) -> str:
+    if not password:
+        raise ValueError("password is required")
+    salt = os.urandom(16)
+    digest = hashlib.scrypt(
+        password.encode("utf-8"),
+        salt=salt,
+        n=PASSWORD_SCRYPT_N,
+        r=PASSWORD_SCRYPT_R,
+        p=PASSWORD_SCRYPT_P,
+        maxmem=64 * 1024 * 1024,
+        dklen=32,
+    )
+    return "$".join(
+        [
+            "scrypt",
+            str(PASSWORD_SCRYPT_N),
+            str(PASSWORD_SCRYPT_R),
+            str(PASSWORD_SCRYPT_P),
+            b64url_encode(salt),
+            b64url_encode(digest),
+        ]
+    )
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        algorithm, n_value, r_value, p_value, salt_value, digest_value = (
+            password_hash.split("$", 5)
+        )
+        if algorithm != "scrypt":
+            return False
+        n = int(n_value)
+        r = int(r_value)
+        p = int(p_value)
+        if n < 2**14 or n > 2**18 or r < 1 or r > 32 or p < 1 or p > 8:
+            return False
+        expected = b64url_decode(digest_value)
+        actual = hashlib.scrypt(
+            password.encode("utf-8"),
+            salt=b64url_decode(salt_value),
+            n=n,
+            r=r,
+            p=p,
+            maxmem=256 * 1024 * 1024,
+            dklen=len(expected),
+        )
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
+
+_DUMMY_PASSWORD_HASH: str | None = None
+
+
+def dummy_password_hash() -> str:
+    global _DUMMY_PASSWORD_HASH
+    if _DUMMY_PASSWORD_HASH is None:
+        _DUMMY_PASSWORD_HASH = hash_password("gpm-invalid-password-candidate")
+    return _DUMMY_PASSWORD_HASH
 
 
 def configured_app_accounts(*, strict: bool = False) -> list[dict[str, str]]:
@@ -356,32 +796,42 @@ def configured_app_accounts(*, strict: bool = False) -> list[dict[str, str]]:
 
     for role in sorted(APP_ROLES):
         prefix = f"GPM_APP_{role.upper()}"
-        username = (get_setting(f"{prefix}_USERNAME") or "").strip()
-        password = get_setting(f"{prefix}_PASSWORD") or ""
+        username_name = f"{prefix}_USERNAME"
+        password_name = f"{prefix}_PASSWORD"
+        username = (get_setting(username_name) or "").strip()
+        password = get_setting(password_name) or ""
+        explicitly_configured = username_name in os.environ or password_name in os.environ
         if not username and not password:
             continue
         if not username or not password:
             raise RuntimeError(f"{prefix}_USERNAME and {prefix}_PASSWORD must be set together")
         if is_placeholder(username) or is_placeholder(password):
-            if strict:
+            if strict and explicitly_configured:
                 raise RuntimeError(f"{prefix} uses an unsafe placeholder credential")
             continue
-        if username in seen_usernames:
+        normalized_username = normalize_username(username)
+        if normalized_username in seen_usernames:
             raise RuntimeError("app account usernames must be unique")
-        seen_usernames.add(username)
+        if strict and len(password) < 12:
+            raise RuntimeError("production app account passwords need at least 12 characters")
+        seen_usernames.add(normalized_username)
         accounts.append({"username": username, "password": password, "role": role})
 
     legacy_username = (get_setting("GPM_APP_USERNAME") or "").strip()
     legacy_password = get_setting("GPM_APP_PASSWORD") or ""
     legacy_role = (get_setting("GPM_APP_ROLE") or "").strip().lower()
     if legacy_username or legacy_password or legacy_role:
+        if strict:
+            raise RuntimeError("legacy shared app credentials are not allowed in production")
         if legacy_role not in APP_ROLES:
             raise RuntimeError("GPM_APP_ROLE must define the server-assigned account role")
         if not is_placeholder(legacy_username) and not is_placeholder(legacy_password):
             if not legacy_username or not legacy_password:
                 raise RuntimeError("GPM_APP_USERNAME and GPM_APP_PASSWORD must be set together")
-            if legacy_username in seen_usernames:
+            normalized_username = normalize_username(legacy_username)
+            if normalized_username in seen_usernames:
                 raise RuntimeError("app account usernames must be unique")
+            seen_usernames.add(normalized_username)
             accounts.append(
                 {
                     "username": legacy_username,
@@ -393,27 +843,247 @@ def configured_app_accounts(*, strict: bool = False) -> list[dict[str, str]]:
     return accounts
 
 
-def check_app_credentials(username: str, password: str) -> dict[str, str]:
+def validate_account_source_configuration() -> None:
     try:
-        accounts = configured_app_accounts()
+        accounts = configured_app_accounts(strict=is_production_environment())
     except RuntimeError as error:
-        raise HTTPException(status_code=503, detail="app login is not configured") from error
-    if not accounts:
-        raise HTTPException(status_code=503, detail="app login is not configured")
+        raise RuntimeError("app login bootstrap configuration is invalid") from error
+    if accounts or database_has_active_accounts():
+        return
+    raise RuntimeError("DB-backed app login is not configured")
 
-    matched_account = next(
-        (
-            account
-            for account in accounts
-            if secure_compare(username, account["username"])
-        ),
-        None,
-    )
-    expected_password = matched_account["password"] if matched_account else "!" * 32
-    password_matches = secure_compare(password, expected_password)
-    if matched_account is None or not password_matches:
+
+def _fetch_account_for_login(connection: Any, username: str) -> tuple[Any, ...] | None:
+    normalized = normalize_username(username)
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT account_id, username, password_hash, role, is_active,
+                       failed_login_count, locked_until, token_version
+                FROM {ACCOUNTS_TABLE_NAME}
+                WHERE username_normalized = %s
+                FOR UPDATE
+                """,
+                (normalized,),
+            )
+            return cursor.fetchone()
+    return connection.execute(
+        f"""
+        SELECT account_id, username, password_hash, role, is_active,
+               failed_login_count, locked_until, token_version
+        FROM {ACCOUNTS_TABLE_NAME}
+        WHERE username_normalized = ?
+        """,
+        (normalized,),
+    ).fetchone()
+
+
+def check_app_credentials(
+    username: str,
+    password: str,
+    *,
+    audit_details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    now = utc_now()
+    submitted_username = username.strip()[:254]
+    result: dict[str, Any] | None = None
+    auth_failed = False
+
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        row = _fetch_account_for_login(connection, submitted_username)
+        password_matches = verify_password(
+            password,
+            str(row[2]) if row is not None else dummy_password_hash(),
+        )
+        locked_until = parse_db_datetime(row[6]) if row is not None else None
+        account_available = bool(row and row[4])
+        account_locked = bool(locked_until and locked_until > now)
+
+        if row is None or not password_matches or not account_available or account_locked:
+            auth_failed = True
+            if row is not None and account_available and not account_locked:
+                previous_failures = 0 if locked_until else int(row[5])
+                failed_login_count = previous_failures + 1
+                new_locked_until = (
+                    now + LOGIN_LOCKOUT_DURATION
+                    if failed_login_count >= LOGIN_FAILURE_LIMIT
+                    else None
+                )
+                if not _is_sqlite_connection(connection):
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f"""
+                            UPDATE {ACCOUNTS_TABLE_NAME}
+                            SET failed_login_count = %s, locked_until = %s,
+                                updated_at = %s
+                            WHERE account_id = %s
+                            """,
+                            (
+                                failed_login_count,
+                                serialize_datetime(new_locked_until)
+                                if new_locked_until
+                                else None,
+                                serialize_datetime(now),
+                                str(row[0]),
+                            ),
+                        )
+                else:
+                    connection.execute(
+                        f"""
+                        UPDATE {ACCOUNTS_TABLE_NAME}
+                        SET failed_login_count = ?, locked_until = ?, updated_at = ?
+                        WHERE account_id = ?
+                        """,
+                        (
+                            failed_login_count,
+                            serialize_datetime(new_locked_until)
+                            if new_locked_until
+                            else None,
+                            serialize_datetime(now),
+                            str(row[0]),
+                        ),
+                    )
+            record_audit_event_in_connection(
+                connection,
+                event_type="login",
+                outcome="failure",
+                actor_account_id=str(row[0]) if row is not None else None,
+                actor_username=str(row[1]) if row is not None else submitted_username,
+                target_type="account",
+                target_id=str(row[0]) if row is not None else None,
+                details={**(audit_details or {}), "reason": "invalid_credentials"},
+            )
+        else:
+            account_id = str(row[0])
+            account_username = str(row[1])
+            role = str(row[3])
+            token_version = int(row[7])
+            session_id = str(uuid4())
+            expires_at = now + ACCESS_TOKEN_TTL
+            if not _is_sqlite_connection(connection):
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"""
+                        UPDATE {ACCOUNTS_TABLE_NAME}
+                        SET failed_login_count = 0, locked_until = NULL,
+                            last_login_at = %s, updated_at = %s
+                        WHERE account_id = %s
+                        """,
+                        (serialize_datetime(now), serialize_datetime(now), account_id),
+                    )
+                    cursor.execute(
+                        f"""
+                        INSERT INTO {SESSIONS_TABLE_NAME}(
+                            session_id, account_id, token_version, created_at, expires_at
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (
+                            session_id,
+                            account_id,
+                            token_version,
+                            serialize_datetime(now),
+                            serialize_datetime(expires_at),
+                        ),
+                    )
+            else:
+                connection.execute(
+                    f"""
+                    UPDATE {ACCOUNTS_TABLE_NAME}
+                    SET failed_login_count = 0, locked_until = NULL,
+                        last_login_at = ?, updated_at = ?
+                    WHERE account_id = ?
+                    """,
+                    (serialize_datetime(now), serialize_datetime(now), account_id),
+                )
+                connection.execute(
+                    f"""
+                    INSERT INTO {SESSIONS_TABLE_NAME}(
+                        session_id, account_id, token_version, created_at, expires_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        session_id,
+                        account_id,
+                        token_version,
+                        serialize_datetime(now),
+                        serialize_datetime(expires_at),
+                    ),
+                )
+            record_audit_event_in_connection(
+                connection,
+                event_type="login",
+                outcome="success",
+                actor_account_id=account_id,
+                actor_username=account_username,
+                target_type="session",
+                target_id=session_id,
+                details=audit_details,
+            )
+            result = {
+                "account_id": account_id,
+                "username": account_username,
+                "role": role,
+                "session_id": session_id,
+                "token_version": token_version,
+                "expires_at": expires_at,
+            }
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+
+    if auth_failed or result is None:
         raise HTTPException(status_code=401, detail="invalid login or password")
-    return matched_account
+    result["access_token"] = create_access_token(
+        result["account_id"],
+        result["username"],
+        result["role"],
+        result["session_id"],
+        result["token_version"],
+        result["expires_at"],
+    )
+    return result
+
+
+def revoke_session(user: dict[str, Any], *, audit_details: dict[str, Any] | None = None) -> None:
+    session_id = str(user.get("sid") or "")
+    account_id = str(user.get("sub") or "")
+    if not session_id or not account_id:
+        raise HTTPException(status_code=401, detail="invalid bearer token")
+    revoked_at = serialize_datetime(utc_now())
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE {SESSIONS_TABLE_NAME}
+                    SET revoked_at = COALESCE(revoked_at, %s)
+                    WHERE session_id = %s AND account_id = %s
+                    """,
+                    (revoked_at, session_id, account_id),
+                )
+        else:
+            connection.execute(
+                f"""
+                UPDATE {SESSIONS_TABLE_NAME}
+                SET revoked_at = COALESCE(revoked_at, ?)
+                WHERE session_id = ? AND account_id = ?
+                """,
+                (revoked_at, session_id, account_id),
+            )
+        record_audit_event_in_connection(
+            connection,
+            event_type="logout",
+            outcome="success",
+            actor_account_id=account_id,
+            actor_username=str(user.get("username") or ""),
+            target_type="session",
+            target_id=session_id,
+            details=audit_details,
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
 
 
 def _optional_float(value: Any) -> float | None:
@@ -1006,6 +1676,10 @@ def patch_order_atomically(
 async def startup() -> None:
     validate_runtime_configuration()
     await asyncio.to_thread(init_db)
+    if is_production_environment() and not await asyncio.to_thread(
+        database_has_active_accounts
+    ):
+        raise RuntimeError("at least one active DB-backed app account is required")
 
 
 @app.get("/health")
@@ -1033,24 +1707,47 @@ async def login(request: Request) -> dict[str, Any]:
     password = str(payload.get("password") or "")
     if not username or not password:
         raise HTTPException(status_code=400, detail="login and password are required")
-    account = check_app_credentials(username, password)
+    audit_details = {
+        "remote_ip": request.client.host if request.client else None,
+        "user_agent": (request.headers.get("user-agent") or "")[:256],
+    }
+    account = await asyncio.to_thread(
+        check_app_credentials,
+        username,
+        password,
+        audit_details=audit_details,
+    )
     role = account["role"]
 
     return {
-        "access_token": create_access_token(username, role),
+        "access_token": account["access_token"],
         "token_type": "bearer",
         "role": role,
-        "username": username,
+        "username": account["username"],
     }
+
+
+@app.post("/app-api/auth/logout")
+async def logout(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, bool]:
+    user = await authenticated_user(authorization)
+    audit_details = {
+        "remote_ip": request.client.host if request.client else None,
+        "user_agent": (request.headers.get("user-agent") or "")[:256],
+    }
+    await asyncio.to_thread(revoke_session, user, audit_details=audit_details)
+    return {"success": True}
 
 
 @app.get("/app-api/me")
 async def me(
     authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    user = current_user(authorization)
+    user = await authenticated_user(authorization)
     return {
-        "username": str(user.get("sub") or ""),
+        "username": str(user.get("username") or ""),
         "role": str(user.get("role") or ""),
     }
 
@@ -1060,7 +1757,7 @@ async def address_suggestions(
     request: Request,
     authorization: str | None = Header(default=None),
 ) -> dict[str, list[dict[str, Any]]]:
-    current_user(authorization)
+    await authenticated_user(authorization)
     try:
         payload = await request.json()
         if not isinstance(payload, dict):
@@ -1083,7 +1780,7 @@ async def address_suggestions(
 async def get_my_orders(
     authorization: str | None = Header(default=None),
 ) -> dict[str, list[dict[str, Any]]]:
-    user = current_user(authorization)
+    user = await authenticated_user(authorization)
     orders = await asyncio.to_thread(list_orders)
     return {"orders": orders_for_user(orders, user)}
 
@@ -1093,7 +1790,7 @@ async def publish_my_order(
     request: Request,
     authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    user = current_user(authorization)
+    user = await authenticated_user(authorization)
     require_role(user, "client", "logist")
     return await publish_order_payload(request, actor=user)
 
@@ -1169,7 +1866,7 @@ async def update_my_order(
     request: Request,
     authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    user = current_user(authorization)
+    user = await authenticated_user(authorization)
     return await update_order_payload(order_id, request, actor=user)
 
 
