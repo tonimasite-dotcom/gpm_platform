@@ -160,7 +160,9 @@ class GpmApiService {
           .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        final detail = decoded is Map ? decoded['detail']?.toString() ?? '' : '';
+        final detail = decoded is Map
+            ? decoded['detail']?.toString() ?? ''
+            : '';
         return {
           'success': false,
           'error': detail == 'invalid or expired invitation'
@@ -173,7 +175,10 @@ class GpmApiService {
       }
       final registeredRole = decoded['role']?.toString() ?? '';
       if (registeredRole != role) {
-        return {'success': false, 'error': 'Приглашение относится к другой роли'};
+        return {
+          'success': false,
+          'error': 'Приглашение относится к другой роли',
+        };
       }
       return {
         'success': true,
@@ -301,6 +306,154 @@ class GpmApiService {
     }
   }
 
+  Map<String, String> get _authenticatedHeaders => {
+    'Accept': 'application/json',
+    'Authorization': 'Bearer ${_appAccessToken.trim()}',
+    'Content-Type': 'application/json',
+  };
+
+  Future<Map<String, dynamic>> _authenticatedJsonRequest(
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic>? body,
+  }) async {
+    if (_appApiUrl.trim().isEmpty || _appAccessToken.trim().isEmpty) {
+      throw StateError('Требуется вход');
+    }
+    final uri = Uri.parse(_appApiUrl).resolve(path);
+    late http.Response response;
+    try {
+      response = switch (method) {
+        'POST' =>
+          await http
+              .post(
+                uri,
+                headers: _authenticatedHeaders,
+                body: jsonEncode(body ?? const <String, dynamic>{}),
+              )
+              .timeout(_requestTimeout),
+        'PATCH' =>
+          await http
+              .patch(
+                uri,
+                headers: _authenticatedHeaders,
+                body: jsonEncode(body ?? const <String, dynamic>{}),
+              )
+              .timeout(_requestTimeout),
+        _ =>
+          await http
+              .get(uri, headers: _authenticatedHeaders)
+              .timeout(_requestTimeout),
+      };
+    } on TimeoutException {
+      throw StateError('Сервер не ответил вовремя');
+    }
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      _clearLocalSession();
+      onSessionExpired?.call();
+      throw StateError('Сессия истекла. Войдите снова');
+    }
+    dynamic decoded;
+    try {
+      decoded = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body);
+    } catch (_) {
+      throw StateError('Сервер вернул некорректный ответ');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final detail = decoded is Map ? decoded['detail']?.toString() : null;
+      throw StateError(
+        detail?.isNotEmpty == true
+            ? detail!
+            : 'Ошибка сервера: ${response.statusCode}',
+      );
+    }
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) {
+      return decoded.map((key, value) => MapEntry(key.toString(), value));
+    }
+    throw StateError('Сервер вернул некорректный ответ');
+  }
+
+  Future<Map<String, dynamic>> getMyProfile() async {
+    final response = await _authenticatedJsonRequest('/app-api/me/profile');
+    final profile = response['profile'];
+    if (profile is Map<String, dynamic>) return profile;
+    if (profile is Map) {
+      return profile.map((key, value) => MapEntry(key.toString(), value));
+    }
+    throw StateError('Сервер не вернул профиль');
+  }
+
+  Future<Map<String, dynamic>> updateMyProfile(
+    Map<String, dynamic> patch,
+  ) async {
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/profile',
+      method: 'PATCH',
+      body: patch,
+    );
+    final profile = response['profile'];
+    if (profile is Map<String, dynamic>) return profile;
+    if (profile is Map) {
+      return profile.map((key, value) => MapEntry(key.toString(), value));
+    }
+    throw StateError('Сервер не вернул профиль');
+  }
+
+  Future<Map<String, dynamic>> getMyDashboard() {
+    return _authenticatedJsonRequest('/app-api/me/dashboard');
+  }
+
+  Future<Map<String, dynamic>> getMyFinance() {
+    return _authenticatedJsonRequest('/app-api/me/finance');
+  }
+
+  Future<List<Map<String, dynamic>>> getMyChatThreads() async {
+    final response = await _authenticatedJsonRequest('/app-api/me/chats');
+    final threads = response['threads'];
+    if (threads is! List) return const [];
+    return threads
+        .whereType<Map>()
+        .map(
+          (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+        )
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> getMyChatConversation(String threadId) {
+    return _authenticatedJsonRequest(
+      '/app-api/me/chats/${Uri.encodeComponent(threadId)}',
+    );
+  }
+
+  Future<Map<String, dynamic>> sendMyChatMessage(String threadId, String text) {
+    return _authenticatedJsonRequest(
+      '/app-api/me/chats/${Uri.encodeComponent(threadId)}/messages',
+      method: 'POST',
+      body: {'text': text},
+    );
+  }
+
+  Future<void> requestMyChatSupport(String threadId) async {
+    await _authenticatedJsonRequest(
+      '/app-api/me/chats/${Uri.encodeComponent(threadId)}/support',
+      method: 'POST',
+    );
+  }
+
+  Future<void> setMyChatAttention(
+    String threadId,
+    bool requiresAttention,
+  ) async {
+    await _authenticatedJsonRequest(
+      '/app-api/me/chats/${Uri.encodeComponent(threadId)}/attention',
+      method: 'PATCH',
+      body: {'requires_attention': requiresAttention},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> suggestAddresses({
     required String query,
     String city = '',
@@ -317,10 +470,7 @@ class GpmApiService {
             'Authorization': 'Bearer ${_appAccessToken.trim()}',
             'Content-Type': 'application/json',
           },
-          body: jsonEncode({
-            'query': query.trim(),
-            'city': city.trim(),
-          }),
+          body: jsonEncode({'query': query.trim(), 'city': city.trim()}),
         )
         .timeout(_requestTimeout);
 
@@ -346,9 +496,7 @@ class GpmApiService {
     return suggestions
         .whereType<Map>()
         .map(
-          (item) => item.map(
-            (key, value) => MapEntry(key.toString(), value),
-          ),
+          (item) => item.map((key, value) => MapEntry(key.toString(), value)),
         )
         .toList();
   }
@@ -444,8 +592,9 @@ class GpmApiService {
         ),
         workMode: _stringValue(orderData['work_mode'], fallback: 'rate'),
         shiftDescription: _stringValue(orderData['shift_description']),
-        telegramUsername:
-            _stringValue(payload['telegram_username']).replaceFirst('@', ''),
+        telegramUsername: _stringValue(
+          payload['telegram_username'],
+        ).replaceFirst('@', ''),
         timezone: _stringValue(
           orderData['timezone'],
           fallback: 'Europe/Moscow',
@@ -500,8 +649,8 @@ class GpmApiService {
     final effectiveExternalOrderId = externalOrderId?.trim().isNotEmpty == true
         ? externalOrderId!.trim()
         : effectiveSource == sourceExternal
-            ? null
-            : _generateManualOrderNumber();
+        ? null
+        : _generateManualOrderNumber();
     final effectiveScheduledAt =
         scheduledAt ?? DateTime.now().toUtc().toIso8601String();
     final effectiveMinTime = minTime ?? hours;
@@ -552,9 +701,7 @@ class GpmApiService {
         final returnedOrder = published['order'];
         if (returnedOrder is Map) {
           _upsertOrder(
-            returnedOrder.map(
-              (key, value) => MapEntry(key.toString(), value),
-            ),
+            returnedOrder.map((key, value) => MapEntry(key.toString(), value)),
           );
         } else {
           try {
@@ -581,13 +728,14 @@ class GpmApiService {
 
     // Демо-режим если backend не настроен
     {
-      final orderId = effectiveExternalOrderId ??
+      final orderId =
+          effectiveExternalOrderId ??
           DateTime.now().microsecondsSinceEpoch.toString();
       final effectiveTitle = effectiveExternalOrderId == null
           ? title
           : title.contains(effectiveExternalOrderId)
-              ? title
-              : 'Заявка № $effectiveExternalOrderId';
+          ? title
+          : 'Заявка № $effectiveExternalOrderId';
       _demoOrders.insert(0, {
         'id': orderId,
         'title': effectiveTitle,
@@ -637,9 +785,9 @@ class GpmApiService {
       return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
     }
 
-    final uri = Uri.parse(_appApiUrl).resolve(
-      isApiMode ? '/app-api/me/orders' : '/app-api/orders',
-    );
+    final uri = Uri.parse(
+      _appApiUrl,
+    ).resolve(isApiMode ? '/app-api/me/orders' : '/app-api/orders');
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -655,21 +803,14 @@ class GpmApiService {
 
     try {
       final response = await http
-          .post(
-            uri,
-            headers: headers,
-            body: jsonEncode(payload),
-          )
+          .post(uri, headers: headers, body: jsonEncode(payload))
           .timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
         if (isApiMode) {
           _clearLocalSession();
           onSessionExpired?.call();
         }
-        return {
-          'success': false,
-          'error': 'Сессия истекла. Войдите снова.',
-        };
+        return {'success': false, 'error': 'Сессия истекла. Войдите снова.'};
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {
@@ -722,9 +863,9 @@ class GpmApiService {
     if (_appApiUrl.trim().isEmpty) return;
     if (requiresAuth && _appAccessToken.trim().isEmpty) return;
 
-    final uri = Uri.parse(_appApiUrl).resolve(
-      isApiMode ? '/app-api/me/orders' : '/app-api/orders',
-    );
+    final uri = Uri.parse(
+      _appApiUrl,
+    ).resolve(isApiMode ? '/app-api/me/orders' : '/app-api/orders');
     final headers = <String, String>{'Accept': 'application/json'};
     if (isApiMode) {
       headers['Authorization'] = 'Bearer ${_appAccessToken.trim()}';
@@ -733,8 +874,9 @@ class GpmApiService {
     }
 
     try {
-      final response =
-          await http.get(uri, headers: headers).timeout(_requestTimeout);
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
         if (isApiMode) {
           _clearLocalSession();
@@ -750,15 +892,17 @@ class GpmApiService {
       final orders = decoded is Map ? decoded['orders'] : decoded;
       if (orders is! List) {
         throw const FormatException(
-            'Сервер вернул некорректный список заказов');
+          'Сервер вернул некорректный список заказов',
+        );
       }
 
       if (isApiMode) {
         _demoOrders.clear();
       }
       for (final order in orders.whereType<Map>()) {
-        final mappedOrder =
-            order.map((key, value) => MapEntry(key.toString(), value));
+        final mappedOrder = order.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
         if (!isApiMode &&
             (mappedOrder['order_data'] is Map ||
                 mappedOrder['order_data'] is String)) {
@@ -798,21 +942,14 @@ class GpmApiService {
 
     try {
       final response = await http
-          .patch(
-            uri,
-            headers: headers,
-            body: jsonEncode(patch),
-          )
+          .patch(uri, headers: headers, body: jsonEncode(patch))
           .timeout(_requestTimeout);
       if (response.statusCode == 401 || response.statusCode == 403) {
         if (isApiMode) {
           _clearLocalSession();
           onSessionExpired?.call();
         }
-        return {
-          'success': false,
-          'error': 'Сессия истекла. Войдите снова.',
-        };
+        return {'success': false, 'error': 'Сессия истекла. Войдите снова.'};
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {
@@ -866,17 +1003,21 @@ class GpmApiService {
 
     final normalized = Map<String, dynamic>.from(order);
     normalized['source'] = _normalizeOrderSource(normalized['source']);
-    normalized['id'] =
-        id.isEmpty ? DateTime.now().microsecondsSinceEpoch.toString() : id;
-    normalized['external_order_id'] =
-        externalOrderId.isEmpty ? normalized['id'] : externalOrderId;
+    normalized['id'] = id.isEmpty
+        ? DateTime.now().microsecondsSinceEpoch.toString()
+        : id;
+    normalized['external_order_id'] = externalOrderId.isEmpty
+        ? normalized['id']
+        : externalOrderId;
     normalized['status'] = _normalizeOrderStatus(normalized['status']);
     normalized['created_at'] ??=
         normalized['scheduled_at'] ?? DateTime.now().toUtc().toIso8601String();
     normalized['assigned_worker_ids'] = List<String>.from(
-        (normalized['assigned_worker_ids'] as List?) ?? const []);
+      (normalized['assigned_worker_ids'] as List?) ?? const [],
+    );
     normalized['applications'] = List<Map<String, dynamic>>.from(
-        (normalized['applications'] as List?) ?? const []);
+      (normalized['applications'] as List?) ?? const [],
+    );
 
     if (existingIndex == -1) {
       _demoOrders.insert(0, normalized);
@@ -897,10 +1038,7 @@ class GpmApiService {
         normalized['assigned_worker_ids'] = existingAssignedWorkerIds;
       }
 
-      _demoOrders[existingIndex] = {
-        ...existing,
-        ...normalized,
-      };
+      _demoOrders[existingIndex] = {...existing, ...normalized};
     }
     _saveDemoState();
   }
@@ -934,8 +1072,8 @@ class GpmApiService {
     final number = externalOrderId.isNotEmpty
         ? externalOrderId
         : id.isNotEmpty
-            ? id
-            : title.replaceFirst('Заявка № ', '').trim();
+        ? id
+        : title.replaceFirst('Заявка № ', '').trim();
     return !RegExp(r'^\d+/\d{2}$').hasMatch(number);
   }
 
@@ -987,8 +1125,10 @@ class GpmApiService {
           'Разгрузить машину, перенести коробки на склад, нужен аккуратный подъем.',
       clientEmail: 'crm@gpm.ru',
       clientPhone: '',
-      scheduledAt:
-          now.add(const Duration(days: 1, hours: 2)).toUtc().toIso8601String(),
+      scheduledAt: now
+          .add(const Duration(days: 1, hours: 2))
+          .toUtc()
+          .toIso8601String(),
       city: 'Москва',
       source: sourceExternal,
       externalOrderId: externalOrderId,
@@ -1048,13 +1188,14 @@ class GpmApiService {
     return _demoApplications
         .where((application) => application['order_id'] == orderId)
         .map((application) {
-      final copy = Map<String, dynamic>.from(application);
-      final worker = getWorkerProfileSync(copy['worker_id'].toString());
-      if (worker != null) {
-        copy['worker'] = worker;
-      }
-      return copy;
-    }).toList();
+          final copy = Map<String, dynamic>.from(application);
+          final worker = getWorkerProfileSync(copy['worker_id'].toString());
+          if (worker != null) {
+            copy['worker'] = worker;
+          }
+          return copy;
+        })
+        .toList();
   }
 
   Map<String, dynamic>? getWorkerProfileSync(String workerId) {
@@ -1128,6 +1269,18 @@ class GpmApiService {
     required String workerId,
     required String workerName,
   }) async {
+    if (isApiMode) {
+      try {
+        final response = await _authenticatedJsonRequest(
+          '/app-api/me/orders/${Uri.encodeComponent(orderId)}/applications',
+          method: 'POST',
+        );
+        await _syncAppPublishedOrders();
+        return response;
+      } catch (error) {
+        return {'success': false, 'error': error.toString()};
+      }
+    }
     final order = await getOrderById(orderId);
     if (order == null) {
       return {'success': false, 'error': 'Заявка не найдена'};
@@ -1160,8 +1313,23 @@ class GpmApiService {
     required String orderId,
     required String applicationId,
   }) async {
-    final orderIndex =
-        _demoOrders.indexWhere((order) => order['id'] == orderId);
+    if (isApiMode) {
+      try {
+        final response = await _authenticatedJsonRequest(
+          '/app-api/me/orders/${Uri.encodeComponent(orderId)}/applications/'
+          '${Uri.encodeComponent(applicationId)}',
+          method: 'PATCH',
+          body: {'decision': 'APPROVED'},
+        );
+        await _syncAppPublishedOrders();
+        return response;
+      } catch (error) {
+        return {'success': false, 'error': error.toString()};
+      }
+    }
+    final orderIndex = _demoOrders.indexWhere(
+      (order) => order['id'] == orderId,
+    );
     if (orderIndex == -1) {
       return {'success': false, 'error': 'Заявка не найдена'};
     }
@@ -1188,14 +1356,35 @@ class GpmApiService {
       assignedWorkerIds.add(workerId);
     }
     order['assigned_worker_ids'] = assignedWorkerIds;
-    order['status'] =
-        assignedWorkerIds.length >= workersCount ? 'IN_PROCESS' : 'PROCESSED';
+    order['status'] = assignedWorkerIds.length >= workersCount
+        ? 'IN_PROCESS'
+        : 'PROCESSED';
     _saveDemoState();
 
     return {'success': true};
   }
 
-  Future<Map<String, dynamic>> rejectApplication(String applicationId) async {
+  Future<Map<String, dynamic>> rejectApplication(
+    String applicationId, {
+    String? orderId,
+  }) async {
+    if (isApiMode) {
+      if (orderId == null || orderId.isEmpty) {
+        return {'success': false, 'error': 'Не указан заказ'};
+      }
+      try {
+        final response = await _authenticatedJsonRequest(
+          '/app-api/me/orders/${Uri.encodeComponent(orderId)}/applications/'
+          '${Uri.encodeComponent(applicationId)}',
+          method: 'PATCH',
+          body: {'decision': 'REJECTED'},
+        );
+        await _syncAppPublishedOrders();
+        return response;
+      } catch (error) {
+        return {'success': false, 'error': error.toString()};
+      }
+    }
     final applicationIndex = _demoApplications.indexWhere(
       (application) => application['id'] == applicationId,
     );
@@ -1213,8 +1402,15 @@ class GpmApiService {
     required String workerId,
     required String result,
   }) async {
-    final orderIndex =
-        _demoOrders.indexWhere((order) => order['id'] == orderId);
+    if (isApiMode) {
+      final success = await updateOrderStatus(orderId, 'CONVERTED');
+      return success
+          ? {'success': true}
+          : {'success': false, 'error': 'Не удалось завершить заказ'};
+    }
+    final orderIndex = _demoOrders.indexWhere(
+      (order) => order['id'] == orderId,
+    );
     if (orderIndex == -1) {
       return {'success': false, 'error': 'Заявка не найдена'};
     }
@@ -1279,7 +1475,7 @@ class GpmApiService {
   }) async {
     return {
       'success': true,
-      'contactId': DateTime.now().millisecondsSinceEpoch.toString()
+      'contactId': DateTime.now().millisecondsSinceEpoch.toString(),
     };
   }
 
@@ -1371,8 +1567,9 @@ class GpmApiService {
     copy['assigned_worker_ids'] = assignedWorkerIds;
     copy['assigned_count'] = assignedWorkerIds.length;
     copy['applications_count'] = applications.length;
-    copy['worker_application_status'] =
-        workerApplications.isEmpty ? null : workerApplications.first['status'];
+    copy['worker_application_status'] = workerApplications.isEmpty
+        ? null
+        : workerApplications.first['status'];
     copy['is_assigned_to_worker'] = assignedWorkerIds.contains(workerId);
     return copy;
   }
@@ -1396,20 +1593,22 @@ class GpmApiService {
       if (orders is List) {
         _demoOrders
           ..clear()
-          ..addAll(orders.map((order) {
-            final copy = Map<String, dynamic>.from(order);
-            if (copy['source'] == 'crm' &&
-                copy['title'] == 'Разгрузка из CRM') {
-              copy['title'] = 'Разгрузка склада';
-            }
-            final description = copy['description']?.toString();
-            if (copy['source'] == 'crm' &&
-                description != null &&
-                description.startsWith('CRM: ')) {
-              copy['description'] = description.substring(5);
-            }
-            return copy;
-          }));
+          ..addAll(
+            orders.map((order) {
+              final copy = Map<String, dynamic>.from(order);
+              if (copy['source'] == 'crm' &&
+                  copy['title'] == 'Разгрузка из CRM') {
+                copy['title'] = 'Разгрузка склада';
+              }
+              final description = copy['description']?.toString();
+              if (copy['source'] == 'crm' &&
+                  description != null &&
+                  description.startsWith('CRM: ')) {
+                copy['description'] = description.substring(5);
+              }
+              return copy;
+            }),
+          );
       }
 
       final applications = decoded['applications'];

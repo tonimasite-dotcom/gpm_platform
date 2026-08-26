@@ -4,16 +4,12 @@ import '../../main.dart' show gpmApi, chatService;
 import '../../models/chat_models.dart';
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
-import '../../widgets/feature_unavailable.dart';
 import 'chat_conversation_screen.dart';
 
 class ChatThreadsScreen extends StatefulWidget {
   final ChatRole role;
 
-  const ChatThreadsScreen({
-    super.key,
-    required this.role,
-  });
+  const ChatThreadsScreen({super.key, required this.role});
 
   @override
   State<ChatThreadsScreen> createState() => _ChatThreadsScreenState();
@@ -26,8 +22,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   @override
   void initState() {
     super.initState();
-    _threadsFuture =
-        gpmApi.isApiMode ? Future.value(const _ThreadsData()) : _loadThreads();
+    _threadsFuture = _loadThreads();
   }
 
   Future<_ThreadsData> _loadThreads() async {
@@ -41,9 +36,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
     );
     return _ThreadsData(
       threads: threads,
-      ordersById: {
-        for (final order in orders) order['id'].toString(): order,
-      },
+      ordersById: {for (final order in orders) order['id'].toString(): order},
     );
   }
 
@@ -55,15 +48,6 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (gpmApi.isApiMode) {
-      return const FeatureUnavailable(
-        title: 'Чаты пока недоступны',
-        message: 'Серверная история переписки и разделение участников ещё не '
-            'реализованы. Локальный демонстрационный чат отключён, чтобы данные '
-            'разных пользователей не смешивались.',
-        icon: Icons.chat_bubble_outline,
-      );
-    }
     return FutureBuilder<_ThreadsData>(
       future: _threadsFuture,
       builder: (context, snapshot) {
@@ -73,7 +57,8 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
 
         if (snapshot.hasError) {
           return Center(
-              child: Text('Ошибка загрузки чатов: ${snapshot.error}'));
+            child: Text('Ошибка загрузки чатов: ${snapshot.error}'),
+          );
         }
 
         final data = snapshot.data ?? const _ThreadsData();
@@ -150,19 +135,26 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   List<ChatThread> _applyFilter(List<ChatThread> threads) {
     return switch (_filter) {
       _ThreadFilter.all => threads,
-      _ThreadFilter.attention => threads
-          .where((thread) =>
-              thread.requiresLogistAttention || thread.unreadCount > 0)
-          .toList(),
-      _ThreadFilter.orders => threads
-          .where((thread) =>
-              thread.type == ChatThreadType.clientLogist ||
-              thread.type == ChatThreadType.workerLogist ||
-              thread.type == ChatThreadType.clientWorker)
-          .toList(),
-      _ThreadFilter.support => threads
-          .where((thread) => thread.type == ChatThreadType.support)
-          .toList(),
+      _ThreadFilter.attention =>
+        threads
+            .where(
+              (thread) =>
+                  thread.requiresLogistAttention || thread.unreadCount > 0,
+            )
+            .toList(),
+      _ThreadFilter.orders =>
+        threads
+            .where(
+              (thread) =>
+                  thread.type == ChatThreadType.clientLogist ||
+                  thread.type == ChatThreadType.workerLogist ||
+                  thread.type == ChatThreadType.clientWorker,
+            )
+            .toList(),
+      _ThreadFilter.support =>
+        threads
+            .where((thread) => thread.type == ChatThreadType.support)
+            .toList(),
       _ThreadFilter.archived =>
         threads.where((thread) => thread.isArchived).toList(),
     };
@@ -172,29 +164,20 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
     return switch (widget.role) {
       ChatRole.client =>
         'Чаты появятся после создания заказа и назначения исполнителей.',
-      ChatRole.worker => 'Чаты появятся после отклика или назначения на заказ.',
+      ChatRole.worker => 'Чаты появятся после назначения на заказ.',
       ChatRole.logist => 'Активных чатов пока нет.',
       ChatRole.system => 'Чатов нет.',
     };
   }
 }
 
-enum _ThreadFilter {
-  all,
-  attention,
-  orders,
-  support,
-  archived,
-}
+enum _ThreadFilter { all, attention, orders, support, archived }
 
 class _ThreadsData {
   final List<ChatThread> threads;
   final Map<String, Map<String, dynamic>> ordersById;
 
-  const _ThreadsData({
-    this.threads = const [],
-    this.ordersById = const {},
-  });
+  const _ThreadsData({this.threads = const [], this.ordersById = const {}});
 }
 
 class _ChatFilters extends StatelessWidget {
@@ -218,13 +201,16 @@ class _ChatFilters extends StatelessWidget {
         )
         .length;
     final orderCount = threads
-        .where((thread) =>
-            thread.type == ChatThreadType.clientLogist ||
-            thread.type == ChatThreadType.workerLogist ||
-            thread.type == ChatThreadType.clientWorker)
+        .where(
+          (thread) =>
+              thread.type == ChatThreadType.clientLogist ||
+              thread.type == ChatThreadType.workerLogist ||
+              thread.type == ChatThreadType.clientWorker,
+        )
         .length;
-    final supportCount =
-        threads.where((thread) => thread.type == ChatThreadType.support).length;
+    final supportCount = threads
+        .where((thread) => thread.type == ChatThreadType.support)
+        .length;
     final archivedCount = threads.where((thread) => thread.isArchived).length;
 
     return SingleChildScrollView(
@@ -295,9 +281,7 @@ class _FilterChipButton extends StatelessWidget {
           color: color,
           fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
         ),
-        side: BorderSide(
-          color: selected ? GpmColors.red : GpmColors.line,
-        ),
+        side: BorderSide(color: selected ? GpmColors.red : GpmColors.line),
         showCheckmark: false,
       ),
     );
@@ -355,8 +339,10 @@ class _ThreadCard extends StatelessWidget {
 
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
         leading: _ThreadIcon(thread: thread),
         title: Row(
           children: [
@@ -414,11 +400,7 @@ class _ThreadCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
               if (thread.isArchived) ...[
                 const SizedBox(height: 4),
                 const Text(
@@ -502,10 +484,7 @@ class _MiniPill extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _MiniPill({
-    required this.text,
-    required this.color,
-  });
+  const _MiniPill({required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -540,8 +519,9 @@ class _ThreadIcon extends StatelessWidget {
       ChatThreadType.clientWorker => Icons.forum_outlined,
       ChatThreadType.support => Icons.warning_amber_rounded,
     };
-    final color =
-        thread.requiresLogistAttention ? GpmColors.red : GpmColors.black;
+    final color = thread.requiresLogistAttention
+        ? GpmColors.red
+        : GpmColors.black;
 
     return Container(
       width: 44,

@@ -2,30 +2,41 @@ import 'dart:convert';
 
 import '../models/chat_models.dart';
 import 'demo_storage.dart';
+import 'gpm_api_service.dart';
 
 class ChatService {
   static const _storageKey = 'gpm_chat_state_v1';
 
   final List<ChatThread> _threads = [];
   final List<ChatMessage> _messages = [];
+  final GpmApiService? _api;
 
-  ChatService() {
-    _loadState();
+  ChatService({GpmApiService? api}) : _api = api {
+    if (api?.isApiMode != true) _loadState();
   }
 
   Future<List<ChatThread>> getThreadsForRole({
     required ChatRole role,
     required List<Map<String, dynamic>> orders,
   }) async {
+    if (_api?.isApiMode == true) {
+      final rawThreads = await _api!.getMyChatThreads();
+      _threads
+        ..clear()
+        ..addAll(rawThreads.map(ChatThread.fromJson));
+      return List<ChatThread>.unmodifiable(_threads);
+    }
     _ensureThreadsForOrders(orders);
 
-    final visibleThreads =
-        _threads.where((thread) => thread.isVisibleFor(role)).where((thread) {
-      if (role == ChatRole.worker) {
-        return _isRelevantForDemoWorker(thread, orders);
-      }
-      return true;
-    }).toList();
+    final visibleThreads = _threads
+        .where((thread) => thread.isVisibleFor(role))
+        .where((thread) {
+          if (role == ChatRole.worker) {
+            return _isRelevantForDemoWorker(thread, orders);
+          }
+          return true;
+        })
+        .toList();
 
     visibleThreads.sort((a, b) {
       if (a.requiresLogistAttention != b.requiresLogistAttention) {
@@ -37,14 +48,19 @@ class ChatService {
   }
 
   Future<List<ChatMessage>> getMessages(String threadId) async {
-    final result = _messages
-        .where((message) => message.threadId == threadId)
-        .toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    if (_api?.isApiMode == true) {
+      await _loadApiConversation(threadId);
+    }
+    final result =
+        _messages.where((message) => message.threadId == threadId).toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return result;
   }
 
   Future<ChatThread?> getThreadById(String threadId) async {
+    if (_api?.isApiMode == true) {
+      await _loadApiConversation(threadId);
+    }
     try {
       return _threads.firstWhere((thread) => thread.id == threadId);
     } catch (_) {
@@ -60,6 +76,11 @@ class ChatService {
   }) async {
     final cleanText = text.trim();
     if (cleanText.isEmpty) return;
+    if (_api?.isApiMode == true) {
+      await _api!.sendMyChatMessage(threadId, cleanText);
+      await _loadApiConversation(threadId);
+      return;
+    }
 
     final now = DateTime.now();
     _messages.add(
@@ -77,7 +98,8 @@ class ChatService {
     _touchThread(
       threadId,
       updatedAt: now,
-      requiresLogistAttention: senderRole != ChatRole.logist &&
+      requiresLogistAttention:
+          senderRole != ChatRole.logist &&
           _threadType(threadId) != ChatThreadType.clientWorker,
     );
     if (senderRole != ChatRole.logist) {
@@ -91,6 +113,11 @@ class ChatService {
     required String sourceThreadId,
     required String requesterName,
   }) async {
+    if (_api?.isApiMode == true) {
+      await _api!.requestMyChatSupport(sourceThreadId);
+      await _loadApiConversation(sourceThreadId);
+      return;
+    }
     final sourceThread = await getThreadById(sourceThreadId);
     if (sourceThread == null) return;
 
@@ -115,8 +142,10 @@ class ChatService {
       unreadCount: sourceThread.unreadCount + 1,
     );
 
-    final supportThreadId =
-        _threadId(sourceThread.orderId, ChatThreadType.support);
+    final supportThreadId = _threadId(
+      sourceThread.orderId,
+      ChatThreadType.support,
+    );
     if (!_threads.any((thread) => thread.id == supportThreadId)) {
       _threads.add(
         ChatThread(
@@ -156,13 +185,49 @@ class ChatService {
   }
 
   Future<void> resolveLogistAttention(String threadId) async {
+    if (_api?.isApiMode == true) {
+      await _api!.setMyChatAttention(threadId, false);
+      await _loadApiConversation(threadId);
+      return;
+    }
     _touchThread(threadId, requiresLogistAttention: false);
     _saveState();
   }
 
   Future<void> markThreadRead(String threadId) async {
+    if (_api?.isApiMode == true) {
+      await _loadApiConversation(threadId);
+      return;
+    }
     _touchThread(threadId, unreadCount: 0);
     _saveState();
+  }
+
+  Future<void> _loadApiConversation(String threadId) async {
+    final response = await _api!.getMyChatConversation(threadId);
+    final rawThread = response['thread'];
+    if (rawThread is Map) {
+      final thread = ChatThread.fromJson(
+        rawThread.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      final index = _threads.indexWhere((item) => item.id == thread.id);
+      if (index == -1) {
+        _threads.add(thread);
+      } else {
+        _threads[index] = thread;
+      }
+    }
+    final rawMessages = response['messages'];
+    if (rawMessages is List) {
+      _messages.removeWhere((message) => message.threadId == threadId);
+      _messages.addAll(
+        rawMessages.whereType<Map>().map(
+          (item) => ChatMessage.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        ),
+      );
+    }
   }
 
   void _ensureThreadsForOrders(List<Map<String, dynamic>> orders) {
@@ -193,7 +258,7 @@ class ChatService {
 
     final createdAt =
         DateTime.tryParse(order['created_at']?.toString() ?? '') ??
-            DateTime.now();
+        DateTime.now();
     final archived = order['status'] == 'CONVERTED';
     final orderTitle = order['title']?.toString() ?? 'Заказ #$orderId';
 
@@ -287,8 +352,9 @@ class ChatService {
     ChatThread thread,
     List<Map<String, dynamic>> orders,
   ) {
-    final order =
-        orders.where((order) => order['id'].toString() == thread.orderId);
+    final order = orders.where(
+      (order) => order['id'].toString() == thread.orderId,
+    );
     if (order.isEmpty) return false;
 
     if (thread.type == ChatThreadType.clientLogist) return false;
@@ -365,9 +431,10 @@ class ChatService {
         _threads
           ..clear()
           ..addAll(
-            threads.map((thread) => ChatThread.fromJson(
-                  Map<String, dynamic>.from(thread as Map),
-                )),
+            threads.map(
+              (thread) =>
+                  ChatThread.fromJson(Map<String, dynamic>.from(thread as Map)),
+            ),
           );
       }
 
@@ -376,9 +443,11 @@ class ChatService {
         _messages
           ..clear()
           ..addAll(
-            messages.map((message) => ChatMessage.fromJson(
-                  Map<String, dynamic>.from(message as Map),
-                )),
+            messages.map(
+              (message) => ChatMessage.fromJson(
+                Map<String, dynamic>.from(message as Map),
+              ),
+            ),
           );
       }
     } catch (_) {

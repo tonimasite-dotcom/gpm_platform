@@ -43,11 +43,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       throw StateError('Чат не найден');
     }
     final order = await gpmApi.getOrderById(thread.orderId);
-    return _ConversationData(
-      thread: thread,
-      messages: messages,
-      order: order,
-    );
+    return _ConversationData(thread: thread, messages: messages, order: order);
   }
 
   void _refresh() {
@@ -145,10 +141,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       children: [
         _ConversationNotice(thread: data.thread, role: widget.role),
         if (data.order != null)
-          _OrderContextCard(
-            order: data.order!,
-            thread: data.thread,
-          ),
+          _OrderContextCard(order: data.order!, thread: data.thread),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
@@ -195,6 +188,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   }
 
   String get _senderName {
+    if (gpmApi.isApiMode && gpmApi.currentUsername.isNotEmpty) {
+      return gpmApi.currentUsername;
+    }
     return switch (widget.role) {
       ChatRole.client => 'Клиент',
       ChatRole.worker => 'Иван Петров',
@@ -220,10 +216,7 @@ class _ConversationNotice extends StatelessWidget {
   final ChatThread thread;
   final ChatRole role;
 
-  const _ConversationNotice({
-    required this.thread,
-    required this.role,
-  });
+  const _ConversationNotice({required this.thread, required this.role});
 
   @override
   Widget build(BuildContext context) {
@@ -272,10 +265,7 @@ class _OrderContextCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final ChatThread thread;
 
-  const _OrderContextCard({
-    required this.order,
-    required this.thread,
-  });
+  const _OrderContextCard({required this.order, required this.thread});
 
   @override
   Widget build(BuildContext context) {
@@ -446,10 +436,7 @@ class _FactIcon extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _FactIcon({
-    required this.icon,
-    required this.text,
-  });
+  const _FactIcon({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -480,10 +467,7 @@ class _SmallPill extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _SmallPill({
-    required this.text,
-    required this.color,
-  });
+  const _SmallPill({required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -509,10 +493,7 @@ class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isOwn;
 
-  const _MessageBubble({
-    required this.message,
-    required this.isOwn,
-  });
+  const _MessageBubble({required this.message, required this.isOwn});
 
   @override
   Widget build(BuildContext context) {
@@ -621,8 +602,10 @@ class _Composer extends StatelessWidget {
                 textInputAction: TextInputAction.newline,
                 decoration: const InputDecoration(
                   hintText: 'Сообщение по заказу',
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -637,8 +620,10 @@ class _Composer extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.send,
-                        semanticLabel: 'Отправить сообщение'),
+                    : const Icon(
+                        Icons.send,
+                        semanticLabel: 'Отправить сообщение',
+                      ),
               ),
             ),
           ],

@@ -47,6 +47,10 @@ class ActiveApiTests(unittest.TestCase):
         connection = api.psycopg2.connect(dsn)
         try:
             with connection.cursor() as cursor:
+                cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_READS_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_MESSAGES_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_THREADS_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.PROFILES_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.SESSIONS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.INVITATIONS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.AUDIT_TABLE_NAME}")
@@ -580,6 +584,130 @@ class ActiveApiTests(unittest.TestCase):
                     api.persist_published_order(incoming, actor=actor)
 
         self.assertEqual(caught.exception.status_code, 409)
+
+    def test_role_workspaces_are_server_backed_and_isolated(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "workspaces.sqlite3")
+            environment = {
+                "GPM_APP_SQLITE_DB_FILE": db_path,
+                "GPM_APP_DATABASE_URL": "",
+                "DATABASE_URL": "",
+                "GPM_APP_CLIENT_USERNAME": "workspace-client",
+                "GPM_APP_CLIENT_PASSWORD": "strong-client-password",
+                "GPM_APP_WORKER_USERNAME": "workspace-worker",
+                "GPM_APP_WORKER_PASSWORD": "strong-worker-password",
+                "GPM_APP_LOGIST_USERNAME": "workspace-logist",
+                "GPM_APP_LOGIST_PASSWORD": "strong-logist-password",
+                "GPM_APP_JWT_SECRET": "x" * 32,
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                api.init_db()
+                client = api.current_user(
+                    "Bearer "
+                    + api.check_app_credentials(
+                        "workspace-client", "strong-client-password"
+                    )["access_token"]
+                )
+                worker = api.current_user(
+                    "Bearer "
+                    + api.check_app_credentials(
+                        "workspace-worker", "strong-worker-password"
+                    )["access_token"]
+                )
+                logist = api.current_user(
+                    "Bearer "
+                    + api.check_app_credentials(
+                        "workspace-logist", "strong-logist-password"
+                    )["access_token"]
+                )
+
+                profile = api.update_account_profile(
+                    worker,
+                    {
+                        "display_name": "Тестовый исполнитель",
+                        "phone": "+70000000000",
+                        "date_birth": "01.01.1990",
+                        "cities": ["Москва"],
+                        "payout_method": "card",
+                        "card_last4": "1234",
+                    },
+                )
+                self.assertEqual(profile["display_name"], "Тестовый исполнитель")
+                self.assertEqual(profile["profile_completion"], 100)
+                self.assertNotEqual(
+                    api.get_account_profile(client)["display_name"],
+                    profile["display_name"],
+                )
+
+                payload = sample_payload(source="manual")
+                payload["order_data"]["loaders"]["loader_count"] = 1
+                payload["order_data"]["price_per_hour"] = 700
+                order = api.persist_published_order(
+                    api.normalize_external_order(
+                        payload,
+                        created_by=client["sub"],
+                        created_by_role="client",
+                    ),
+                    actor=client,
+                )
+                order = api.patch_order_atomically(
+                    order["id"],
+                    {"status": "PROCESSED"},
+                    actor=None,
+                    integration=True,
+                )
+                application = api.apply_to_order_atomically(order["id"], worker)
+                api.decide_order_application_atomically(
+                    order["id"],
+                    application["id"],
+                    "APPROVED",
+                    logist,
+                )
+
+                worker_order = api.orders_for_user(api.list_orders(), worker)[0]
+                self.assertTrue(worker_order["is_assigned_to_worker"])
+                self.assertEqual(worker_order["worker_application_status"], "APPROVED")
+                self.assertIn("address", worker_order)
+                self.assertEqual(
+                    api.account_dashboard(worker)["summary"]["active_orders"], 1
+                )
+
+                worker_threads = api.list_account_chat_threads(worker)
+                client_threads = api.list_account_chat_threads(client)
+                self.assertEqual(len(worker_threads), 2)
+                self.assertEqual(len(client_threads), 2)
+                worker_logist_thread = next(
+                    thread
+                    for thread in worker_threads
+                    if thread["type"] == "workerLogist"
+                )
+                api.send_account_chat_message(
+                    worker_logist_thread["id"], "Выхожу на заказ", worker
+                )
+                logist_threads = api.list_account_chat_threads(logist)
+                self.assertTrue(
+                    next(
+                        thread
+                        for thread in logist_threads
+                        if thread["id"] == worker_logist_thread["id"]
+                    )["requires_logist_attention"]
+                )
+
+                api.patch_order_atomically(
+                    order["id"],
+                    {"status": "DONE_PENDING"},
+                    actor=worker,
+                    integration=False,
+                )
+                api.patch_order_atomically(
+                    order["id"],
+                    {"status": "CONVERTED"},
+                    actor=logist,
+                    integration=False,
+                )
+                finance = api.account_finance(worker)
+                self.assertEqual(finance["available"], 2800)
+                self.assertEqual(len(finance["transactions"]), 1)
 
 
 if __name__ == "__main__":

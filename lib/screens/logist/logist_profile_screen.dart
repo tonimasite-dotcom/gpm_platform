@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
-import '../../widgets/feature_unavailable.dart';
 
 class LogistProfileScreen extends StatefulWidget {
   const LogistProfileScreen({super.key});
@@ -36,11 +35,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
   @override
   void initState() {
     super.initState();
-    if (gpmApi.isApiMode) {
-      _profileLoaded = true;
-    } else {
-      _loadProfile();
-    }
+    _loadProfile();
   }
 
   @override
@@ -55,53 +50,100 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
     super.dispose();
   }
 
-  void _loadProfile() {
-    final raw = readDemoValue(_storageKey);
-    if (raw != null) {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
+  Future<void> _loadProfile() async {
+    try {
+      Map<String, dynamic> data = {};
+      if (gpmApi.isApiMode) {
+        data = await gpmApi.getMyProfile();
+      } else {
+        final raw = readDemoValue(_storageKey);
+        if (raw != null) {
+          data = jsonDecode(raw) as Map<String, dynamic>;
+        }
+      }
       _department = data['department']?.toString() ?? _department;
       _accessLevel = data['access_level']?.toString() ?? _accessLevel;
       _canPublishOrders = data['can_publish_orders'] != false;
       _canApproveWorkers = data['can_approve_workers'] != false;
       _notifyNewOrders = data['notify_new_orders'] != false;
-      _nameController.text = data['name']?.toString() ?? _nameController.text;
+      _nameController.text =
+          data['display_name']?.toString() ??
+          data['name']?.toString() ??
+          _nameController.text;
       _phoneController.text = data['phone']?.toString() ?? '';
       _emailController.text =
           data['email']?.toString() ?? _emailController.text;
       _telegramController.text = data['telegram']?.toString() ?? '';
-      _cityController.text = data['cities']?.toString() ?? _cityController.text;
+      final cities = data['cities'];
+      _cityController.text = cities is List
+          ? cities.join(', ')
+          : cities?.toString() ?? _cityController.text;
       _maxOrdersController.text =
           data['max_orders']?.toString() ?? _maxOrdersController.text;
       _commentController.text = data['comment']?.toString() ?? '';
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось загрузить профиль логиста'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    setState(() => _profileLoaded = true);
+    if (mounted) setState(() => _profileLoaded = true);
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    writeDemoValue(
-      _storageKey,
-      jsonEncode({
-        'department': _department,
-        'access_level': _accessLevel,
-        'can_publish_orders': _canPublishOrders,
-        'can_approve_workers': _canApproveWorkers,
-        'notify_new_orders': _notifyNewOrders,
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'email': _emailController.text.trim(),
-        'telegram': _telegramController.text.trim(),
-        'cities': _cityController.text.trim(),
-        'max_orders': int.tryParse(_maxOrdersController.text.trim()),
-        'comment': _commentController.text.trim(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Профиль логиста сохранен')),
-    );
+    final data = <String, dynamic>{
+      'department': _department,
+      'notify_new_orders': _notifyNewOrders,
+      'display_name': _nameController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'email': _emailController.text.trim(),
+      'telegram': _telegramController.text.trim(),
+      'cities': _cityController.text
+          .split(',')
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(),
+      'max_orders': int.tryParse(_maxOrdersController.text.trim()),
+    };
+    try {
+      if (gpmApi.isApiMode) {
+        await gpmApi.updateMyProfile(data);
+      } else {
+        writeDemoValue(
+          _storageKey,
+          jsonEncode({
+            ...data,
+            'name': data['display_name'],
+            'cities': _cityController.text.trim(),
+            'access_level': _accessLevel,
+            'can_publish_orders': _canPublishOrders,
+            'can_approve_workers': _canApproveWorkers,
+            'comment': _commentController.text.trim(),
+          }),
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Профиль логиста сохранён'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить профиль логиста'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String? _required(String? value, String message) {
@@ -115,14 +157,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (gpmApi.isApiMode) {
-      return const FeatureUnavailable(
-        title: 'Права логиста задаёт администратор',
-        message: 'Production-права нельзя менять в локальном профиле. Экран '
-            'будет доступен после внедрения серверных учётных записей и RBAC.',
-        icon: Icons.admin_panel_settings_outlined,
-      );
-    }
     if (!_profileLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -244,26 +278,32 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                   ButtonSegment(value: 'admin', label: Text('Админ')),
                 ],
                 selected: {_accessLevel},
-                onSelectionChanged: (selection) {
-                  setState(() => _accessLevel = selection.first);
-                },
+                onSelectionChanged: gpmApi.isApiMode
+                    ? null
+                    : (selection) {
+                        setState(() => _accessLevel = selection.first);
+                      },
               ),
               const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Может публиковать заявки'),
                 value: _canPublishOrders,
-                onChanged: (value) {
-                  setState(() => _canPublishOrders = value);
-                },
+                onChanged: gpmApi.isApiMode
+                    ? null
+                    : (value) {
+                        setState(() => _canPublishOrders = value);
+                      },
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Может согласовывать исполнителей'),
                 value: _canApproveWorkers,
-                onChanged: (value) {
-                  setState(() => _canApproveWorkers = value);
-                },
+                onChanged: gpmApi.isApiMode
+                    ? null
+                    : (value) {
+                        setState(() => _canApproveWorkers = value);
+                      },
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -273,15 +313,17 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                   setState(() => _notifyNewOrders = value);
                 },
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _commentController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Внутренняя заметка',
-                  border: OutlineInputBorder(),
+              if (!gpmApi.isApiMode) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _commentController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Внутренняя заметка',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: _saveProfile,

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
 import '../../theme/gpm_theme.dart';
-import '../../widgets/feature_unavailable.dart';
 
 class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
@@ -41,11 +40,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   void initState() {
     super.initState();
-    if (gpmApi.isApiMode) {
-      _profileLoaded = true;
-    } else {
-      _loadProfile();
-    }
+    _loadProfile();
   }
 
   @override
@@ -68,10 +63,17 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     super.dispose();
   }
 
-  void _loadProfile() {
-    final raw = readDemoValue(_storageKey);
-    if (raw != null) {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
+  Future<void> _loadProfile() async {
+    try {
+      Map<String, dynamic> data = {};
+      if (gpmApi.isApiMode) {
+        data = await gpmApi.getMyProfile();
+      } else {
+        final raw = readDemoValue(_storageKey);
+        if (raw != null) {
+          data = jsonDecode(raw) as Map<String, dynamic>;
+        }
+      }
       _clientType = data['client_type']?.toString() ?? _clientType;
       _paymentType = data['payment_type']?.toString() ?? _paymentType;
       if (_clientType == 'legal') {
@@ -79,7 +81,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       } else if (_paymentType == 'invoice') {
         _paymentType = 'card';
       }
-      _nameController.text = data['name']?.toString() ?? '';
+      _nameController.text =
+          data['display_name']?.toString() ?? data['name']?.toString() ?? '';
       _companyController.text = data['company']?.toString() ?? '';
       _innController.text = data['inn']?.toString() ?? '';
       _kppController.text = data['kpp']?.toString() ?? '';
@@ -97,40 +100,66 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           data['correspondent_account']?.toString() ?? '';
       _documentsEmailController.text =
           data['documents_email']?.toString() ?? '';
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось загрузить профиль клиента'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    setState(() => _profileLoaded = true);
+    if (mounted) setState(() => _profileLoaded = true);
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    writeDemoValue(
-      _storageKey,
-      jsonEncode({
-        'client_type': _clientType,
-        'payment_type': _paymentType,
-        'name': _nameController.text.trim(),
-        'company': _companyController.text.trim(),
-        'inn': _innController.text.trim(),
-        'kpp': _kppController.text.trim(),
-        'ogrn': _ogrnController.text.trim(),
-        'contact': _contactController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'email': _emailController.text.trim(),
-        'address': _addressController.text.trim(),
-        'legal_address': _legalAddressController.text.trim(),
-        'checking_account': _checkingAccountController.text.trim(),
-        'bank': _bankController.text.trim(),
-        'bik': _bikController.text.trim(),
-        'correspondent_account': _correspondentAccountController.text.trim(),
-        'documents_email': _documentsEmailController.text.trim(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Профиль клиента сохранен')),
-    );
+    final data = {
+      'client_type': _clientType,
+      'payment_type': _paymentType,
+      'display_name': _nameController.text.trim(),
+      'company': _companyController.text.trim(),
+      'inn': _innController.text.trim(),
+      'kpp': _kppController.text.trim(),
+      'ogrn': _ogrnController.text.trim(),
+      'contact': _contactController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'email': _emailController.text.trim(),
+      'address': _addressController.text.trim(),
+      'legal_address': _legalAddressController.text.trim(),
+      'checking_account': _checkingAccountController.text.trim(),
+      'bank': _bankController.text.trim(),
+      'bik': _bikController.text.trim(),
+      'correspondent_account': _correspondentAccountController.text.trim(),
+      'documents_email': _documentsEmailController.text.trim(),
+    };
+    try {
+      if (gpmApi.isApiMode) {
+        await gpmApi.updateMyProfile(data);
+      } else {
+        writeDemoValue(
+          _storageKey,
+          jsonEncode({...data, 'name': data['display_name']}),
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Профиль клиента сохранён'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить профиль клиента'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String? _required(String? value, String message) {
@@ -139,22 +168,14 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   void _showSupportMessage() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Поддержка 24/7 скоро будет доступна')),
+      const SnackBar(
+        content: Text('Обратитесь к логисту в чате нужного заказа'),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (gpmApi.isApiMode) {
-      return const FeatureUnavailable(
-        title: 'Профиль клиента готовится',
-        message:
-            'Профиль и реквизиты должны храниться на сервере с привязкой к '
-            'учётной записи. Локальное сохранение чувствительных данных отключено '
-            'для production-режима.',
-        icon: Icons.account_circle_outlined,
-      );
-    }
     if (!_profileLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -259,8 +280,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               TextFormField(
                 controller: _contactController,
                 decoration: InputDecoration(
-                  labelText:
-                      isLegal ? 'Контактное лицо' : 'Как к вам обращаться',
+                  labelText: isLegal
+                      ? 'Контактное лицо'
+                      : 'Как к вам обращаться',
                   border: const OutlineInputBorder(),
                 ),
                 validator: (value) => _required(value, 'Укажите контакт'),

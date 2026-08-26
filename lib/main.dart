@@ -32,7 +32,8 @@ void main() async {
   final apiUrl = (dotenv.env['GPM_APP_API_URL'] ?? '').trim();
   final validMode = mode == 'demo' || mode == 'api' || mode == 'production';
   final parsedApiUrl = Uri.tryParse(apiUrl);
-  final validApiConfiguration = mode == 'demo' ||
+  final validApiConfiguration =
+      mode == 'demo' ||
       (parsedApiUrl != null &&
           parsedApiUrl.hasScheme &&
           parsedApiUrl.host.isNotEmpty &&
@@ -47,7 +48,7 @@ void main() async {
   gpmApi = GpmApiService();
   bitrix24 = gpmApi;
   supabase = SupabaseCompatibilityLayer(gpmApi);
-  chatService = ChatService();
+  chatService = ChatService(api: gpmApi);
 
   runApp(const GpmApp());
 }
@@ -133,10 +134,7 @@ enum DevRole {
 class DevRoleSwitcher extends StatefulWidget {
   final VoidCallback onSignedOut;
 
-  const DevRoleSwitcher({
-    super.key,
-    required this.onSignedOut,
-  });
+  const DevRoleSwitcher({super.key, required this.onSignedOut});
 
   @override
   State<DevRoleSwitcher> createState() => _DevRoleSwitcherState();
@@ -238,7 +236,7 @@ class _GpmHeader extends StatelessWidget {
                 tooltip: 'Выйти',
                 onPressed: () {
                   unawaited(gpmApi.logout());
-                  chatService = ChatService();
+                  chatService = ChatService(api: gpmApi);
                   onSignedOut();
                 },
                 icon: const Icon(Icons.logout),

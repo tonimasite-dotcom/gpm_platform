@@ -49,8 +49,8 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
 
     result.sort(
       (a, b) => (b['created_at'] ?? '').toString().compareTo(
-            (a['created_at'] ?? '').toString(),
-          ),
+        (a['created_at'] ?? '').toString(),
+      ),
     );
     return result;
   }
@@ -107,7 +107,6 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
       _refresh();
     }
   }
-
 
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> orders) {
     if (_selectedFilter == 'Все') return orders;
@@ -384,8 +383,9 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
                       : 'Новых откликов: $pendingCount',
                   style: TextStyle(
                     color: pendingCount == 0 ? Colors.grey[600] : Colors.orange,
-                    fontWeight:
-                        pendingCount == 0 ? FontWeight.normal : FontWeight.bold,
+                    fontWeight: pendingCount == 0
+                        ? FontWeight.normal
+                        : FontWeight.bold,
                   ),
                 ),
               ],
@@ -512,7 +512,10 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
 
   Future<void> _reject(String applicationId) async {
     await _runAction(
-      () => gpmApi.rejectApplication(applicationId),
+      () => gpmApi.rejectApplication(
+        applicationId,
+        orderId: order['id'].toString(),
+      ),
       'Отклик отклонен',
     );
   }
@@ -576,7 +579,9 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     final color = _orderStatusColor(order['status']);
     final isExternalOrder = gpmApi.isExternalOrder(order);
     final orderNumber = order['external_order_id'] ?? order['id'];
-    final title = isExternalOrder ? 'Заявка № $orderNumber' : order['title'] ?? 'Заказ';
+    final title = isExternalOrder
+        ? 'Заявка № $orderNumber'
+        : order['title'] ?? 'Заказ';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Детали заказа')),
@@ -595,16 +600,16 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  const _StatusPill(text: 'Источник: внешняя система', color: Colors.indigo),
+                  const _StatusPill(
+                    text: 'Источник: внешняя система',
+                    color: Colors.indigo,
+                  ),
                 ],
               ),
             ],
             const SizedBox(height: 16),
             _OrderFact(label: 'Город', value: order['city']),
-            _OrderFact(
-              label: 'Номер заказа',
-              value: orderNumber,
-            ),
+            _OrderFact(label: 'Номер заказа', value: orderNumber),
             _OrderFact(
               label: 'Дата и время выполнения работ',
               value: _formatSchedule(order['scheduled_at']),
@@ -623,12 +628,27 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               value: _priceText(order['legal_price']),
             ),
             if (order['work_mode'] == 'shift')
-              _OrderFact(label: 'Описание смены', value: order['shift_description'])
+              _OrderFact(
+                label: 'Описание смены',
+                value: order['shift_description'],
+              )
             else ...[
-              _OrderFact(label: 'Ставка (штатный постоянного графика)', value: order['price_regular']),
-              _OrderFact(label: 'Ставка (штатный свободного графика)', value: order['price_state']),
-              _OrderFact(label: 'Ставка (наемник)', value: order['price_per_hour']),
-              _OrderFact(label: 'Минимальная оплата', value: _minPayText(order)),
+              _OrderFact(
+                label: 'Ставка (штатный постоянного графика)',
+                value: order['price_regular'],
+              ),
+              _OrderFact(
+                label: 'Ставка (штатный свободного графика)',
+                value: order['price_state'],
+              ),
+              _OrderFact(
+                label: 'Ставка (наемник)',
+                value: order['price_per_hour'],
+              ),
+              _OrderFact(
+                label: 'Минимальная оплата',
+                value: _minPayText(order),
+              ),
             ],
             const SizedBox(height: 8),
             const SizedBox(height: 8),
@@ -672,7 +692,8 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                         (application) => _ApplicationCard(
                           application: application,
                           isUpdating: _isUpdating,
-                          onApprove: () => _approve(application['id'].toString()),
+                          onApprove: () =>
+                              _approve(application['id'].toString()),
                           onReject: () => _reject(application['id'].toString()),
                         ),
                       )
@@ -692,26 +713,30 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                 runSpacing: 8,
                 children: [
                   FilledButton.icon(
-                    onPressed:
-                        _isUpdating ? null : () => _confirmCompletion('success'),
+                    onPressed: _isUpdating
+                        ? null
+                        : () => _confirmCompletion('success'),
                     icon: const Icon(Icons.thumb_up_alt_outlined),
                     label: const Text('Справился'),
                   ),
                   OutlinedButton.icon(
-                    onPressed:
-                        _isUpdating ? null : () => _confirmCompletion('fail'),
+                    onPressed: _isUpdating
+                        ? null
+                        : () => _confirmCompletion('fail'),
                     icon: const Icon(Icons.thumb_down_alt_outlined),
                     label: const Text('Не справился'),
                   ),
                   OutlinedButton.icon(
-                    onPressed:
-                        _isUpdating ? null : () => _confirmCompletion('neutral'),
+                    onPressed: _isUpdating
+                        ? null
+                        : () => _confirmCompletion('neutral'),
                     icon: const Icon(Icons.remove_circle_outline),
                     label: const Text('Нейтрально'),
                   ),
                   OutlinedButton.icon(
-                    onPressed:
-                        _isUpdating ? null : () => _confirmCompletion('good'),
+                    onPressed: _isUpdating
+                        ? null
+                        : () => _confirmCompletion('good'),
                     icon: const Icon(Icons.report_gmailerrorred_outlined),
                     label: const Text('С нареканиями'),
                   ),
@@ -764,7 +789,9 @@ class _ApplicationCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    worker['full_name'] ?? application['worker_name'] ?? 'Исполнитель',
+                    worker['full_name'] ??
+                        application['worker_name'] ??
+                        'Исполнитель',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

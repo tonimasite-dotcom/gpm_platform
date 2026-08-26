@@ -33,9 +33,14 @@ SESSIONS_TABLE_NAME = "gpm_app_sessions"
 AUDIT_TABLE_NAME = "gpm_app_audit_log"
 MIGRATIONS_TABLE_NAME = "gpm_app_schema_migrations"
 INVITATIONS_TABLE_NAME = "gpm_app_account_invitations"
+PROFILES_TABLE_NAME = "gpm_app_profiles"
+CHAT_THREADS_TABLE_NAME = "gpm_app_chat_threads"
+CHAT_MESSAGES_TABLE_NAME = "gpm_app_chat_messages"
+CHAT_READS_TABLE_NAME = "gpm_app_chat_reads"
 APP_ROLES = {"client", "worker", "logist"}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
 INVITATION_SCHEMA_VERSION = "0002_account_invitations"
+WORKSPACE_SCHEMA_VERSION = "0003_role_workspaces"
 ACCESS_TOKEN_TTL = timedelta(hours=12)
 INVITATION_TTL = timedelta(days=3)
 LOGIN_FAILURE_LIMIT = 5
@@ -345,6 +350,64 @@ def create_auth_schema(connection: Any) -> None:
             )
             cursor.execute(
                 f"""
+                CREATE TABLE IF NOT EXISTS {PROFILES_TABLE_NAME} (
+                    account_id TEXT PRIMARY KEY REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    data JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {CHAT_THREADS_TABLE_NAME} (
+                    thread_id TEXT PRIMARY KEY,
+                    order_id TEXT NOT NULL,
+                    thread_type TEXT NOT NULL CHECK (
+                        thread_type IN ('clientLogist', 'workerLogist', 'clientWorker', 'support')
+                    ),
+                    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+                    requires_attention BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(order_id, thread_type)
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {CHAT_MESSAGES_TABLE_NAME} (
+                    message_id TEXT PRIMARY KEY,
+                    thread_id TEXT NOT NULL REFERENCES {CHAT_THREADS_TABLE_NAME}(thread_id),
+                    sender_account_id TEXT,
+                    sender_role TEXT NOT NULL CHECK (
+                        sender_role IN ('client', 'worker', 'logist', 'system')
+                    ),
+                    sender_name TEXT NOT NULL,
+                    message_text TEXT NOT NULL,
+                    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE INDEX IF NOT EXISTS gpm_app_chat_messages_thread_idx
+                ON {CHAT_MESSAGES_TABLE_NAME}(thread_id, created_at)
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {CHAT_READS_TABLE_NAME} (
+                    thread_id TEXT NOT NULL REFERENCES {CHAT_THREADS_TABLE_NAME}(thread_id),
+                    account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY(thread_id, account_id)
+                )
+                """
+            )
+            cursor.execute(
+                f"""
                 INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
                 VALUES (%s)
                 ON CONFLICT (version) DO NOTHING
@@ -358,6 +421,14 @@ def create_auth_schema(connection: Any) -> None:
                 ON CONFLICT (version) DO NOTHING
                 """,
                 (INVITATION_SCHEMA_VERSION,),
+            )
+            cursor.execute(
+                f"""
+                INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
+                VALUES (%s)
+                ON CONFLICT (version) DO NOTHING
+                """,
+                (WORKSPACE_SCHEMA_VERSION,),
             )
         return
 
@@ -458,6 +529,64 @@ def create_auth_schema(connection: Any) -> None:
     )
     connection.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS {PROFILES_TABLE_NAME} (
+            account_id TEXT PRIMARY KEY REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            data TEXT NOT NULL DEFAULT '{{}}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {CHAT_THREADS_TABLE_NAME} (
+            thread_id TEXT PRIMARY KEY,
+            order_id TEXT NOT NULL,
+            thread_type TEXT NOT NULL CHECK (
+                thread_type IN ('clientLogist', 'workerLogist', 'clientWorker', 'support')
+            ),
+            is_archived INTEGER NOT NULL DEFAULT 0,
+            requires_attention INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(order_id, thread_type)
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {CHAT_MESSAGES_TABLE_NAME} (
+            message_id TEXT PRIMARY KEY,
+            thread_id TEXT NOT NULL REFERENCES {CHAT_THREADS_TABLE_NAME}(thread_id),
+            sender_account_id TEXT,
+            sender_role TEXT NOT NULL CHECK (
+                sender_role IN ('client', 'worker', 'logist', 'system')
+            ),
+            sender_name TEXT NOT NULL,
+            message_text TEXT NOT NULL,
+            is_system INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS gpm_app_chat_messages_thread_idx
+        ON {CHAT_MESSAGES_TABLE_NAME}(thread_id, created_at)
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {CHAT_READS_TABLE_NAME} (
+            thread_id TEXT NOT NULL REFERENCES {CHAT_THREADS_TABLE_NAME}(thread_id),
+            account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(thread_id, account_id)
+        )
+        """
+    )
+    connection.execute(
+        f"""
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (ACCOUNT_SCHEMA_VERSION,),
@@ -467,6 +596,12 @@ def create_auth_schema(connection: Any) -> None:
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (INVITATION_SCHEMA_VERSION,),
+    )
+    connection.execute(
+        f"""
+        INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
+        """,
+        (WORKSPACE_SCHEMA_VERSION,),
     )
 
 
@@ -1868,7 +2003,31 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
     role = str(user.get("role") or "")
     visible = dict(order)
     visible.pop("source_payload", None)
+    assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+    applications = [
+        dict(item)
+        for item in order.get("applications") or []
+        if isinstance(item, dict)
+    ]
+    visible["assigned_count"] = len(assigned)
     if role == "worker":
+        account_id = str(user.get("sub") or "")
+        own_application = next(
+            (
+                item
+                for item in applications
+                if str(item.get("worker_id") or "") == account_id
+            ),
+            None,
+        )
+        visible["worker_application_status"] = (
+            str(own_application.get("status") or "") or None
+            if own_application is not None
+            else None
+        )
+        visible["is_assigned_to_worker"] = account_id in assigned
+        visible.pop("applications", None)
+        visible.pop("assigned_worker_ids", None)
         for field in (
             "client_email",
             "client_phone",
@@ -1878,8 +2037,7 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
             "created_by_role",
         ):
             visible.pop(field, None)
-        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
-        if str(user.get("sub") or "") not in assigned:
+        if account_id not in assigned:
             for field in (
                 "address",
                 "address_street",
@@ -1888,6 +2046,9 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
                 "address_lon",
             ):
                 visible.pop(field, None)
+    elif role == "client":
+        visible.pop("applications", None)
+        visible.pop("assigned_worker_ids", None)
     return visible
 
 
@@ -2042,6 +2203,1008 @@ def patch_order_atomically(
     return order
 
 
+COMMON_PROFILE_FIELDS = {
+    "display_name",
+    "phone",
+    "email",
+    "telegram",
+    "city",
+}
+ROLE_PROFILE_FIELDS = {
+    "client": COMMON_PROFILE_FIELDS
+    | {
+        "client_type",
+        "payment_type",
+        "company",
+        "inn",
+        "kpp",
+        "ogrn",
+        "contact",
+        "address",
+        "legal_address",
+        "checking_account",
+        "bank",
+        "bik",
+        "correspondent_account",
+        "documents_email",
+    },
+    "worker": COMMON_PROFILE_FIELDS
+    | {
+        "date_birth",
+        "nationality",
+        "cities",
+        "employment_type",
+        "tools",
+        "address_city",
+        "address_street",
+        "address_house",
+        "address_apartment",
+        "payout_method",
+        "card_last4",
+        "payout_account",
+        "payout_bik",
+    },
+    "logist": COMMON_PROFILE_FIELDS
+    | {
+        "department",
+        "cities",
+        "max_orders",
+        "notify_new_orders",
+    },
+}
+
+
+def default_profile(user: dict[str, Any]) -> dict[str, Any]:
+    username = str(user.get("username") or "Пользователь")
+    role = str(user.get("role") or "")
+    common: dict[str, Any] = {
+        "display_name": username,
+        "phone": "",
+        "email": "",
+        "telegram": "",
+        "city": "",
+    }
+    if role == "client":
+        return {
+            **common,
+            "client_type": "individual",
+            "payment_type": "card",
+            "company": "",
+            "inn": "",
+            "kpp": "",
+            "ogrn": "",
+            "contact": "",
+            "address": "",
+            "legal_address": "",
+            "checking_account": "",
+            "bank": "",
+            "bik": "",
+            "correspondent_account": "",
+            "documents_email": "",
+        }
+    if role == "worker":
+        return {
+            **common,
+            "date_birth": "",
+            "nationality": False,
+            "cities": [],
+            "employment_type": "contract",
+            "tools": {"straps": False, "tools": False},
+            "address_city": "",
+            "address_street": "",
+            "address_house": "",
+            "address_apartment": "",
+            "payout_method": "",
+            "card_last4": "",
+            "payout_account": "",
+            "payout_bik": "",
+            "identity_status": "not_submitted",
+            "work_status": "not_submitted",
+            "npd_status": "not_submitted",
+            "rating": 0,
+            "success_requests": 0,
+            "fail_requests": 0,
+        }
+    return {
+        **common,
+        "department": "operations",
+        "cities": [],
+        "max_orders": 25,
+        "notify_new_orders": True,
+        "access_level": "standard",
+        "can_publish_orders": True,
+        "can_approve_workers": True,
+    }
+
+
+def _profile_completion(profile: dict[str, Any], role: str) -> int:
+    required = {
+        "client": ("display_name", "phone", "email", "address"),
+        "worker": (
+            "display_name",
+            "phone",
+            "date_birth",
+            "cities",
+            "payout_method",
+        ),
+        "logist": ("display_name", "email", "cities"),
+    }.get(role, ("display_name",))
+    completed = sum(bool(profile.get(field)) for field in required)
+    return round(completed * 100 / len(required))
+
+
+def _profile_from_row(row: Any) -> dict[str, Any]:
+    if row is None:
+        return {}
+    raw = row[0]
+    if isinstance(raw, dict):
+        return dict(raw)
+    try:
+        decoded = json.loads(str(raw))
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    return dict(decoded) if isinstance(decoded, dict) else {}
+
+
+def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
+    account_id = str(user.get("sub") or "")
+    role = str(user.get("role") or "")
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT data FROM {PROFILES_TABLE_NAME} WHERE account_id = %s",
+                    (account_id,),
+                )
+                profile = _profile_from_row(cursor.fetchone())
+        else:
+            profile = _profile_from_row(
+                connection.execute(
+                    f"SELECT data FROM {PROFILES_TABLE_NAME} WHERE account_id = ?",
+                    (account_id,),
+                ).fetchone()
+            )
+    result = {**default_profile(user), **profile}
+    result.update(
+        {
+            "username": str(user.get("username") or ""),
+            "role": role,
+            "profile_completion": _profile_completion(result, role),
+        }
+    )
+    return result
+
+
+def _clean_profile_value(field: str, value: Any) -> Any:
+    if field in {"nationality", "notify_new_orders"}:
+        if not isinstance(value, bool):
+            raise ValueError(f"{field} must be boolean")
+        return value
+    if field == "max_orders":
+        return bounded_integer(value, field, minimum=1, maximum=500)
+    if field == "cities":
+        if not isinstance(value, list) or len(value) > 20:
+            raise ValueError("cities must be a list")
+        return [
+            bounded_text(item, "city", max_length=120, required=True)
+            for item in value
+        ]
+    if field == "tools":
+        if not isinstance(value, dict):
+            raise ValueError("tools must be an object")
+        return {
+            "straps": value.get("straps") is True,
+            "tools": value.get("tools") is True,
+        }
+    text = bounded_text(value, field, max_length=500)
+    if field == "email" and text and ("@" not in text or len(text) > 254):
+        raise ValueError("email is invalid")
+    if field == "documents_email" and text and "@" not in text:
+        raise ValueError("documents_email is invalid")
+    if field == "card_last4" and text and (len(text) != 4 or not text.isdigit()):
+        raise ValueError("card_last4 is invalid")
+    if field == "client_type" and text not in {"individual", "legal"}:
+        raise ValueError("client_type is invalid")
+    if field == "payment_type" and text not in {"card", "cash", "invoice"}:
+        raise ValueError("payment_type is invalid")
+    if field == "employment_type" and text not in {"contract", "state"}:
+        raise ValueError("employment_type is invalid")
+    if field == "payout_method" and text not in {"", "card", "account"}:
+        raise ValueError("payout_method is invalid")
+    if field == "department" and text not in {
+        "operations",
+        "key_accounts",
+        "quality",
+    }:
+        raise ValueError("department is invalid")
+    return text
+
+
+def update_account_profile(
+    user: dict[str, Any], patch: dict[str, Any]
+) -> dict[str, Any]:
+    role = str(user.get("role") or "")
+    allowed = ROLE_PROFILE_FIELDS.get(role, set())
+    unknown = set(patch) - allowed
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unsupported profile fields: {', '.join(sorted(unknown))}",
+        )
+    if not patch:
+        raise HTTPException(status_code=422, detail="empty profile patch")
+    try:
+        cleaned = {
+            field: _clean_profile_value(field, value)
+            for field, value in patch.items()
+        }
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    current = get_account_profile(user)
+    stored_fields = ROLE_PROFILE_FIELDS.get(role, set())
+    updated = {
+        field: value
+        for field, value in {**current, **cleaned}.items()
+        if field in stored_fields
+    }
+    account_id = str(user.get("sub") or "")
+    serialized = json.dumps(updated, ensure_ascii=False)
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {PROFILES_TABLE_NAME}(account_id, data, updated_at)
+                    VALUES (%s, %s::jsonb, NOW())
+                    ON CONFLICT(account_id) DO UPDATE SET
+                        data = excluded.data,
+                        updated_at = NOW()
+                    """,
+                    (account_id, serialized),
+                )
+                record_audit_event_in_connection(
+                    connection,
+                    event_type="profile_updated",
+                    outcome="success",
+                    actor_account_id=account_id,
+                    actor_username=str(user.get("username") or ""),
+                    target_type="profile",
+                    target_id=account_id,
+                    details={"fields": sorted(cleaned)},
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"""
+                INSERT INTO {PROFILES_TABLE_NAME}(account_id, data, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(account_id) DO UPDATE SET
+                    data = excluded.data,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (account_id, serialized),
+            )
+            record_audit_event_in_connection(
+                connection,
+                event_type="profile_updated",
+                outcome="success",
+                actor_account_id=account_id,
+                actor_username=str(user.get("username") or ""),
+                target_type="profile",
+                target_id=account_id,
+                details={"fields": sorted(cleaned)},
+            )
+    return get_account_profile(user)
+
+
+def _worker_application(order: dict[str, Any], account_id: str) -> dict[str, Any] | None:
+    return next(
+        (
+            dict(item)
+            for item in order.get("applications") or []
+            if isinstance(item, dict)
+            and str(item.get("worker_id") or "") == account_id
+        ),
+        None,
+    )
+
+
+def apply_to_order_atomically(
+    order_id: str,
+    user: dict[str, Any],
+) -> dict[str, Any]:
+    require_role(user, "worker")
+    account_id = str(user.get("sub") or "")
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        order = read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        if str(order.get("status") or "") != "PROCESSED":
+            raise HTTPException(status_code=409, detail="order is not accepting applications")
+        applications = [
+            dict(item)
+            for item in order.get("applications") or []
+            if isinstance(item, dict)
+        ]
+        existing = _worker_application(order, account_id)
+        if existing is None:
+            existing = {
+                "id": str(uuid4()),
+                "order_id": str(order.get("id") or order_id),
+                "worker_id": account_id,
+                "worker_name": str(user.get("username") or "Исполнитель"),
+                "status": "PENDING",
+                "created_at": serialize_datetime(utc_now()),
+            }
+            applications.append(existing)
+            order["applications"] = applications
+            write_order_in_connection(connection, order)
+            record_audit_event_in_connection(
+                connection,
+                event_type="order_application_created",
+                outcome="success",
+                actor_account_id=account_id,
+                actor_username=str(user.get("username") or ""),
+                target_type="order",
+                target_id=str(order.get("id") or order_id),
+            )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return existing
+
+
+def decide_order_application_atomically(
+    order_id: str,
+    application_id: str,
+    decision: str,
+    user: dict[str, Any],
+) -> dict[str, Any]:
+    require_role(user, "logist")
+    normalized_decision = decision.strip().upper()
+    if normalized_decision not in {"APPROVED", "REJECTED"}:
+        raise HTTPException(status_code=422, detail="invalid application decision")
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        order = read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        applications = [
+            dict(item)
+            for item in order.get("applications") or []
+            if isinstance(item, dict)
+        ]
+        application = next(
+            (
+                item
+                for item in applications
+                if str(item.get("id") or "") == application_id
+            ),
+            None,
+        )
+        if application is None:
+            raise HTTPException(status_code=404, detail="application not found")
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        worker_id = str(application.get("worker_id") or "")
+        if normalized_decision == "APPROVED" and worker_id not in assigned:
+            workers_count = int(order.get("workers_count") or 1)
+            if len(assigned) >= workers_count:
+                raise HTTPException(status_code=409, detail="all worker slots are filled")
+            assigned.append(worker_id)
+        application["status"] = normalized_decision
+        application["decided_at"] = serialize_datetime(utc_now())
+        application["decided_by"] = str(user.get("sub") or "")
+        order["applications"] = applications
+        order["assigned_worker_ids"] = assigned
+        if normalized_decision == "APPROVED" and len(assigned) >= int(
+            order.get("workers_count") or 1
+        ):
+            order["status"] = "IN_PROCESS"
+        write_order_in_connection(connection, order)
+        record_audit_event_in_connection(
+            connection,
+            event_type="order_application_decided",
+            outcome="success",
+            actor_account_id=str(user.get("sub") or ""),
+            actor_username=str(user.get("username") or ""),
+            target_type="application",
+            target_id=application_id,
+            details={"decision": normalized_decision},
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return application
+
+
+def _order_amount(order: dict[str, Any]) -> int:
+    individual_price = order.get("individual_price")
+    try:
+        if individual_price not in (None, ""):
+            return max(0, int(individual_price))
+    except (TypeError, ValueError):
+        pass
+    try:
+        rate = int(order.get("price_per_hour") or 0)
+        hours = int(order.get("hours") or 0)
+        return max(0, rate * hours)
+    except (TypeError, ValueError):
+        return 0
+
+
+def account_finance(user: dict[str, Any]) -> dict[str, Any]:
+    require_role(user, "worker")
+    account_id = str(user.get("sub") or "")
+    assigned_orders = [
+        order
+        for order in list_orders()
+        if account_id in [str(item) for item in order.get("assigned_worker_ids") or []]
+    ]
+    transactions = []
+    for order in assigned_orders:
+        status = str(order.get("status") or "")
+        if status not in {"DONE_PENDING", "CONVERTED"}:
+            continue
+        amount = _order_amount(order)
+        transactions.append(
+            {
+                "id": f"accrual-{order.get('id') or order.get('external_order_id')}",
+                "order_id": str(order.get("id") or ""),
+                "title": str(order.get("title") or "Выполненный заказ"),
+                "amount": amount,
+                "status": "available" if status == "CONVERTED" else "pending",
+                "date": str(order.get("updated_at") or order.get("scheduled_at") or ""),
+            }
+        )
+    available = sum(
+        item["amount"] for item in transactions if item["status"] == "available"
+    )
+    pending = sum(
+        item["amount"] for item in transactions if item["status"] == "pending"
+    )
+    return {
+        "currency": "RUB",
+        "available": available,
+        "pending": pending,
+        "total_accrued": available,
+        "transactions": transactions,
+        "payout": {
+            "method": get_account_profile(user).get("payout_method") or "",
+            "configured": bool(get_account_profile(user).get("payout_method")),
+        },
+    }
+
+
+def account_dashboard(user: dict[str, Any]) -> dict[str, Any]:
+    role = str(user.get("role") or "")
+    account_id = str(user.get("sub") or "")
+    all_orders = list_orders()
+    visible_orders = orders_for_user(all_orders, user)
+    profile = get_account_profile(user)
+    summary: dict[str, Any]
+    if role == "worker":
+        applications = [
+            _worker_application(order, account_id)
+            for order in all_orders
+        ]
+        applications = [item for item in applications if item is not None]
+        assigned = [
+            order
+            for order in all_orders
+            if account_id in [str(item) for item in order.get("assigned_worker_ids") or []]
+        ]
+        finance = account_finance(user)
+        summary = {
+            "available_orders": sum(
+                str(order.get("status") or "") == "PROCESSED"
+                and _worker_application(order, account_id) is None
+                for order in all_orders
+            ),
+            "pending_applications": sum(
+                str(item.get("status") or "") == "PENDING" for item in applications
+            ),
+            "active_orders": sum(
+                str(order.get("status") or "")
+                in {"PROCESSED", "IN_PROCESS", "DONE_PENDING"}
+                for order in assigned
+            ),
+            "completed_orders": sum(
+                str(order.get("status") or "") == "CONVERTED" for order in assigned
+            ),
+            "available_balance": finance["available"],
+        }
+    elif role == "client":
+        summary = {
+            "total_orders": len(visible_orders),
+            "active_orders": sum(
+                str(order.get("status") or "")
+                in {"NEW", "PROCESSED", "IN_PROCESS", "DONE_PENDING"}
+                for order in visible_orders
+            ),
+            "completed_orders": sum(
+                str(order.get("status") or "") == "CONVERTED"
+                for order in visible_orders
+            ),
+        }
+    else:
+        summary = {
+            "total_orders": len(all_orders),
+            "new_orders": sum(
+                str(order.get("status") or "") == "NEW" for order in all_orders
+            ),
+            "active_orders": sum(
+                str(order.get("status") or "") in {"PROCESSED", "IN_PROCESS"}
+                for order in all_orders
+            ),
+            "pending_applications": sum(
+                str(item.get("status") or "") == "PENDING"
+                for order in all_orders
+                for item in order.get("applications") or []
+                if isinstance(item, dict)
+            ),
+        }
+    next_orders = sorted(
+        [
+            order
+            for order in visible_orders
+            if str(order.get("status") or "")
+            not in {"CONVERTED", "JUNK"}
+        ],
+        key=lambda order: str(order.get("scheduled_at") or "9999"),
+    )
+    return {
+        "role": role,
+        "username": str(user.get("username") or ""),
+        "profile": profile,
+        "summary": summary,
+        "next_order": next_orders[0] if next_orders else None,
+    }
+
+
+def _chat_thread_id(order_id: str, thread_type: str) -> str:
+    return f"chat-{order_id}-{thread_type}"
+
+
+def _ensure_chat_thread_in_connection(
+    connection: Any,
+    order: dict[str, Any],
+    thread_type: str,
+) -> str:
+    order_id = str(order.get("id") or order.get("external_order_id") or "")
+    thread_id = _chat_thread_id(order_id, thread_type)
+    archived = str(order.get("status") or "") in {"CONVERTED", "JUNK"}
+    created = False
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {CHAT_THREADS_TABLE_NAME}(
+                    thread_id, order_id, thread_type, is_archived, requires_attention
+                ) VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT(order_id, thread_type) DO UPDATE SET
+                    is_archived = excluded.is_archived
+                RETURNING (xmax = 0)
+                """,
+                (
+                    thread_id,
+                    order_id,
+                    thread_type,
+                    archived,
+                    thread_type == "clientLogist",
+                ),
+            )
+            created = bool(cursor.fetchone()[0])
+    else:
+        cursor = connection.execute(
+            f"""
+            INSERT OR IGNORE INTO {CHAT_THREADS_TABLE_NAME}(
+                thread_id, order_id, thread_type, is_archived, requires_attention
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                thread_id,
+                order_id,
+                thread_type,
+                1 if archived else 0,
+                1 if thread_type == "clientLogist" else 0,
+            ),
+        )
+        created = cursor.rowcount > 0
+        connection.execute(
+            f"UPDATE {CHAT_THREADS_TABLE_NAME} SET is_archived = ? WHERE thread_id = ?",
+            (1 if archived else 0, thread_id),
+        )
+    if created:
+        message_id = str(uuid4())
+        message = "Чат создан для рабочих вопросов по заказу."
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {CHAT_MESSAGES_TABLE_NAME}(
+                        message_id, thread_id, sender_role, sender_name,
+                        message_text, is_system
+                    ) VALUES (%s, %s, 'system', 'GPM', %s, TRUE)
+                    """,
+                    (message_id, thread_id, message),
+                )
+        else:
+            connection.execute(
+                f"""
+                INSERT INTO {CHAT_MESSAGES_TABLE_NAME}(
+                    message_id, thread_id, sender_role, sender_name,
+                    message_text, is_system
+                ) VALUES (?, ?, 'system', 'GPM', ?, 1)
+                """,
+                (message_id, thread_id, message),
+            )
+    return thread_id
+
+
+def _ensure_order_chat_threads(connection: Any, orders: list[dict[str, Any]]) -> None:
+    for order in orders:
+        order_id = str(order.get("id") or order.get("external_order_id") or "")
+        if not order_id:
+            continue
+        if order.get("created_by"):
+            _ensure_chat_thread_in_connection(connection, order, "clientLogist")
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        if assigned:
+            _ensure_chat_thread_in_connection(connection, order, "workerLogist")
+            _ensure_chat_thread_in_connection(connection, order, "clientWorker")
+
+
+def _read_chat_thread_in_connection(connection: Any, thread_id: str) -> Any:
+    query = f"""
+        SELECT thread_id, order_id, thread_type, is_archived,
+               requires_attention, created_at, updated_at
+        FROM {CHAT_THREADS_TABLE_NAME}
+        WHERE thread_id = {{placeholder}}
+    """
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(query.format(placeholder="%s"), (thread_id,))
+            return cursor.fetchone()
+    return connection.execute(query.format(placeholder="?"), (thread_id,)).fetchone()
+
+
+def _chat_thread_access(
+    connection: Any,
+    row: Any,
+    user: dict[str, Any],
+) -> tuple[bool, dict[str, Any] | None]:
+    if row is None:
+        return False, None
+    order = read_order_in_connection(connection, str(row[1]))
+    if order is None:
+        return False, None
+    role = str(user.get("role") or "")
+    account_id = str(user.get("sub") or "")
+    thread_type = str(row[2])
+    if role == "logist":
+        return True, order
+    if role == "client":
+        return (
+            order.get("created_by") == account_id
+            and thread_type in {"clientLogist", "clientWorker", "support"},
+            order,
+        )
+    if role == "worker":
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        return (
+            account_id in assigned
+            and thread_type in {"workerLogist", "clientWorker", "support"},
+            order,
+        )
+    return False, order
+
+
+def _chat_thread_title(thread_type: str, order: dict[str, Any]) -> str:
+    title = str(order.get("title") or f"Заказ #{order.get('id') or ''}")
+    return {
+        "clientLogist": title,
+        "workerLogist": f"Координация: {title}",
+        "clientWorker": f"Рабочий чат: {title}",
+        "support": f"Поддержка: {title}",
+    }.get(thread_type, title)
+
+
+def _messages_for_thread_in_connection(connection: Any, thread_id: str) -> list[Any]:
+    query = f"""
+        SELECT message_id, thread_id, sender_account_id, sender_role,
+               sender_name, message_text, created_at, is_system
+        FROM {CHAT_MESSAGES_TABLE_NAME}
+        WHERE thread_id = {{placeholder}}
+        ORDER BY created_at ASC
+    """
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(query.format(placeholder="%s"), (thread_id,))
+            return list(cursor.fetchall())
+    return list(connection.execute(query.format(placeholder="?"), (thread_id,)).fetchall())
+
+
+def _chat_read_at(connection: Any, thread_id: str, account_id: str) -> datetime | None:
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT read_at FROM {CHAT_READS_TABLE_NAME} WHERE thread_id = %s AND account_id = %s",
+                (thread_id, account_id),
+            )
+            row = cursor.fetchone()
+    else:
+        row = connection.execute(
+            f"SELECT read_at FROM {CHAT_READS_TABLE_NAME} WHERE thread_id = ? AND account_id = ?",
+            (thread_id, account_id),
+        ).fetchone()
+    return parse_db_datetime(row[0]) if row else None
+
+
+def _serialize_chat_message(row: Any) -> dict[str, Any]:
+    created_at = parse_db_datetime(row[6]) or utc_now()
+    return {
+        "id": str(row[0]),
+        "thread_id": str(row[1]),
+        "sender_role": str(row[3]),
+        "sender_name": str(row[4]),
+        "text": str(row[5]),
+        "created_at": serialize_datetime(created_at),
+        "is_system": bool(row[7]),
+    }
+
+
+def list_account_chat_threads(user: dict[str, Any]) -> list[dict[str, Any]]:
+    orders = list_orders()
+    account_id = str(user.get("sub") or "")
+    result: list[dict[str, Any]] = []
+    with db_connection() as connection:
+        _ensure_order_chat_threads(connection, orders)
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT thread_id, order_id, thread_type, is_archived,
+                           requires_attention, created_at, updated_at
+                    FROM {CHAT_THREADS_TABLE_NAME}
+                    ORDER BY updated_at DESC
+                    """
+                )
+                rows = cursor.fetchall()
+        else:
+            rows = connection.execute(
+                f"""
+                SELECT thread_id, order_id, thread_type, is_archived,
+                       requires_attention, created_at, updated_at
+                FROM {CHAT_THREADS_TABLE_NAME}
+                ORDER BY updated_at DESC
+                """
+            ).fetchall()
+        for row in rows:
+            allowed, order = _chat_thread_access(connection, row, user)
+            if not allowed or order is None:
+                continue
+            messages = _messages_for_thread_in_connection(connection, str(row[0]))
+            last_message = messages[-1] if messages else None
+            read_at = _chat_read_at(connection, str(row[0]), account_id)
+            unread = sum(
+                (parse_db_datetime(message[6]) or utc_now()) > (read_at or datetime.min.replace(tzinfo=timezone.utc))
+                and str(message[2] or "") != account_id
+                for message in messages
+            )
+            updated_at = (
+                parse_db_datetime(last_message[6])
+                if last_message is not None
+                else parse_db_datetime(row[6])
+            ) or utc_now()
+            result.append(
+                {
+                    "id": str(row[0]),
+                    "order_id": str(row[1]),
+                    "type": str(row[2]),
+                    "title": _chat_thread_title(str(row[2]), order),
+                    "subtitle": (
+                        str(last_message[5])
+                        if last_message is not None
+                        else str(order.get("city") or "")
+                    ),
+                    "is_archived": bool(row[3]),
+                    "requires_logist_attention": bool(row[4]),
+                    "unread_count": unread,
+                    "updated_at": serialize_datetime(updated_at),
+                }
+            )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    result.sort(
+        key=lambda thread: str(thread.get("updated_at") or ""),
+        reverse=True,
+    )
+    return result
+
+
+def get_account_chat_messages(
+    thread_id: str,
+    user: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    with db_connection() as connection:
+        row = _read_chat_thread_in_connection(connection, thread_id)
+        allowed, order = _chat_thread_access(connection, row, user)
+        if not allowed or row is None or order is None:
+            raise HTTPException(status_code=404, detail="chat thread not found")
+        messages = [
+            _serialize_chat_message(item)
+            for item in _messages_for_thread_in_connection(connection, thread_id)
+        ]
+        account_id = str(user.get("sub") or "")
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {CHAT_READS_TABLE_NAME}(thread_id, account_id, read_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT(thread_id, account_id) DO UPDATE SET read_at = NOW()
+                    """,
+                    (thread_id, account_id),
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"""
+                INSERT INTO {CHAT_READS_TABLE_NAME}(thread_id, account_id, read_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(thread_id, account_id) DO UPDATE SET read_at = CURRENT_TIMESTAMP
+                """,
+                (thread_id, account_id),
+            )
+    thread = next(
+        (
+            item
+            for item in list_account_chat_threads(user)
+            if item["id"] == thread_id
+        ),
+        None,
+    )
+    if thread is None:
+        raise HTTPException(status_code=404, detail="chat thread not found")
+    return thread, messages
+
+
+def send_account_chat_message(
+    thread_id: str,
+    text: str,
+    user: dict[str, Any],
+) -> dict[str, Any]:
+    clean_text = bounded_text(text, "message", max_length=2000, required=True)
+    with db_connection() as connection:
+        row = _read_chat_thread_in_connection(connection, thread_id)
+        allowed, _ = _chat_thread_access(connection, row, user)
+        if not allowed or row is None:
+            raise HTTPException(status_code=404, detail="chat thread not found")
+        if bool(row[3]):
+            raise HTTPException(status_code=409, detail="chat thread is archived")
+        message_id = str(uuid4())
+        account_id = str(user.get("sub") or "")
+        role = str(user.get("role") or "")
+        sender_name = str(
+            get_account_profile(user).get("display_name")
+            or user.get("username")
+            or "Пользователь"
+        )
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {CHAT_MESSAGES_TABLE_NAME}(
+                        message_id, thread_id, sender_account_id, sender_role,
+                        sender_name, message_text
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (message_id, thread_id, account_id, role, sender_name, clean_text),
+                )
+                cursor.execute(
+                    f"""
+                    UPDATE {CHAT_THREADS_TABLE_NAME}
+                    SET updated_at = NOW(),
+                        requires_attention = CASE
+                            WHEN %s <> 'logist' THEN TRUE
+                            ELSE requires_attention
+                        END
+                    WHERE thread_id = %s
+                    """,
+                    (role, thread_id),
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"""
+                INSERT INTO {CHAT_MESSAGES_TABLE_NAME}(
+                    message_id, thread_id, sender_account_id, sender_role,
+                    sender_name, message_text
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (message_id, thread_id, account_id, role, sender_name, clean_text),
+            )
+            connection.execute(
+                f"""
+                UPDATE {CHAT_THREADS_TABLE_NAME}
+                SET updated_at = CURRENT_TIMESTAMP,
+                    requires_attention = CASE
+                        WHEN ? <> 'logist' THEN 1
+                        ELSE requires_attention
+                    END
+                WHERE thread_id = ?
+                """,
+                (role, thread_id),
+            )
+        record_audit_event_in_connection(
+            connection,
+            event_type="chat_message_sent",
+            outcome="success",
+            actor_account_id=account_id,
+            actor_username=str(user.get("username") or ""),
+            target_type="chat_thread",
+            target_id=thread_id,
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    _, messages = get_account_chat_messages(thread_id, user)
+    return messages[-1]
+
+
+def set_chat_attention(
+    thread_id: str,
+    user: dict[str, Any],
+    *,
+    requires_attention: bool,
+) -> None:
+    with db_connection() as connection:
+        row = _read_chat_thread_in_connection(connection, thread_id)
+        allowed, _ = _chat_thread_access(connection, row, user)
+        if not allowed or row is None:
+            raise HTTPException(status_code=404, detail="chat thread not found")
+        role = str(user.get("role") or "")
+        if not requires_attention and role != "logist":
+            raise HTTPException(status_code=403, detail="insufficient permissions")
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = %s, updated_at = NOW() WHERE thread_id = %s",
+                    (requires_attention, thread_id),
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = ?, updated_at = CURRENT_TIMESTAMP WHERE thread_id = ?",
+                (1 if requires_attention else 0, thread_id),
+            )
+
+
+def request_chat_support(thread_id: str, user: dict[str, Any]) -> str:
+    with db_connection() as connection:
+        row = _read_chat_thread_in_connection(connection, thread_id)
+        allowed, order = _chat_thread_access(connection, row, user)
+        if not allowed or row is None or order is None:
+            raise HTTPException(status_code=404, detail="chat thread not found")
+        if str(user.get("role") or "") == "logist":
+            raise HTTPException(status_code=422, detail="logist support is already present")
+        support_id = _ensure_chat_thread_in_connection(connection, order, "support")
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = TRUE, updated_at = NOW() WHERE thread_id IN (%s, %s)",
+                    (thread_id, support_id),
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = 1, updated_at = CURRENT_TIMESTAMP WHERE thread_id IN (?, ?)",
+                (thread_id, support_id),
+            )
+    return support_id
+
+
 @app.on_event("startup")
 async def startup() -> None:
     validate_runtime_configuration()
@@ -2163,6 +3326,124 @@ async def me(
     }
 
 
+@app.get("/app-api/me/profile")
+async def my_profile(
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    return {"profile": await asyncio.to_thread(get_account_profile, user)}
+
+
+@app.patch("/app-api/me/profile")
+async def patch_my_profile(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    try:
+        patch = await request.json()
+        if not isinstance(patch, dict):
+            raise ValueError("payload must be an object")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    profile = await asyncio.to_thread(update_account_profile, user, patch)
+    return {"success": True, "profile": profile}
+
+
+@app.get("/app-api/me/dashboard")
+async def my_dashboard(
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    return await asyncio.to_thread(account_dashboard, user)
+
+
+@app.get("/app-api/me/finance")
+async def my_finance(
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    return await asyncio.to_thread(account_finance, user)
+
+
+@app.get("/app-api/me/chats")
+async def my_chat_threads(
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    return {"threads": await asyncio.to_thread(list_account_chat_threads, user)}
+
+
+@app.get("/app-api/me/chats/{thread_id}")
+async def my_chat_messages(
+    thread_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    thread, messages = await asyncio.to_thread(
+        get_account_chat_messages,
+        thread_id,
+        user,
+    )
+    return {"thread": thread, "messages": messages}
+
+
+@app.post("/app-api/me/chats/{thread_id}/messages")
+async def post_my_chat_message(
+    thread_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be an object")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    message = await asyncio.to_thread(
+        send_account_chat_message,
+        thread_id,
+        str(payload.get("text") or ""),
+        user,
+    )
+    return {"success": True, "message": message}
+
+
+@app.post("/app-api/me/chats/{thread_id}/support")
+async def request_my_chat_support(
+    thread_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    support_thread_id = await asyncio.to_thread(request_chat_support, thread_id, user)
+    return {"success": True, "support_thread_id": support_thread_id}
+
+
+@app.patch("/app-api/me/chats/{thread_id}/attention")
+async def patch_my_chat_attention(
+    thread_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, bool]:
+    user = await authenticated_user(authorization)
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict) or not isinstance(
+            payload.get("requires_attention"), bool
+        ):
+            raise ValueError("requires_attention must be boolean")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    await asyncio.to_thread(
+        set_chat_attention,
+        thread_id,
+        user,
+        requires_attention=payload["requires_attention"],
+    )
+    return {"success": True}
+
+
 @app.post("/app-api/me/address-suggestions")
 async def address_suggestions(
     request: Request,
@@ -2194,6 +3475,41 @@ async def get_my_orders(
     user = await authenticated_user(authorization)
     orders = await asyncio.to_thread(list_orders)
     return {"orders": orders_for_user(orders, user)}
+
+
+@app.post("/app-api/me/orders/{order_id}/applications")
+async def create_my_order_application(
+    order_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    application = await asyncio.to_thread(apply_to_order_atomically, order_id, user)
+    return {"success": True, "application": application}
+
+
+@app.patch("/app-api/me/orders/{order_id}/applications/{application_id}")
+async def decide_my_order_application(
+    order_id: str,
+    application_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be an object")
+        decision = str(payload.get("decision") or "")
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    application = await asyncio.to_thread(
+        decide_order_application_atomically,
+        order_id,
+        application_id,
+        decision,
+        user,
+    )
+    return {"success": True, "application": application}
 
 
 @app.post("/app-api/me/orders")
