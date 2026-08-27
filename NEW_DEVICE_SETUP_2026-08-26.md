@@ -67,8 +67,11 @@ redeploy. Backend production остаётся на `a6fac5c`, пока не оп
 В этом порядке:
 
 ```text
-PROJECT_HANDOFF_2026-08-27_WORKER_DESIGN_RELEASE.md
-CONTINUE_PROJECT_PROMPT_2026-08-27_WORKER_DESIGN_RELEASE.md
+PROJECT_HANDOFF_2026-08-28_CRM_PUBLICATION_RECOVERY.md
+CONTINUE_PROJECT_PROMPT_2026-08-28_CRM_PUBLICATION_RECOVERY.md
+DESIGN_FREEZE.md
+INDEPENDENT_PLATFORM_ARCHITECTURE.md
+CRM_APP_PUBLICATION.md
 README.md
 PROJECT_AUDIT_2026-08-25.md
 LEGAL_READINESS_RU.md
@@ -173,8 +176,8 @@ Workflow хранит rollback кода, venv и frontend. Он не замен�
 Откройте файл:
 
 ```text
-CONTINUE_PROJECT_PROMPT_2026-08-27_WORKER_DESIGN_RELEASE.md
+CONTINUE_PROJECT_PROMPT_2026-08-28_CRM_PUBLICATION_RECOVERY.md
 ```
 
-Скопируйте его целиком в новый чат. После read-only проверки выберите одну
-следующую задачу.
+Скопируйте его целиком в новый чат. Текущая задача уже выбрана: восстановление
+server-to-server публикации заявок из `https://ts.workstaffcrm.ru/` в GPM.

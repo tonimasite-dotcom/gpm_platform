@@ -10,7 +10,9 @@
 > Текущий production frontend: `b9ebdfa`, опубликован 27.08.2026.
 > Текущий production backend: `a6fac5c`, опубликован 26.08.2026.
 > Полная точка продолжения:
-> `PROJECT_HANDOFF_2026-08-27_WORKER_DESIGN_RELEASE.md`.
+> `PROJECT_HANDOFF_2026-08-28_CRM_PUBLICATION_RECOVERY.md`.
+> Промт нового чата:
+> `CONTINUE_PROJECT_PROMPT_2026-08-28_CRM_PUBLICATION_RECOVERY.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
