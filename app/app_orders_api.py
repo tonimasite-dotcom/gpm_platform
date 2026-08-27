@@ -2055,11 +2055,23 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
 def orders_for_user(
     orders: list[dict[str, Any]],
     user: dict[str, Any],
+    *,
+    profile: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     role = str(user.get("role") or "")
     username = str(user.get("sub") or "")
     if role == "client":
         orders = [order for order in orders if order.get("created_by") == username]
+    elif role == "logist" and profile is not None:
+        current_logist_phone = normalized_phone_identity(profile.get("phone"))
+        orders = [
+            order
+            for order in orders
+            if str(order.get("status") or "").upper() != "NEW"
+            or not normalized_phone_identity(order.get("logist_phone"))
+            or normalized_phone_identity(order.get("logist_phone"))
+            == current_logist_phone
+        ]
     elif role == "worker":
         orders = [
             order
@@ -2073,6 +2085,14 @@ def orders_for_user(
             )
         ]
     return [order_for_user(order, user) for order in orders]
+
+
+def normalized_phone_identity(value: Any) -> str:
+    digits = "".join(
+        character for character in str(value or "") if character.isdigit()
+    )
+    # Russian phone numbers arrive from CRM in both +7 and 8 formats.
+    return digits[-10:] if len(digits) >= 10 else digits
 
 
 def require_role(user: dict[str, Any], *allowed_roles: str) -> None:
@@ -3474,7 +3494,10 @@ async def get_my_orders(
 ) -> dict[str, list[dict[str, Any]]]:
     user = await authenticated_user(authorization)
     orders = await asyncio.to_thread(list_orders)
-    return {"orders": orders_for_user(orders, user)}
+    profile = None
+    if user.get("role") == "logist":
+        profile = await asyncio.to_thread(get_account_profile, user)
+    return {"orders": orders_for_user(orders, user, profile=profile)}
 
 
 @app.post("/app-api/me/orders/{order_id}/applications")

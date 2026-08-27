@@ -18,11 +18,15 @@
 Единственным источником истины для production должен быть backend GPM:
 
 ```text
-External order system -> GPM backend -> PostgreSQL -> Flutter app
+CRM (order data only) -> GPM backend -> PostgreSQL -> GPM applications
 ```
 
 Bitrix24 не является ядром потока заказов. Legacy Telegram-бот в `main.py` по
-умолчанию выключен и не должен использоваться с реальными данными.
+умолчанию выключен и не является частью активной архитектуры. Публикация
+заявок, назначения, статусы и чаты должны работать полностью внутри GPM без
+Telegram, других мессенджеров и социальных сетей. Правило зафиксировано в
+`INDEPENDENT_PLATFORM_ARCHITECTURE.md`, контракт импорта заявок — в
+`CRM_APP_PUBLICATION.md`.
 
 Активная backend-авторизация использует таблицы accounts/sessions/audit. При
 первом запуске совместимой миграции существующие три конфигурационные роли

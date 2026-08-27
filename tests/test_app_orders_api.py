@@ -185,6 +185,56 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual([item["id"] for item in visible], ["ORDER-1"])
 
+    def test_logist_only_sees_new_orders_routed_to_profile_phone(self) -> None:
+        assigned_payload = sample_payload()
+        assigned_payload["logist_phone"] = "+7 900 111-22-33"
+        assigned_payload["order_data"]["order_number"] = "ORDER-ASSIGNED"
+        assigned = api.normalize_external_order(
+            assigned_payload
+        )
+        other_payload = sample_payload()
+        other_payload["logist_phone"] = "8 (900) 999-88-77"
+        other_payload["order_data"]["order_number"] = "ORDER-OTHER"
+        other = api.normalize_external_order(
+            other_payload
+        )
+        shared_payload = sample_payload()
+        shared_payload["logist_phone"] = ""
+        shared_payload["order_data"]["order_number"] = "ORDER-SHARED"
+        shared = api.normalize_external_order(
+            shared_payload
+        )
+        published = {**other, "id": "ORDER-PUBLISHED", "status": "PROCESSED"}
+
+        visible = api.orders_for_user(
+            [assigned, other, shared, published],
+            {"sub": "logist-1", "role": "logist"},
+            profile={"phone": "8 900 111 22 33"},
+        )
+
+        self.assertEqual(
+            [item["id"] for item in visible],
+            ["ORDER-ASSIGNED", "ORDER-SHARED", "ORDER-PUBLISHED"],
+        )
+
+    def test_logist_publication_makes_crm_order_visible_to_workers(self) -> None:
+        order = api.normalize_external_order(sample_payload())
+        logist = {"sub": "logist-1", "role": "logist"}
+        worker = {"sub": "worker-1", "role": "worker"}
+
+        self.assertEqual(api.orders_for_user([order], worker), [])
+
+        patch = api.validate_order_patch(
+            order,
+            {"status": "PROCESSED"},
+            actor=logist,
+            integration=False,
+        )
+        published = {**order, **patch}
+
+        self.assertEqual(published["status"], "PROCESSED")
+        self.assertEqual(len(api.orders_for_user([published], worker)), 1)
+
     def test_public_patch_rejects_unknown_fields(self) -> None:
         order = api.normalize_external_order(
             sample_payload(source="manual"),

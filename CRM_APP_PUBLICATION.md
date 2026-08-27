@@ -6,8 +6,9 @@ Test external system:
 https://ts.workstaffcrm.ru
 ```
 
-The external order system publishes orders to the GPM backend. Human app users
-read published orders from the same backend after logging in.
+The external order system sends order data to the GPM backend. CRM is only a
+data source: moderation, publication, applications, assignments, statuses, and
+chats are handled inside GPM without Telegram or another messenger.
 
 ```text
 External order system -> GPM backend -> PostgreSQL -> Flutter logist app
@@ -15,7 +16,7 @@ External order system -> GPM backend -> PostgreSQL -> Flutter logist app
 
 ## Endpoints
 
-Publish or update an order:
+Create or refresh a moderation draft:
 
 ```http
 POST /app-api/orders
@@ -30,7 +31,7 @@ GET /app-api/orders
 X-GPM-App-Token: <token>
 ```
 
-Update an app order:
+Update an app order from a trusted server-side integration:
 
 ```http
 PATCH /app-api/orders/{order_id}
@@ -65,7 +66,7 @@ GET /app-api/me/orders
 Authorization: Bearer <access_token>
 ```
 
-Update an order as the logged-in app user:
+Publish a draft as the logged-in logist:
 
 ```http
 PATCH /app-api/me/orders/{order_id}
@@ -106,6 +107,9 @@ GPM_APP_MODE=api
 GPM_APP_API_URL=https://app-api.gpmbot.ru
 ```
 
+`GPM_APP_API_TOKEN` is a server-to-server secret. It must not be embedded in a
+Flutter build, sent to a browser, placed in documentation, or committed to Git.
+
 If `GPM_APP_DATABASE_URL` is not set, the API falls back to local SQLite for
 development.
 
@@ -114,7 +118,7 @@ development.
 ```json
 {
   "source_system": "workstaff",
-  "telegram_username": "logist_gpm",
+  "logist_phone": "+79990000001",
   "client_phone": "+79990000000",
   "client_email": "client@example.com",
   "city": "Москва",
@@ -158,3 +162,16 @@ Required fields:
 - `order_data.info`
 
 Publishing the same `order_number` again updates the stored app order.
+
+## Internal publication flow
+
+1. CRM sends the payload to `POST /app-api/orders`.
+2. GPM stores a new order with status `NEW`.
+3. If `logist_phone` is present, only the GPM logist whose server-backed profile
+   has the same phone sees the new draft. Russian `+7` and `8` formats match.
+4. If `logist_phone` is absent, the draft appears in the shared moderation queue.
+5. The logist presses `Опубликовать`; GPM changes the status to `PROCESSED`.
+6. Only then does the order become visible to workers inside GPM.
+
+The active integration does not call a Telegram bot and does not use messenger
+usernames as routing identifiers. See `INDEPENDENT_PLATFORM_ARCHITECTURE.md`.
