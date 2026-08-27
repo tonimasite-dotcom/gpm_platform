@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
-import '../../theme/gpm_theme.dart';
 
 class WorkerFinanceScreen extends StatefulWidget {
   const WorkerFinanceScreen({super.key});
@@ -17,10 +16,12 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
   @override
   void initState() {
     super.initState();
-    _future = gpmApi.isApiMode ? gpmApi.getMyFinance() : _loadDemoFinance();
+    _future = _loadFinance();
   }
 
-  Future<Map<String, dynamic>> _loadDemoFinance() async {
+  Future<Map<String, dynamic>> _loadFinance() async {
+    if (gpmApi.isApiMode) return gpmApi.getMyFinance();
+
     final orders = await gpmApi.getOrdersForWorker(GpmApiService.demoWorkerId);
     final transactions = orders
         .where(
@@ -28,38 +29,25 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
               order['is_assigned_to_worker'] == true &&
               const {'DONE_PENDING', 'CONVERTED'}.contains(order['status']),
         )
-        .map((order) {
-          final amount = _orderAmount(order);
-          return {
+        .map(
+          (order) => {
             'id': 'demo-${order['id']}',
-            'order_id': order['id'],
             'title': order['title'] ?? 'Выполненный заказ',
-            'amount': amount,
+            'amount': _orderAmount(order),
             'status': order['status'] == 'CONVERTED' ? 'available' : 'pending',
             'date': order['scheduled_at'] ?? order['created_at'],
-          };
-        })
+          },
+        )
         .toList();
     final available = transactions
         .where((item) => item['status'] == 'available')
         .fold<int>(0, (sum, item) => sum + _asInt(item['amount']));
-    final pending = transactions
-        .where((item) => item['status'] == 'pending')
-        .fold<int>(0, (sum, item) => sum + _asInt(item['amount']));
-    return {
-      'available': available,
-      'pending': pending,
-      'total_accrued': available,
-      'currency': 'RUB',
-      'transactions': transactions,
-      'payout': {'configured': false, 'method': ''},
-    };
+    return {'available': available, 'transactions': transactions};
   }
 
-  void _reload() {
-    setState(() {
-      _future = gpmApi.isApiMode ? gpmApi.getMyFinance() : _loadDemoFinance();
-    });
+  Future<void> _reload() async {
+    setState(() => _future = _loadFinance());
+    await _future;
   }
 
   @override
@@ -71,10 +59,15 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return _FinanceError(onRetry: _reload);
+          return Center(
+            child: OutlinedButton(
+              onPressed: _reload,
+              child: const Text('Не удалось загрузить. Повторить'),
+            ),
+          );
         }
+
         final data = snapshot.data ?? const <String, dynamic>{};
-        final payout = _asMap(data['payout']);
         final transactions = (data['transactions'] as List? ?? const [])
             .whereType<Map>()
             .map(
@@ -82,31 +75,82 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                   item.map((key, value) => MapEntry(key.toString(), value)),
             )
             .toList();
+        final completedCount = transactions
+            .where((item) => item['status'] == 'available')
+            .length;
 
         return RefreshIndicator(
-          onRefresh: () async => _reload(),
+          onRefresh: _reload,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
+            padding: const EdgeInsets.only(bottom: 32),
             children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1050),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _BalancePanel(
-                        available: _asInt(data['available']),
-                        pending: _asInt(data['pending']),
-                        total: _asInt(data['total_accrued']),
-                        payoutConfigured: payout['configured'] == true,
-                        payoutMethod: payout['method']?.toString() ?? '',
-                      ),
-                      const SizedBox(height: 16),
-                      _TransactionsPanel(transactions: transactions),
-                    ],
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5B4FFF), Color(0xFF8A7FFF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Доступно к выводу',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_formatMoney(_asInt(data['available']))} ₽',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Завершенных заказов: $completedCount',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 12),
+                    const SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonal(
+                        onPressed: null,
+                        child: Text('Вывести деньги'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(14, 14, 14, 8),
+                child: Text(
+                  'История начислений',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (transactions.isEmpty)
+                const SizedBox(
+                  height: 240,
+                  child: Center(child: Text('Начислений пока нет')),
+                )
+              else
+                ...transactions.map(
+                  (transaction) => _TransactionTile(transaction: transaction),
+                ),
             ],
           ),
         );
@@ -115,308 +159,55 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
   }
 }
 
-class _BalancePanel extends StatelessWidget {
-  final int available;
-  final int pending;
-  final int total;
-  final bool payoutConfigured;
-  final String payoutMethod;
+class _TransactionTile extends StatelessWidget {
+  final Map<String, dynamic> transaction;
 
-  const _BalancePanel({
-    required this.available,
-    required this.pending,
-    required this.total,
-    required this.payoutConfigured,
-    required this.payoutMethod,
-  });
+  const _TransactionTile({required this.transaction});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GpmColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                backgroundColor: GpmColors.red,
-                foregroundColor: Colors.white,
-                child: Icon(Icons.account_balance_wallet_outlined),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Финансы',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const Text(
-                      'Начисления по подтверждённым заказам',
-                      style: TextStyle(color: GpmColors.graphite),
-                    ),
-                  ],
-                ),
-              ),
-              _PayoutStatus(configured: payoutConfigured, method: payoutMethod),
-            ],
+    final available = transaction['status'] == 'available';
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: (available ? Colors.green : Colors.orange)
+              .withValues(alpha: 0.1),
+          child: Icon(
+            available ? Icons.arrow_downward : Icons.schedule,
+            color: available ? Colors.green : Colors.orange,
+            size: 18,
           ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _MoneyCard(
-                label: 'Доступно к выплате',
-                value: available,
-                icon: Icons.payments_outlined,
-                color: Colors.green,
-              ),
-              _MoneyCard(
-                label: 'На подтверждении',
-                value: pending,
-                icon: Icons.schedule_outlined,
-                color: Colors.orange,
-              ),
-              _MoneyCard(
-                label: 'Начислено всего',
-                value: total,
-                icon: Icons.account_balance_outlined,
-                color: Colors.blue,
-              ),
-            ],
+        ),
+        title: Text(transaction['title']?.toString() ?? 'Начисление'),
+        subtitle: Text(available ? 'Доступно к выводу' : 'На подтверждении'),
+        trailing: Text(
+          '+${_formatMoney(_asInt(transaction['amount']))} ₽',
+          style: const TextStyle(
+            color: Colors.green,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MoneyCard extends StatelessWidget {
-  final String label;
-  final int value;
-  final IconData icon;
-  final Color color;
-
-  const _MoneyCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 250,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .07),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: .2)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(color: GpmColors.graphite)),
-                const SizedBox(height: 4),
-                Text(
-                  '${_formatMoney(value)} ₽',
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PayoutStatus extends StatelessWidget {
-  final bool configured;
-  final String method;
-
-  const _PayoutStatus({required this.configured, required this.method});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = configured
-        ? method == 'account'
-              ? 'Счёт настроен'
-              : 'Карта настроена'
-        : 'Добавьте реквизиты';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: configured
-            ? Colors.green.withValues(alpha: .1)
-            : Colors.orange.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: configured ? Colors.green[800] : Colors.orange[900],
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 }
 
-class _TransactionsPanel extends StatelessWidget {
-  final List<Map<String, dynamic>> transactions;
-
-  const _TransactionsPanel({required this.transactions});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GpmColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'История начислений',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 14),
-          if (transactions.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 36),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.receipt_long_outlined,
-                      size: 42,
-                      color: Colors.grey,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Начислений пока нет',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Они появятся после подтверждения выполненного заказа.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: GpmColors.graphite),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ...transactions.map((transaction) {
-              final available = transaction['status'] == 'available';
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: (available ? Colors.green : Colors.orange)
-                      .withValues(alpha: .1),
-                  child: Icon(
-                    available ? Icons.done : Icons.schedule,
-                    color: available ? Colors.green : Colors.orange,
-                  ),
-                ),
-                title: Text(
-                  transaction['title']?.toString() ?? 'Заказ',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  '${_formatDate(transaction['date'])} · '
-                  '${available ? 'доступно' : 'на подтверждении'}',
-                ),
-                trailing: Text(
-                  '+${_formatMoney(_asInt(transaction['amount']))} ₽',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-}
-
-class _FinanceError extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _FinanceError({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off_outlined, size: 44),
-          const SizedBox(height: 12),
-          const Text('Не удалось загрузить начисления'),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Повторить'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-Map<String, dynamic> _asMap(dynamic value) {
-  if (value is Map<String, dynamic>) return value;
-  if (value is Map) {
-    return value.map((key, item) => MapEntry(key.toString(), item));
-  }
-  return <String, dynamic>{};
-}
-
-int _asInt(dynamic value) => int.tryParse(value?.toString() ?? '') ?? 0;
-
 int _orderAmount(Map<String, dynamic> order) {
-  final fixed = int.tryParse(order['individual_price']?.toString() ?? '');
-  if (fixed != null) return fixed;
-  final rate = int.tryParse(order['price_per_hour']?.toString() ?? '') ?? 0;
-  final hours = int.tryParse(order['hours']?.toString() ?? '') ?? 0;
-  return rate * hours;
+  final fixed = _asInt(order['individual_price']);
+  if (fixed > 0) return fixed;
+  return _asInt(order['price_per_hour']) * _asInt(order['hours']);
 }
 
-String _formatMoney(int value) => value.toString().replaceAllMapped(
-  RegExp(r'\B(?=(\d{3})+(?!\d))'),
-  (_) => ' ',
-);
+int _asInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
 
-String _formatDate(dynamic value) {
-  final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
-  if (date == null) return 'Дата не указана';
-  return '${date.day.toString().padLeft(2, '0')}.'
-      '${date.month.toString().padLeft(2, '0')}.${date.year}';
+String _formatMoney(int value) {
+  return value.toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => ' ',
+  );
 }

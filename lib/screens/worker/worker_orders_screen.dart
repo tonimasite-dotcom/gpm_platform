@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
+import '../../theme/gpm_theme.dart';
 
 class WorkerOrdersScreen extends StatefulWidget {
   const WorkerOrdersScreen({super.key});
@@ -91,7 +92,6 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
       child: Column(
         children: [
           const TabBar(
-            labelColor: Colors.black,
             tabs: [
               Tab(text: 'Доступные'),
               Tab(text: 'Мои'),
@@ -168,7 +168,7 @@ class OrdersList extends StatelessWidget {
         final color = _workerStatusColor(order);
 
         return Card(
-          elevation: 2,
+          elevation: 0,
           margin: const EdgeInsets.symmetric(vertical: 6),
           child: ListTile(
             title: Text(order['title'] ?? order['description'] ?? 'Заказ'),
@@ -415,8 +415,8 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
               child: ElevatedButton(
                 onPressed: _primaryAction(canApply, canComplete),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5B4FFF),
-                  foregroundColor: Colors.white,
+                  backgroundColor: GpmColors.yellow,
+                  foregroundColor: GpmColors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: isApplying || isCompleting

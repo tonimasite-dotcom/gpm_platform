@@ -1162,6 +1162,10 @@ class GpmApiService {
 
   Future<List<Map<String, dynamic>>> getOrdersForWorker(String workerId) async {
     final orders = await getOrders();
+    // In API mode the backend derives the worker from the bearer session and
+    // already returns worker_application_status/is_assigned_to_worker. Do not
+    // overwrite those server-owned fields with the local demo worker id.
+    if (isApiMode) return orders;
     return orders.map((order) => _withWorkerMeta(order, workerId)).toList();
   }
 

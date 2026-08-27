@@ -161,22 +161,22 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(text), backgroundColor: Colors.red));
   }
 
-  String? _required(String? value) {
-    return value == null || value.trim().isEmpty ? 'Заполните поле' : null;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
+    final cities = _cities.text.trim();
+    final identityStatus = _text(_profile['identity_status']);
+    final npdStatus = _text(_profile['npd_status']);
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 36),
         children: [
           Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 980),
+              constraints: const BoxConstraints(maxWidth: 1280),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -186,124 +186,57 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                       name: _name.text.trim().isEmpty
                           ? gpmApi.currentUsername
                           : _name.text.trim(),
-                      username: gpmApi.currentUsername,
+                      username: _telegram.text.trim().isEmpty
+                          ? gpmApi.currentUsername
+                          : _telegram.text.trim().replaceFirst('@', ''),
                       completion: _asInt(_profile['profile_completion']),
+                      profile: _profile,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     _Section(
                       title: 'Основные данные',
-                      icon: Icons.badge_outlined,
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _AdaptiveRow(
-                            children: [
-                              TextFormField(
-                                controller: _name,
-                                decoration: const InputDecoration(
-                                  labelText: 'ФИО',
-                                ),
-                                validator: _required,
-                              ),
-                              TextFormField(
-                                controller: _birthDate,
-                                decoration: const InputDecoration(
-                                  labelText: 'Дата рождения',
-                                  hintText: 'ДД.ММ.ГГГГ',
-                                ),
-                              ),
-                            ],
+                          _InfoRow(label: 'Телефон', value: _phone.text),
+                          _InfoRow(
+                            label: 'Дата рождения',
+                            value: _birthDate.text,
                           ),
-                          const SizedBox(height: 12),
-                          _AdaptiveRow(
-                            children: [
-                              TextFormField(
-                                controller: _phone,
-                                keyboardType: TextInputType.phone,
-                                decoration: const InputDecoration(
-                                  labelText: 'Телефон',
-                                ),
-                                validator: _required,
-                              ),
-                              TextFormField(
-                                controller: _email,
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: const InputDecoration(
-                                  labelText: 'Email',
-                                ),
-                              ),
-                              TextFormField(
-                                controller: _telegram,
-                                decoration: const InputDecoration(
-                                  labelText: 'Telegram',
-                                ),
-                              ),
-                            ],
+                          _InfoRow(
+                            label: 'Гражданство РФ',
+                            value: _nationality ? 'Да' : 'Нет',
                           ),
-                          const SizedBox(height: 12),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Гражданство РФ'),
-                            subtitle: const Text(
-                              'Используется при подборе заявок с требованиями к гражданству',
-                            ),
-                            value: _nationality,
-                            onChanged: (value) =>
-                                setState(() => _nationality = value),
+                          _InfoRow(label: 'Города', value: cities),
+                          _InfoRow(
+                            label: 'Тип занятости',
+                            value: _employmentType == 'state'
+                                ? 'Штатный'
+                                : 'Подрядчик',
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _Section(
-                      title: 'Работа и география',
-                      icon: Icons.work_outline,
-                      child: Column(
-                        children: [
-                          DropdownButtonFormField<String>(
-                            initialValue: _employmentType,
-                            decoration: const InputDecoration(
-                              labelText: 'Формат работы',
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'contract',
-                                child: Text('Подрядчик'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'state',
-                                child: Text('Штатный исполнитель'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _employmentType = value);
-                              }
-                            },
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Адрес',
+                            style: TextStyle(fontWeight: FontWeight.w700),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           TextFormField(
-                            controller: _cities,
+                            controller: _addressCity,
                             decoration: const InputDecoration(
-                              labelText: 'Города работы',
-                              hintText: 'Москва, Химки',
+                              labelText: 'Город',
+                              hintText: 'Москва',
                             ),
-                            validator: _required,
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _addressStreet,
+                            decoration: const InputDecoration(
+                              labelText: 'Улица',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           _AdaptiveRow(
                             children: [
-                              TextFormField(
-                                controller: _addressCity,
-                                decoration: const InputDecoration(
-                                  labelText: 'Город',
-                                ),
-                              ),
-                              TextFormField(
-                                controller: _addressStreet,
-                                decoration: const InputDecoration(
-                                  labelText: 'Улица',
-                                ),
-                              ),
                               TextFormField(
                                 controller: _addressHouse,
                                 decoration: const InputDecoration(
@@ -313,61 +246,53 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               TextFormField(
                                 controller: _addressApartment,
                                 decoration: const InputDecoration(
-                                  labelText: 'Квартира',
+                                  labelText: 'Кв./офис',
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 8,
-                            children: [
-                              FilterChip(
-                                label: const Text('Такелажные ремни'),
-                                selected: _hasStraps,
-                                onSelected: (value) =>
-                                    setState(() => _hasStraps = value),
-                              ),
-                              FilterChip(
-                                label: const Text('Свой инструмент'),
-                                selected: _hasTools,
-                                onSelected: (value) =>
-                                    setState(() => _hasTools = value),
                               ),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     _Section(
-                      title: 'Реквизиты для выплат',
-                      icon: Icons.account_balance_wallet_outlined,
+                      title: 'Выплаты',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          const Text(
+                            'Самозанятым по умолчанию выбрана выплата по счету.',
+                            style: TextStyle(
+                              color: GpmColors.graphite,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           SegmentedButton<String>(
                             segments: const [
                               ButtonSegment(
-                                value: '',
-                                label: Text('Не выбрано'),
+                                value: 'account',
+                                icon: Icon(Icons.account_balance_outlined),
+                                label: Text('Счёт'),
                               ),
                               ButtonSegment(
                                 value: 'card',
+                                icon: Icon(Icons.credit_card_outlined),
                                 label: Text('Карта'),
                               ),
-                              ButtonSegment(
-                                value: 'account',
-                                label: Text('Счёт'),
-                              ),
                             ],
-                            selected: {_payoutMethod},
-                            onSelectionChanged: (selection) =>
-                                setState(() => _payoutMethod = selection.first),
+                            selected: _payoutMethod.isEmpty
+                                ? const <String>{}
+                                : {_payoutMethod},
+                            emptySelectionAllowed: true,
+                            onSelectionChanged: (selection) => setState(
+                              () => _payoutMethod = selection.isEmpty
+                                  ? ''
+                                  : selection.first,
+                            ),
                           ),
                           if (_payoutMethod == 'card') ...[
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             TextFormField(
                               controller: _cardLast4,
                               keyboardType: TextInputType.number,
@@ -376,59 +301,100 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                                 LengthLimitingTextInputFormatter(4),
                               ],
                               decoration: const InputDecoration(
-                                labelText: 'Последние 4 цифры карты',
+                                labelText: 'Карта для выплат',
+                                prefixText: '**** **** **** ',
                               ),
                               validator: (value) =>
                                   value?.length == 4 ? null : 'Укажите 4 цифры',
                             ),
                           ],
                           if (_payoutMethod == 'account') ...[
-                            const SizedBox(height: 12),
-                            _AdaptiveRow(
-                              children: [
-                                TextFormField(
-                                  controller: _payoutAccount,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Расчётный счёт',
-                                  ),
-                                  validator: _required,
-                                ),
-                                TextFormField(
-                                  controller: _payoutBik,
-                                  decoration: const InputDecoration(
-                                    labelText: 'БИК',
-                                  ),
-                                  validator: _required,
-                                ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _payoutAccount,
+                              decoration: const InputDecoration(
+                                labelText: 'Счёт для выплат',
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(20),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _payoutBik,
+                              decoration: const InputDecoration(
+                                labelText: 'БИК банка',
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(9),
                               ],
                             ),
                           ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     _Section(
                       title: 'Проверки',
-                      icon: Icons.verified_user_outlined,
                       child: Column(
                         children: [
-                          _VerificationRow(
-                            title: 'Личность',
-                            status: _text(_profile['identity_status']),
+                          _CheckRow(
+                            title: 'Паспортные данные',
+                            value: _verificationLabel(identityStatus),
+                            isOk: identityStatus == 'verified',
                           ),
-                          _VerificationRow(
-                            title: 'Право на работу',
-                            status: _text(_profile['work_status']),
-                          ),
-                          _VerificationRow(
+                          _CheckRow(
                             title: 'Самозанятость / НПД',
-                            status: _text(_profile['npd_status']),
+                            value: _verificationLabel(npdStatus),
+                            isOk: npdStatus == 'verified',
+                          ),
+                          _CheckRow(
+                            title: 'Такелажные ремни',
+                            value: _hasStraps ? 'Есть' : 'Нет',
+                            isOk: _hasStraps,
+                          ),
+                          _CheckRow(
+                            title: 'Инструменты',
+                            value: _hasTools ? 'Есть' : 'Нет',
+                            isOk: _hasTools,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MetricCard(
+                            label: 'Рейтинг',
+                            value: '${_asInt(_profile['rating'])}',
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _MetricCard(
+                            label: 'Успешно',
+                            value: '${_asInt(_profile['success_requests'])}',
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _MetricCard(
+                            label: 'Срывы',
+                            value: '${_asInt(_profile['fail_requests'])}',
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    ElevatedButton.icon(
                       onPressed: _saving ? null : _save,
                       icon: _saving
                           ? const SizedBox(
@@ -456,102 +422,66 @@ class _ProfileHeader extends StatelessWidget {
   final String name;
   final String username;
   final int completion;
+  final Map<String, dynamic> profile;
 
   const _ProfileHeader({
     required this.name,
     required this.username,
     required this.completion,
+    required this.profile,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GpmColors.line),
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 30,
-            backgroundColor: GpmColors.red,
-            foregroundColor: Colors.white,
-            child: Icon(Icons.engineering_outlined, size: 31),
+    return Row(
+      children: [
+        const CircleAvatar(
+          radius: 28,
+          backgroundColor: Color(0xFF5B4FFF),
+          foregroundColor: Colors.white,
+          child: Icon(Icons.engineering, size: 29),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 3),
+              Text('@$username'),
+              const SizedBox(height: 7),
+              _StatusPill(
+                text: _workerGroupLabel(profile, completion),
+                color: Colors.green,
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 3),
-                Text(
-                  '@$username · Исполнитель',
-                  style: const TextStyle(color: GpmColors.graphite),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 72,
-            height: 72,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CircularProgressIndicator(
-                  value: completion / 100,
-                  strokeWidth: 7,
-                  backgroundColor: GpmColors.line,
-                  color: completion == 100 ? Colors.green : GpmColors.red,
-                ),
-                Center(
-                  child: Text(
-                    '$completion%',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _Section extends StatelessWidget {
   final String title;
-  final IconData icon;
   final Widget child;
 
-  const _Section({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
+  const _Section({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: GpmColors.red),
-              const SizedBox(width: 9),
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-            ],
-          ),
-          const SizedBox(height: 16),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 10),
           child,
         ],
       ),
@@ -592,41 +522,144 @@ class _AdaptiveRow extends StatelessWidget {
   }
 }
 
-class _VerificationRow extends StatelessWidget {
-  final String title;
-  final String status;
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
 
-  const _VerificationRow({required this.title, required this.status});
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    final verified = status == 'verified';
-    final pending = status == 'pending';
-    final color = verified
-        ? Colors.green
-        : pending
-        ? Colors.orange
-        : Colors.grey;
-    final label = verified
-        ? 'Подтверждено'
-        : pending
-        ? 'На проверке'
-        : status == 'rejected'
-        ? 'Нужно исправить'
-        : 'Не отправлено';
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        verified ? Icons.check_circle : Icons.shield_outlined,
-        color: color,
-      ),
-      title: Text(title),
-      trailing: Text(
-        label,
-        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF6F6F6F)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value.isEmpty ? 'Не указано' : value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _CheckRow extends StatelessWidget {
+  final String title;
+  final String value;
+  final bool isOk;
+
+  const _CheckRow({
+    required this.title,
+    required this.value,
+    required this.isOk,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        isOk ? Icons.verified : Icons.error_outline,
+        color: isOk ? Colors.green : Colors.orange,
+      ),
+      title: Text(title),
+      subtitle: Text(value),
+      dense: true,
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _StatusPill({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 11, color: color)),
+    );
+  }
+}
+
+String _workerGroupLabel(Map<String, dynamic> profile, int completion) {
+  if (profile['employment_type'] == 'state') return 'Группа 1: штатный';
+  final russian = profile['nationality'] == true;
+  final identity = profile['identity_status'] == 'verified';
+  final npd = profile['npd_status'] == 'verified';
+  if (russian && identity && npd) {
+    return 'Группа 2: РФ, паспорт, самозанятый';
+  }
+  if (russian && npd) return 'Группа 3: РФ, самозанятый';
+  if (identity && npd) return 'Группа 4: паспорт, самозанятый';
+  if (npd) return 'Группа 5: самозанятый';
+  if (russian && identity) return 'Группа 6: РФ, паспорт';
+  if (identity) return 'Группа 7: паспорт';
+  if (russian) return 'Группа 8: РФ';
+  return 'Профиль заполнен на $completion%';
+}
+
+String _verificationLabel(String status) {
+  return switch (status) {
+    'verified' => 'Подтверждено',
+    'pending' => 'На проверке',
+    'rejected' => 'Нужно исправить',
+    _ => 'Не подтверждено',
+  };
 }
 
 String _text(dynamic value) => value?.toString().trim() ?? '';
