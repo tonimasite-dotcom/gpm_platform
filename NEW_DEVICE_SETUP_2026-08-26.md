@@ -57,16 +57,18 @@ git rev-parse origin/main
 git log -5 --oneline
 ```
 
-Ожидается чистый `main`. HEAD будет не ниже production-коммита `a6fac5c`.
-Документационный snapshot-коммит может быть новее и не требует redeploy.
+Ожидается чистый `main`. HEAD будет не ниже frontend production-коммита
+`b9ebdfa`. Документационный snapshot-коммит может быть новее и не требует
+redeploy. Backend production остаётся на `a6fac5c`, пока не опубликовано более
+новое backend-изменение.
 
 ## 4. Прочитать точку продолжения
 
 В этом порядке:
 
 ```text
-PROJECT_HANDOFF_2026-08-26_ROLE_WORKSPACES.md
-CONTINUE_PROJECT_PROMPT_2026-08-26_ROLE_WORKSPACES.md
+PROJECT_HANDOFF_2026-08-27_WORKER_DESIGN_RELEASE.md
+CONTINUE_PROJECT_PROMPT_2026-08-27_WORKER_DESIGN_RELEASE.md
 README.md
 PROJECT_AUDIT_2026-08-25.md
 LEGAL_READINESS_RU.md
@@ -171,7 +173,7 @@ Workflow хранит rollback кода, venv и frontend. Он не замен�
 Откройте файл:
 
 ```text
-CONTINUE_PROJECT_PROMPT_2026-08-26_ROLE_WORKSPACES.md
+CONTINUE_PROJECT_PROMPT_2026-08-27_WORKER_DESIGN_RELEASE.md
 ```
 
 Скопируйте его целиком в новый чат. После read-only проверки выберите одну

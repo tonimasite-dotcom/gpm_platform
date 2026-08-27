@@ -7,8 +7,10 @@
 > Публичный пилот допустим только после закрытия P0 из
 > `PROJECT_AUDIT_2026-08-25.md` и `LEGAL_READINESS_RU.md`.
 >
-> Текущий технический production release: `a6fac5c`, опубликован 26.08.2026.
-> Полная точка продолжения: `PROJECT_HANDOFF_2026-08-26_ROLE_WORKSPACES.md`.
+> Текущий production frontend: `b9ebdfa`, опубликован 27.08.2026.
+> Текущий production backend: `a6fac5c`, опубликован 26.08.2026.
+> Полная точка продолжения:
+> `PROJECT_HANDOFF_2026-08-27_WORKER_DESIGN_RELEASE.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
