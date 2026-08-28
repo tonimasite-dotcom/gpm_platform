@@ -2059,7 +2059,12 @@ def normalize_external_order(
         "work_mode": order_data.get("work_mode", "rate"),
         "shift_description": order_data.get("shift_description"),
         "telegram_username": str(payload.get("telegram_username") or "").replace("@", ""),
-        "logist_phone": str(payload.get("logist_phone") or ""),
+        "logist_phone": bounded_text(
+            payload.get("logist_phone"),
+            "logist_phone",
+            max_length=40,
+        ),
+        "logist_account_id": "",
         "timezone": order_data.get("timezone", "Europe/Moscow"),
         "additional_info": additional,
         "address_street": info.get("address_street") or address,
@@ -2126,6 +2131,7 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
             "client_phone",
             "telegram_username",
             "logist_phone",
+            "logist_account_id",
             "created_by",
             "created_by_role",
         ):
@@ -2140,8 +2146,7 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
             ):
                 visible.pop(field, None)
     elif role == "client":
-        visible.pop("applications", None)
-        visible.pop("assigned_worker_ids", None)
+        visible.pop("logist_account_id", None)
     return visible
 
 
@@ -2155,26 +2160,24 @@ def orders_for_user(
     username = str(user.get("sub") or "")
     if role == "client":
         orders = [order for order in orders if order.get("created_by") == username]
-    elif role == "logist" and profile is not None:
-        current_logist_phone = normalized_phone_identity(profile.get("phone"))
+    elif role == "logist":
         orders = [
             order
             for order in orders
-            if str(order.get("status") or "").upper() != "NEW"
-            or not normalized_phone_identity(order.get("logist_phone"))
-            or normalized_phone_identity(order.get("logist_phone"))
-            == current_logist_phone
+            if logist_owns_order(order, user, profile=profile)
         ]
     elif role == "worker":
+        account_id = str(user.get("sub") or "")
         orders = [
             order
             for order in orders
-            if str(order.get("status") or "") == "PROCESSED"
+            if worker_can_discover_order(order, profile)
             or (
-                str(user.get("sub") or "")
-                in [str(item) for item in order.get("assigned_worker_ids") or []]
+                account_id in [
+                    str(item) for item in order.get("assigned_worker_ids") or []
+                ]
                 and str(order.get("status") or "")
-                in {"IN_PROCESS", "DONE_PENDING", "CONVERTED"}
+                in {"PROCESSED", "IN_PROCESS", "DONE_PENDING", "CONVERTED"}
             )
         ]
     return [order_for_user(order, user) for order in orders]
@@ -2188,6 +2191,100 @@ def normalized_phone_identity(value: Any) -> str:
     return digits[-10:] if len(digits) >= 10 else digits
 
 
+def normalized_city_identity(value: Any) -> str:
+    city = " ".join(str(value or "").casefold().replace("ё", "е").split())
+    for prefix in ("город ", "г. ", "г "):
+        if city.startswith(prefix):
+            city = city[len(prefix) :]
+            break
+    return city.strip(" .,\t\r\n")
+
+
+def worker_profile_cities(profile: dict[str, Any] | None) -> set[str]:
+    if profile is None:
+        return set()
+    raw_cities = profile.get("cities")
+    if isinstance(raw_cities, list):
+        values = raw_cities
+    else:
+        values = [profile.get("city")]
+    return {
+        normalized
+        for value in values
+        if (normalized := normalized_city_identity(value))
+    }
+
+
+def worker_can_discover_order(
+    order: dict[str, Any], profile: dict[str, Any] | None
+) -> bool:
+    if str(order.get("status") or "").upper() != "PROCESSED":
+        return False
+    order_city = normalized_city_identity(order.get("city"))
+    return bool(order_city and order_city in worker_profile_cities(profile))
+
+
+def logist_owns_order(
+    order: dict[str, Any],
+    user: dict[str, Any],
+    *,
+    profile: dict[str, Any] | None = None,
+) -> bool:
+    account_id = str(user.get("sub") or "")
+    routed_account_id = str(order.get("logist_account_id") or "")
+    if routed_account_id:
+        return routed_account_id == account_id
+    if (
+        str(order.get("created_by_role") or "") == "logist"
+        and str(order.get("created_by") or "") == account_id
+    ):
+        return True
+    routed_phone = normalized_phone_identity(order.get("logist_phone"))
+    current_phone = normalized_phone_identity((profile or {}).get("phone"))
+    return bool(routed_phone and current_phone and routed_phone == current_phone)
+
+
+def resolve_active_logist_account_id(logist_phone: Any) -> str:
+    target_phone = normalized_phone_identity(logist_phone)
+    if len(target_phone) != 10:
+        raise ValueError("logist_phone must contain a valid Russian phone number")
+    init_db()
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT a.account_id, p.data
+                    FROM {ACCOUNTS_TABLE_NAME} a
+                    LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+                    WHERE a.role = %s AND a.is_active = TRUE
+                    """,
+                    ("logist",),
+                )
+                rows = cursor.fetchall()
+        else:
+            rows = connection.execute(
+                f"""
+                SELECT a.account_id, p.data
+                FROM {ACCOUNTS_TABLE_NAME} a
+                LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+                WHERE a.role = ? AND a.is_active = 1
+                """,
+                ("logist",),
+            ).fetchall()
+    matches = [
+        str(row[0])
+        for row in rows
+        if normalized_phone_identity(_profile_from_row((row[1],)).get("phone"))
+        == target_phone
+    ]
+    if not matches:
+        raise ValueError("logist_phone does not match an active GPM logist")
+    if len(matches) > 1:
+        raise ValueError("logist_phone matches more than one active GPM logist")
+    return matches[0]
+
+
 def require_role(user: dict[str, Any], *allowed_roles: str) -> None:
     if user.get("role") not in allowed_roles:
         raise HTTPException(status_code=403, detail="insufficient permissions")
@@ -2199,6 +2296,7 @@ def validate_order_patch(
     *,
     actor: dict[str, Any] | None,
     integration: bool,
+    actor_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     allowed_fields = WORKFLOW_FIELDS if integration else {"status"}
     unknown_fields = set(patch) - allowed_fields
@@ -2242,13 +2340,19 @@ def validate_order_patch(
         username = str(actor.get("sub") or "")
         target_status = normalized.get("status")
         if role == "logist":
-            pass
+            if not logist_owns_order(order, actor, profile=actor_profile):
+                raise HTTPException(status_code=403, detail="insufficient permissions")
         elif role == "client":
-            if (
-                order.get("created_by") != username
-                or str(order.get("status") or "").upper() != "NEW"
-                or target_status != "JUNK"
-            ):
+            current_status = str(order.get("status") or "").upper()
+            owns_order = order.get("created_by") == username
+            allowed_transition = (
+                current_status == "NEW"
+                and target_status in {"PROCESSED", "JUNK"}
+            ) or (
+                current_status == "DONE_PENDING"
+                and target_status in {"CONVERTED", "IN_PROCESS"}
+            )
+            if not owns_order or not allowed_transition:
                 raise HTTPException(status_code=403, detail="insufficient permissions")
         elif role == "worker":
             assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
@@ -2295,6 +2399,9 @@ def patch_order_atomically(
     integration: bool,
 ) -> dict[str, Any]:
     init_db()
+    actor_profile = None
+    if actor is not None and str(actor.get("role") or "") == "logist":
+        actor_profile = get_account_profile(actor)
     with db_connection() as connection:
         if not is_postgres_enabled():
             connection.execute("BEGIN IMMEDIATE")
@@ -2305,6 +2412,7 @@ def patch_order_atomically(
             order,
             patch,
             actor=actor,
+            actor_profile=actor_profile,
             integration=integration,
         )
         if not normalized_patch:
@@ -3191,6 +3299,7 @@ def apply_to_order_atomically(
 ) -> dict[str, Any]:
     require_role(user, "worker")
     account_id = str(user.get("sub") or "")
+    profile = get_account_profile(user)
     with db_connection() as connection:
         if _is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
@@ -3199,6 +3308,8 @@ def apply_to_order_atomically(
             raise HTTPException(status_code=404, detail="order not found")
         if str(order.get("status") or "") != "PROCESSED":
             raise HTTPException(status_code=409, detail="order is not accepting applications")
+        if not worker_can_discover_order(order, profile):
+            raise HTTPException(status_code=403, detail="order is outside worker cities")
         applications = [
             dict(item)
             for item in order.get("applications") or []
@@ -3237,7 +3348,9 @@ def decide_order_application_atomically(
     decision: str,
     user: dict[str, Any],
 ) -> dict[str, Any]:
-    require_role(user, "logist")
+    require_role(user, "logist", "client")
+    role = str(user.get("role") or "")
+    profile = get_account_profile(user) if role == "logist" else None
     normalized_decision = decision.strip().upper()
     if normalized_decision not in {"APPROVED", "REJECTED"}:
         raise HTTPException(status_code=422, detail="invalid application decision")
@@ -3247,6 +3360,14 @@ def decide_order_application_atomically(
         order = read_order_in_connection(connection, order_id, for_update=True)
         if order is None:
             raise HTTPException(status_code=404, detail="order not found")
+        if role == "logist":
+            allowed = logist_owns_order(order, user, profile=profile)
+        else:
+            allowed = str(order.get("created_by") or "") == str(
+                user.get("sub") or ""
+            )
+        if not allowed:
+            raise HTTPException(status_code=403, detail="insufficient permissions")
         applications = [
             dict(item)
             for item in order.get("applications") or []
@@ -3356,8 +3477,8 @@ def account_dashboard(user: dict[str, Any]) -> dict[str, Any]:
     role = str(user.get("role") or "")
     account_id = str(user.get("sub") or "")
     all_orders = list_orders()
-    visible_orders = orders_for_user(all_orders, user)
     profile = get_account_profile(user)
+    visible_orders = orders_for_user(all_orders, user, profile=profile)
     summary: dict[str, Any]
     if role == "worker":
         applications = [
@@ -3375,7 +3496,7 @@ def account_dashboard(user: dict[str, Any]) -> dict[str, Any]:
             "available_orders": sum(
                 str(order.get("status") or "") == "PROCESSED"
                 and _worker_application(order, account_id) is None
-                for order in all_orders
+                for order in visible_orders
             ),
             "pending_applications": sum(
                 str(item.get("status") or "") == "PENDING" for item in applications
@@ -3405,17 +3526,17 @@ def account_dashboard(user: dict[str, Any]) -> dict[str, Any]:
         }
     else:
         summary = {
-            "total_orders": len(all_orders),
+            "total_orders": len(visible_orders),
             "new_orders": sum(
-                str(order.get("status") or "") == "NEW" for order in all_orders
+                str(order.get("status") or "") == "NEW" for order in visible_orders
             ),
             "active_orders": sum(
                 str(order.get("status") or "") in {"PROCESSED", "IN_PROCESS"}
-                for order in all_orders
+                for order in visible_orders
             ),
             "pending_applications": sum(
                 str(item.get("status") or "") == "PENDING"
-                for order in all_orders
+                for order in visible_orders
                 for item in order.get("applications") or []
                 if isinstance(item, dict)
             ),
@@ -3523,7 +3644,9 @@ def _ensure_order_chat_threads(connection: Any, orders: list[dict[str, Any]]) ->
         order_id = str(order.get("id") or order.get("external_order_id") or "")
         if not order_id:
             continue
-        if order.get("created_by"):
+        if order.get("created_by") and (
+            order.get("logist_account_id") or order.get("logist_phone")
+        ):
             _ensure_chat_thread_in_connection(connection, order, "clientLogist")
         assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
         if assigned:
@@ -3549,6 +3672,8 @@ def _chat_thread_access(
     connection: Any,
     row: Any,
     user: dict[str, Any],
+    *,
+    profile: dict[str, Any] | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
     if row is None:
         return False, None
@@ -3559,7 +3684,7 @@ def _chat_thread_access(
     account_id = str(user.get("sub") or "")
     thread_type = str(row[2])
     if role == "logist":
-        return True, order
+        return logist_owns_order(order, user, profile=profile), order
     if role == "client":
         return (
             order.get("created_by") == account_id
@@ -3633,6 +3758,11 @@ def _serialize_chat_message(row: Any) -> dict[str, Any]:
 def list_account_chat_threads(user: dict[str, Any]) -> list[dict[str, Any]]:
     orders = list_orders()
     account_id = str(user.get("sub") or "")
+    profile = (
+        get_account_profile(user)
+        if str(user.get("role") or "") == "logist"
+        else None
+    )
     result: list[dict[str, Any]] = []
     with db_connection() as connection:
         _ensure_order_chat_threads(connection, orders)
@@ -3657,7 +3787,9 @@ def list_account_chat_threads(user: dict[str, Any]) -> list[dict[str, Any]]:
                 """
             ).fetchall()
         for row in rows:
-            allowed, order = _chat_thread_access(connection, row, user)
+            allowed, order = _chat_thread_access(
+                connection, row, user, profile=profile
+            )
             if not allowed or order is None:
                 continue
             messages = _messages_for_thread_in_connection(connection, str(row[0]))
@@ -3703,9 +3835,16 @@ def get_account_chat_messages(
     thread_id: str,
     user: dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    profile = (
+        get_account_profile(user)
+        if str(user.get("role") or "") == "logist"
+        else None
+    )
     with db_connection() as connection:
         row = _read_chat_thread_in_connection(connection, thread_id)
-        allowed, order = _chat_thread_access(connection, row, user)
+        allowed, order = _chat_thread_access(
+            connection, row, user, profile=profile
+        )
         if not allowed or row is None or order is None:
             raise HTTPException(status_code=404, detail="chat thread not found")
         messages = [
@@ -3752,9 +3891,12 @@ def send_account_chat_message(
     user: dict[str, Any],
 ) -> dict[str, Any]:
     clean_text = bounded_text(text, "message", max_length=2000, required=True)
+    profile = get_account_profile(user)
     with db_connection() as connection:
         row = _read_chat_thread_in_connection(connection, thread_id)
-        allowed, _ = _chat_thread_access(connection, row, user)
+        allowed, _ = _chat_thread_access(
+            connection, row, user, profile=profile
+        )
         if not allowed or row is None:
             raise HTTPException(status_code=404, detail="chat thread not found")
         if bool(row[3]):
@@ -3763,7 +3905,7 @@ def send_account_chat_message(
         account_id = str(user.get("sub") or "")
         role = str(user.get("role") or "")
         sender_name = str(
-            get_account_profile(user).get("display_name")
+            profile.get("display_name")
             or user.get("username")
             or "Пользователь"
         )
@@ -3834,9 +3976,16 @@ def set_chat_attention(
     *,
     requires_attention: bool,
 ) -> None:
+    profile = (
+        get_account_profile(user)
+        if str(user.get("role") or "") == "logist"
+        else None
+    )
     with db_connection() as connection:
         row = _read_chat_thread_in_connection(connection, thread_id)
-        allowed, _ = _chat_thread_access(connection, row, user)
+        allowed, _ = _chat_thread_access(
+            connection, row, user, profile=profile
+        )
         if not allowed or row is None:
             raise HTTPException(status_code=404, detail="chat thread not found")
         role = str(user.get("role") or "")
@@ -3857,9 +4006,16 @@ def set_chat_attention(
 
 
 def request_chat_support(thread_id: str, user: dict[str, Any]) -> str:
+    profile = (
+        get_account_profile(user)
+        if str(user.get("role") or "") == "logist"
+        else None
+    )
     with db_connection() as connection:
         row = _read_chat_thread_in_connection(connection, thread_id)
-        allowed, order = _chat_thread_access(connection, row, user)
+        allowed, order = _chat_thread_access(
+            connection, row, user, profile=profile
+        )
         if not allowed or row is None or order is None:
             raise HTTPException(status_code=404, detail="chat thread not found")
         if str(user.get("role") or "") == "logist":
@@ -4246,7 +4402,7 @@ async def get_my_orders(
     user = await authenticated_user(authorization)
     orders = await asyncio.to_thread(list_orders)
     profile = None
-    if user.get("role") == "logist":
+    if user.get("role") in {"logist", "worker"}:
         profile = await asyncio.to_thread(get_account_profile, user)
     return {"orders": orders_for_user(orders, user, profile=profile)}
 
@@ -4326,6 +4482,13 @@ async def publish_order_payload(
             created_by=str(actor.get("sub") or "") if actor else None,
             created_by_role=str(actor.get("role") or "") if actor else None,
         )
+        if integration:
+            order["logist_account_id"] = await asyncio.to_thread(
+                resolve_active_logist_account_id,
+                order.get("logist_phone"),
+            )
+        elif actor is not None and str(actor.get("role") or "") == "logist":
+            order["logist_account_id"] = str(actor.get("sub") or "")
     except (json.JSONDecodeError, ValueError, TypeError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 

@@ -156,6 +156,7 @@ development.
 
 Required fields:
 
+- `logist_phone` — phone from the target active GPM logist profile
 - `order_data.order_number`
 - `order_data.completion_date.date`
 - `order_data.loaders.loader_count`
@@ -163,15 +164,25 @@ Required fields:
 
 Publishing the same `order_number` again updates the stored app order.
 
+GPM resolves `logist_phone` to a single active logist account when the CRM POST
+is accepted. The assigned account ID, rather than browser storage, controls all
+logist reads and mutations. A missing phone, an unknown phone, or a phone shared
+by multiple active logist profiles is rejected. CRM orders never enter a shared
+logist queue.
+
+Workers receive a published `PROCESSED` order only when its normalized `city`
+matches one of the values in the worker profile `cities` list. The list may
+contain multiple cities. Direct application requests enforce the same rule.
+
 ## Internal publication flow
 
 1. CRM sends the payload to `POST /app-api/orders`.
 2. GPM stores a new order with status `NEW`.
-3. If `logist_phone` is present, only the GPM logist whose server-backed profile
-   has the same phone sees the new draft. Russian `+7` and `8` formats match.
-4. If `logist_phone` is absent, the draft appears in the shared moderation queue.
+3. GPM requires `logist_phone`, resolves it to one active server-backed logist
+   account, and rejects missing, unknown, or ambiguous values.
+4. Only that assigned logist can review the draft or its applications.
 5. The logist presses `Опубликовать`; GPM changes the status to `PROCESSED`.
-6. Only then does the order become visible to workers inside GPM.
+6. Only workers whose profile contains the order city can discover it.
 
 The active integration does not call a Telegram bot and does not use messenger
 usernames as routing identifiers. See `INDEPENDENT_PLATFORM_ARCHITECTURE.md`.
