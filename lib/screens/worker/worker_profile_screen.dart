@@ -17,7 +17,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
-  final _email = TextEditingController();
   final _birthDate = TextEditingController();
   final _cities = TextEditingController();
   final _addressCity = TextEditingController();
@@ -49,7 +48,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     for (final controller in [
       _name,
       _phone,
-      _email,
       _birthDate,
       _cities,
       _addressCity,
@@ -75,7 +73,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       _profile = Map<String, dynamic>.from(raw);
       _name.text = _text(raw['display_name'] ?? raw['full_name']);
       _phone.text = _text(raw['phone'] ?? raw['phone_number']);
-      _email.text = _text(raw['email']);
       _birthDate.text = _text(raw['date_birth']);
       _cities.text = (raw['cities'] as List? ?? const []).join(', ');
       _addressCity.text = _text(raw['address_city']);
@@ -106,7 +103,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     final patch = <String, dynamic>{
       'display_name': _name.text.trim(),
       'phone': _phone.text.trim(),
-      'email': _email.text.trim(),
       'date_birth': _birthDate.text.trim(),
       'nationality': _nationality,
       'cities': _cities.text
@@ -298,13 +294,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                                   labelText: 'Телефон',
                                 ),
                                 validator: _required,
-                              ),
-                              TextFormField(
-                                controller: _email,
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: const InputDecoration(
-                                  labelText: 'Email',
-                                ),
                               ),
                             ],
                           ),

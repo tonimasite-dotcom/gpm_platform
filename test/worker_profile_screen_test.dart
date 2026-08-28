@@ -23,6 +23,7 @@ void main() {
 
     expect(find.text('Кабинет исполнителя'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'ФИО'), findsOneWidget);
+    expect(find.text('Email'), findsNothing);
     expect(find.text('Такелажные ремни'), findsOneWidget);
     expect(find.text('Свои инструменты'), findsOneWidget);
     expect(find.text('Отправить паспорт на проверку'), findsOneWidget);
