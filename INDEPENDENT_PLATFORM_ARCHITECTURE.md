@@ -14,20 +14,27 @@ CRM -- server-to-server API --> GPM backend --> PostgreSQL --> GPM applications
 ```
 
 1. CRM sends an order to `POST /app-api/orders` with `X-Gpm-App-Token`.
-2. GPM stores it as a `NEW` moderation draft.
-3. The assigned logist reviews it in the GPM logist workspace.
+2. GPM resolves the required `logist_phone` to exactly one active logist
+   account and stores that account ID with the `NEW` draft.
+3. Only the assigned logist can read, publish, or process applications for the
+   CRM order.
 4. Publishing changes the status to `PROCESSED` through the authenticated GPM
    endpoint `PATCH /app-api/me/orders/{order_id}`.
-5. Workers discover the published order and apply inside GPM.
+5. Workers discover the published order only when its city is one of the cities
+   selected in their server-backed profile, and apply inside GPM.
 6. Assignments, lifecycle statuses, finance, notifications, and chats remain
    internal to GPM.
 
 The integration token is server-side only and must never be embedded in the
 Flutter application or committed to Git.
 
-`logist_phone` may be supplied by the CRM to route a `NEW` draft to the matching
-GPM logist profile. A draft without `logist_phone` is placed in the shared
-logist moderation queue.
+`logist_phone` is required for CRM publication. It must match exactly one active
+GPM logist profile after Russian `+7`/`8` normalization. Missing, unknown, or
+ambiguous phones are rejected; there is no shared CRM moderation queue.
+
+Client-created orders are independent from the CRM flow. A client sees only
+orders created by that account, can publish an own order directly to workers,
+and can accept applications and completion only for that own order.
 
 Legacy bot modules and legacy Telegram-shaped fields are not part of this active
 workflow and must not be enabled or used as an integration transport.

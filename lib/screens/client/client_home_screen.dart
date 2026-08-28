@@ -19,7 +19,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   Widget build(BuildContext context) {
     final screens = [
       const ClientOrdersScreen(),
-      ClientCreateOrderScreen(onBack: () => setState(() => _currentIndex = 0)),
+      ClientCreateOrderScreen(
+        publishImmediately: true,
+        onBack: () => setState(() => _currentIndex = 0),
+      ),
       const ChatThreadsScreen(role: ChatRole.client),
       const ClientProfileScreen(),
     ];

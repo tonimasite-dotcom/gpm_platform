@@ -201,44 +201,74 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual([item["id"] for item in visible], ["ORDER-1"])
 
-    def test_logist_only_sees_new_orders_routed_to_profile_phone(self) -> None:
+    def test_logist_only_sees_own_orders(self) -> None:
         assigned_payload = sample_payload()
         assigned_payload["logist_phone"] = "+7 900 111-22-33"
         assigned_payload["order_data"]["order_number"] = "ORDER-ASSIGNED"
-        assigned = api.normalize_external_order(
-            assigned_payload
-        )
+        assigned = api.normalize_external_order(assigned_payload)
+        assigned["logist_account_id"] = "logist-1"
         other_payload = sample_payload()
         other_payload["logist_phone"] = "8 (900) 999-88-77"
         other_payload["order_data"]["order_number"] = "ORDER-OTHER"
-        other = api.normalize_external_order(
-            other_payload
-        )
-        shared_payload = sample_payload()
-        shared_payload["logist_phone"] = ""
-        shared_payload["order_data"]["order_number"] = "ORDER-SHARED"
-        shared = api.normalize_external_order(
-            shared_payload
-        )
+        other = api.normalize_external_order(other_payload)
+        other["logist_account_id"] = "logist-2"
+        legacy_payload = sample_payload()
+        legacy_payload["logist_phone"] = "8 (900) 111-22-33"
+        legacy_payload["order_data"]["order_number"] = "ORDER-LEGACY"
+        legacy = api.normalize_external_order(legacy_payload)
+        unrouted_payload = sample_payload()
+        unrouted_payload["logist_phone"] = ""
+        unrouted_payload["order_data"]["order_number"] = "ORDER-UNROUTED"
+        unrouted = api.normalize_external_order(unrouted_payload)
         published = {**other, "id": "ORDER-PUBLISHED", "status": "PROCESSED"}
+        own_manual = api.normalize_external_order(
+            sample_payload(source="manual"),
+            created_by="logist-1",
+            created_by_role="logist",
+        )
 
         visible = api.orders_for_user(
-            [assigned, other, shared, published],
+            [assigned, other, legacy, unrouted, published, own_manual],
             {"sub": "logist-1", "role": "logist"},
             profile={"phone": "8 900 111 22 33"},
         )
 
         self.assertEqual(
             [item["id"] for item in visible],
-            ["ORDER-ASSIGNED", "ORDER-SHARED", "ORDER-PUBLISHED"],
+            ["ORDER-ASSIGNED", "ORDER-LEGACY", "ORDER-1"],
         )
 
-    def test_logist_publication_makes_crm_order_visible_to_workers(self) -> None:
-        order = api.normalize_external_order(sample_payload())
+    def test_worker_only_discovers_published_orders_in_profile_cities(self) -> None:
+        moscow_payload = sample_payload()
+        moscow_payload["city"] = "г. Москва"
+        moscow = api.normalize_external_order(moscow_payload)
+        moscow["status"] = "PROCESSED"
+        petersburg_payload = sample_payload()
+        petersburg_payload["city"] = "Санкт-Петербург"
+        petersburg_payload["order_data"]["order_number"] = "ORDER-SPB"
+        petersburg = api.normalize_external_order(petersburg_payload)
+        petersburg["status"] = "PROCESSED"
+
+        visible = api.orders_for_user(
+            [moscow, petersburg],
+            {"sub": "worker-1", "role": "worker"},
+            profile={"cities": ["Казань", "Москва"]},
+        )
+
+        self.assertEqual([item["id"] for item in visible], ["ORDER-1"])
+
+    def test_logist_publication_makes_city_order_visible_to_workers(self) -> None:
+        payload = sample_payload()
+        payload["city"] = "Москва"
+        order = api.normalize_external_order(payload)
+        order["logist_account_id"] = "logist-1"
         logist = {"sub": "logist-1", "role": "logist"}
         worker = {"sub": "worker-1", "role": "worker"}
+        worker_profile = {"cities": ["Москва", "Казань"]}
 
-        self.assertEqual(api.orders_for_user([order], worker), [])
+        self.assertEqual(
+            api.orders_for_user([order], worker, profile=worker_profile), []
+        )
 
         patch = api.validate_order_patch(
             order,
@@ -249,7 +279,24 @@ class ActiveApiTests(unittest.TestCase):
         published = {**order, **patch}
 
         self.assertEqual(published["status"], "PROCESSED")
-        self.assertEqual(len(api.orders_for_user([published], worker)), 1)
+        self.assertEqual(
+            len(api.orders_for_user([published], worker, profile=worker_profile)),
+            1,
+        )
+
+    def test_logist_cannot_publish_another_logists_order(self) -> None:
+        order = api.normalize_external_order(sample_payload())
+        order["logist_account_id"] = "logist-2"
+
+        with self.assertRaises(HTTPException) as caught:
+            api.validate_order_patch(
+                order,
+                {"status": "PROCESSED"},
+                actor={"sub": "logist-1", "role": "logist"},
+                integration=False,
+            )
+
+        self.assertEqual(caught.exception.status_code, 403)
 
     def test_public_patch_rejects_unknown_fields(self) -> None:
         order = api.normalize_external_order(
@@ -814,8 +861,22 @@ class ActiveApiTests(unittest.TestCase):
                     api.get_account_profile(client)["display_name"],
                     profile["display_name"],
                 )
+                api.update_account_profile(
+                    logist,
+                    {
+                        "display_name": "Тестовый логист",
+                        "phone": "+7 900 111-22-33",
+                        "email": "logist@example.test",
+                        "cities": ["Москва"],
+                    },
+                )
+                self.assertEqual(
+                    api.resolve_active_logist_account_id("8 (900) 111-22-33"),
+                    logist["sub"],
+                )
 
                 payload = sample_payload(source="manual")
+                payload["city"] = "Москва"
                 payload["order_data"]["loaders"]["loader_count"] = 1
                 payload["order_data"]["price_per_hour"] = 700
                 order = api.persist_published_order(
@@ -829,18 +890,42 @@ class ActiveApiTests(unittest.TestCase):
                 order = api.patch_order_atomically(
                     order["id"],
                     {"status": "PROCESSED"},
-                    actor=None,
-                    integration=True,
+                    actor=client,
+                    integration=False,
                 )
+                outside_payload = sample_payload(source="manual")
+                outside_payload["city"] = "Санкт-Петербург"
+                outside_payload["order_data"]["order_number"] = "ORDER-SPB"
+                outside = api.persist_published_order(
+                    api.normalize_external_order(
+                        outside_payload,
+                        created_by=client["sub"],
+                        created_by_role="client",
+                    ),
+                    actor=client,
+                )
+                api.patch_order_atomically(
+                    outside["id"],
+                    {"status": "PROCESSED"},
+                    actor=client,
+                    integration=False,
+                )
+                with self.assertRaises(HTTPException) as caught:
+                    api.apply_to_order_atomically(outside["id"], worker)
+                self.assertEqual(caught.exception.status_code, 403)
                 application = api.apply_to_order_atomically(order["id"], worker)
                 api.decide_order_application_atomically(
                     order["id"],
                     application["id"],
                     "APPROVED",
-                    logist,
+                    client,
                 )
 
-                worker_order = api.orders_for_user(api.list_orders(), worker)[0]
+                worker_order = api.orders_for_user(
+                    api.list_orders(),
+                    worker,
+                    profile=api.get_account_profile(worker),
+                )[0]
                 self.assertTrue(worker_order["is_assigned_to_worker"])
                 self.assertEqual(worker_order["worker_application_status"], "APPROVED")
                 self.assertIn("address", worker_order)
@@ -851,21 +936,31 @@ class ActiveApiTests(unittest.TestCase):
                 worker_threads = api.list_account_chat_threads(worker)
                 client_threads = api.list_account_chat_threads(client)
                 self.assertEqual(len(worker_threads), 2)
-                self.assertEqual(len(client_threads), 2)
-                worker_logist_thread = next(
+                self.assertEqual(len(client_threads), 1)
+                self.assertEqual(
+                    api.account_dashboard(logist)["summary"]["total_orders"], 0
+                )
+                worker_client_thread = next(
                     thread
                     for thread in worker_threads
-                    if thread["type"] == "workerLogist"
+                    if thread["type"] == "clientWorker"
                 )
                 api.send_account_chat_message(
-                    worker_logist_thread["id"], "Выхожу на заказ", worker
+                    worker_client_thread["id"], "Выхожу на заказ", worker
                 )
                 logist_threads = api.list_account_chat_threads(logist)
+                self.assertFalse(
+                    any(
+                        thread["order_id"] == order["id"]
+                        for thread in logist_threads
+                    )
+                )
+                client_threads = api.list_account_chat_threads(client)
                 self.assertTrue(
                     next(
                         thread
-                        for thread in logist_threads
-                        if thread["id"] == worker_logist_thread["id"]
+                        for thread in client_threads
+                        if thread["id"] == worker_client_thread["id"]
                     )["requires_logist_attention"]
                 )
 
@@ -878,7 +973,7 @@ class ActiveApiTests(unittest.TestCase):
                 api.patch_order_atomically(
                     order["id"],
                     {"status": "CONVERTED"},
-                    actor=logist,
+                    actor=client,
                     integration=False,
                 )
                 finance = api.account_finance(worker)

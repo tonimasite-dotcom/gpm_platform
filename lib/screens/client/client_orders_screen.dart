@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show supabase;
+import '../../main.dart' show gpmApi, supabase;
 
 enum _SortMode { dateDesc, dateAsc, byStatus, byWorkers }
 
@@ -238,10 +238,81 @@ class _SortTile extends StatelessWidget {
   }
 }
 
-class ClientOrderDetailsScreen extends StatelessWidget {
+class ClientOrderDetailsScreen extends StatefulWidget {
   final String orderId;
 
   const ClientOrderDetailsScreen({super.key, required this.orderId});
+
+  @override
+  State<ClientOrderDetailsScreen> createState() =>
+      _ClientOrderDetailsScreenState();
+}
+
+class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
+  late Future<Map<String, dynamic>?> _orderFuture;
+  String? _pendingAction;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _orderFuture = gpmApi.getOrderById(widget.orderId);
+  }
+
+  Future<void> _decideApplication(
+    String applicationId,
+    bool approve,
+  ) async {
+    setState(() => _pendingAction = applicationId);
+    final result = approve
+        ? await gpmApi.approveApplication(
+            orderId: widget.orderId,
+            applicationId: applicationId,
+          )
+        : await gpmApi.rejectApplication(
+            applicationId,
+            orderId: widget.orderId,
+          );
+    if (!mounted) return;
+    if (result['success'] == true) {
+      setState(() {
+        _pendingAction = null;
+        _reload();
+      });
+      return;
+    }
+    setState(() => _pendingAction = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result['error']?.toString() ?? 'Не удалось изменить отклик',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _acceptWork() async {
+    setState(() => _pendingAction = 'accept-work');
+    final success = await gpmApi.updateOrderStatus(
+      widget.orderId,
+      'CONVERTED',
+    );
+    if (!mounted) return;
+    if (success) {
+      setState(() {
+        _pendingAction = null;
+        _reload();
+      });
+      return;
+    }
+    setState(() => _pendingAction = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Не удалось принять выполненную работу')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +321,7 @@ class ClientOrderDetailsScreen extends StatelessWidget {
         title: const Text('Детали заказа'),
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
-        future: supabase.from('orders').select().eq('id', orderId).single(),
+        future: _orderFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -261,6 +332,16 @@ class ClientOrderDetailsScreen extends StatelessWidget {
           }
 
           final order = snapshot.data!;
+          final applications = (order['applications'] as List? ?? const [])
+              .whereType<Map>()
+              .map(
+                (application) => application.map(
+                  (key, value) => MapEntry(key.toString(), value),
+                ),
+              )
+              .where((application) => application['status'] == 'PENDING')
+              .toList();
+          final status = order['status']?.toString() ?? '';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -310,6 +391,69 @@ class ClientOrderDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(order['description'] ?? 'Нет описания'),
+                if (applications.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Отклики исполнителей',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...applications.map((application) {
+                    final applicationId = application['id']?.toString() ?? '';
+                    final workerName =
+                        application['worker_name']?.toString() ?? 'Исполнитель';
+                    final loading = _pendingAction == applicationId;
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(workerName),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: loading || applicationId.isEmpty
+                                        ? null
+                                        : () => _decideApplication(
+                                              applicationId,
+                                              true,
+                                            ),
+                                    child: const Text('Принять'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: loading || applicationId.isEmpty
+                                        ? null
+                                        : () => _decideApplication(
+                                              applicationId,
+                                              false,
+                                            ),
+                                    child: const Text('Отклонить'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+                if (status == 'DONE_PENDING') ...[
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _pendingAction == null ? _acceptWork : null,
+                      child: const Text('Принять выполненную работу'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
