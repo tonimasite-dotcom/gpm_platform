@@ -31,11 +31,15 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
   bool _canApproveWorkers = true;
   bool _notifyNewOrders = true;
   bool _profileLoaded = false;
+  bool _verificationLoading = false;
+  List<Map<String, dynamic>> _verificationQueue = [];
+  final Set<String> _reviewingSubmissions = {};
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadVerifications();
   }
 
   @override
@@ -146,6 +150,127 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
     }
   }
 
+  Future<void> _loadVerifications() async {
+    if (!gpmApi.isApiMode) return;
+    setState(() => _verificationLoading = true);
+    try {
+      final queue = await gpmApi.getWorkerVerificationQueue();
+      if (mounted) setState(() => _verificationQueue = queue);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось загрузить очередь модерации'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _verificationLoading = false);
+    }
+  }
+
+  Future<void> _reviewVerification(
+    Map<String, dynamic> submission, {
+    required bool approved,
+  }) async {
+    var reason = '';
+    if (!approved) {
+      final controller = TextEditingController();
+      final result = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Отклонить заявку'),
+          content: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Причина для исполнителя',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  Navigator.of(dialogContext).pop(controller.text.trim());
+                }
+              },
+              child: const Text('Отклонить'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (result == null) return;
+      reason = result;
+    }
+    final submissionId = submission['submission_id']?.toString() ?? '';
+    setState(() => _reviewingSubmissions.add(submissionId));
+    try {
+      await gpmApi.reviewWorkerVerification(
+        submissionId: submissionId,
+        approved: approved,
+        rejectionReason: reason,
+      );
+      await _loadVerifications();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approved ? 'Заявка подтверждена' : 'Заявка отклонена'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось обработать заявку'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _reviewingSubmissions.remove(submissionId));
+    }
+  }
+
+  Future<void> _showAttachment(Map<String, dynamic> submission) async {
+    final submissionId = submission['submission_id']?.toString() ?? '';
+    try {
+      final bytes = await gpmApi.downloadWorkerVerificationAttachment(
+        submissionId,
+      );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Вложение к заявке'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 620),
+            child: InteractiveViewer(child: Image.memory(bytes)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Закрыть'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось загрузить вложение'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   String? _required(String? value, String message) {
     return value == null || value.trim().isEmpty ? message : null;
   }
@@ -176,6 +301,20 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                 subtitle: 'Контакты, зона ответственности и права доступа',
               ),
               const SizedBox(height: 16),
+              if (gpmApi.isApiMode) ...[
+                _ModerationSection(
+                  submissions: _verificationQueue,
+                  loading: _verificationLoading,
+                  reviewing: _reviewingSubmissions,
+                  onRefresh: _loadVerifications,
+                  onAttachment: _showAttachment,
+                  onApprove: (submission) =>
+                      _reviewVerification(submission, approved: true),
+                  onReject: (submission) =>
+                      _reviewVerification(submission, approved: false),
+                ),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -379,6 +518,188 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ModerationSection extends StatelessWidget {
+  final List<Map<String, dynamic>> submissions;
+  final bool loading;
+  final Set<String> reviewing;
+  final Future<void> Function() onRefresh;
+  final Future<void> Function(Map<String, dynamic>) onAttachment;
+  final Future<void> Function(Map<String, dynamic>) onApprove;
+  final Future<void> Function(Map<String, dynamic>) onReject;
+
+  const _ModerationSection({
+    required this.submissions,
+    required this.loading,
+    required this.reviewing,
+    required this.onRefresh,
+    required this.onAttachment,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: GpmColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: GpmColors.red,
+                foregroundColor: Colors.white,
+                child: Icon(Icons.verified_user_outlined),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Модерация исполнителей',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 3),
+                    Text('Заявок на проверке: ${submissions.length}'),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: loading ? null : onRefresh,
+                tooltip: 'Обновить',
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (loading)
+            const Center(child: CircularProgressIndicator())
+          else if (submissions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('Новых заявок на модерацию нет.'),
+            )
+          else
+            for (var index = 0; index < submissions.length; index++) ...[
+              _ModerationCard(
+                submission: submissions[index],
+                busy: reviewing.contains(
+                  submissions[index]['submission_id']?.toString() ?? '',
+                ),
+                onAttachment: () => onAttachment(submissions[index]),
+                onApprove: () => onApprove(submissions[index]),
+                onReject: () => onReject(submissions[index]),
+              ),
+              if (index != submissions.length - 1) const SizedBox(height: 12),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ModerationCard extends StatelessWidget {
+  final Map<String, dynamic> submission;
+  final bool busy;
+  final VoidCallback onAttachment;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  const _ModerationCard({
+    required this.submission,
+    required this.busy,
+    required this.onAttachment,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final type = submission['verification_type']?.toString() ?? '';
+    final rawData = submission['data'];
+    final data = rawData is Map
+        ? rawData.map((key, value) => MapEntry(key.toString(), value))
+        : <String, dynamic>{};
+    final fields = type == 'identity'
+        ? <(String, String)>[
+            ('ФИО', data['full_name']?.toString() ?? ''),
+            (
+              'Серия и номер',
+              '${data['passport_series'] ?? ''} ${data['passport_number'] ?? ''}',
+            ),
+            ('Дата выдачи', data['issued_at']?.toString() ?? ''),
+            ('Код подразделения', data['department_code']?.toString() ?? ''),
+            ('Кем выдан', data['issued_by']?.toString() ?? ''),
+          ]
+        : <(String, String)>[('ИНН', data['inn']?.toString() ?? '')];
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            type == 'identity' ? 'Паспортные данные' : 'Самозанятость / НПД',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(submission['worker_name']?.toString() ?? 'Исполнитель'),
+          const SizedBox(height: 10),
+          for (final field in fields)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 150,
+                    child: Text(
+                      field.$1,
+                      style: const TextStyle(color: GpmColors.graphite),
+                    ),
+                  ),
+                  Expanded(child: SelectableText(field.$2)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (submission['has_attachment'] == true)
+                OutlinedButton.icon(
+                  onPressed: busy ? null : onAttachment,
+                  icon: const Icon(Icons.image_outlined),
+                  label: const Text('Открыть фото'),
+                ),
+              OutlinedButton.icon(
+                onPressed: busy ? null : onReject,
+                icon: const Icon(Icons.close),
+                label: const Text('Отклонить'),
+              ),
+              FilledButton.icon(
+                onPressed: busy ? null : onApprove,
+                icon: const Icon(Icons.check),
+                label: const Text('Подтвердить'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

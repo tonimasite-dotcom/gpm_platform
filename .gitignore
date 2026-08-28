@@ -6,6 +6,7 @@
 app/config.local.yml
 config_admin.yaml
 .private_key
+.private_uploads/
 *.key
 *.pem
 gosuslugi_*.png
