@@ -1,5 +1,10 @@
 # GPM Platform
 
+Актуальная точка продолжения проекта зафиксирована в
+`PROJECT_HANDOFF_2026-08-28_CRM_LOGIST_CITY_VISIBILITY_AND_PROFILE_UI.md`.
+Готовый промт для нового чата находится в
+`CONTINUE_PROJECT_PROMPT_2026-08-28_CRM_LOGIST_CITY_VISIBILITY_AND_PROFILE_UI.md`.
+
 Прототип платформы GPM: Flutter web/Android-клиент, FastAPI API и PostgreSQL.
 
 > **Текущий статус:** только закрытое тестирование на синтетических данных.
@@ -9,9 +14,9 @@
 >
 > Текущий production frontend/backend: `597a9d2`, опубликован 28.08.2026.
 > Полная точка продолжения:
-> `PROJECT_HANDOFF_2026-08-28_CURRENT_PRODUCTION_AND_CRM_RECOVERY.md`.
+> `PROJECT_HANDOFF_2026-08-28_CRM_LOGIST_CITY_VISIBILITY_AND_PROFILE_UI.md`.
 > Готовый промт нового чата:
-> `CONTINUE_PROJECT_PROMPT_2026-08-28_CURRENT_PRODUCTION_AND_CRM_RECOVERY.md`.
+> `CONTINUE_PROJECT_PROMPT_2026-08-28_CRM_LOGIST_CITY_VISIBILITY_AND_PROFILE_UI.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
