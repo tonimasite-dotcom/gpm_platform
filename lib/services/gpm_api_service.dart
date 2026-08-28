@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -400,6 +401,108 @@ class GpmApiService {
       return profile.map((key, value) => MapEntry(key.toString(), value));
     }
     throw StateError('Сервер не вернул профиль');
+  }
+
+  Future<List<Map<String, dynamic>>> getMyVerifications() async {
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/verifications',
+    );
+    return _mapList(response['submissions']);
+  }
+
+  Future<Map<String, dynamic>> submitMyVerification({
+    required String verificationType,
+    required Map<String, dynamic> data,
+    Uint8List? attachmentBytes,
+    String? attachmentName,
+    String? attachmentMediaType,
+  }) async {
+    if (attachmentBytes != null && attachmentBytes.length > 8 * 1024 * 1024) {
+      throw StateError('Размер фотографии не должен превышать 8 МБ');
+    }
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/verifications/${Uri.encodeComponent(verificationType)}',
+      method: 'POST',
+      body: {
+        'data': data,
+        if (attachmentBytes != null)
+          'attachment': {
+            'filename': attachmentName ?? 'passport.jpg',
+            'media_type': attachmentMediaType ?? 'image/jpeg',
+            'base64': base64Encode(attachmentBytes),
+          },
+      },
+    );
+    return _requiredMap(response['submission'], 'Сервер не вернул заявку');
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkerVerificationQueue() async {
+    final response = await _authenticatedJsonRequest(
+      '/app-api/logist/worker-verifications',
+    );
+    return _mapList(response['submissions']);
+  }
+
+  Future<void> reviewWorkerVerification({
+    required String submissionId,
+    required bool approved,
+    String rejectionReason = '',
+  }) async {
+    await _authenticatedJsonRequest(
+      '/app-api/logist/worker-verifications/${Uri.encodeComponent(submissionId)}',
+      method: 'PATCH',
+      body: {
+        'status': approved ? 'verified' : 'rejected',
+        'rejection_reason': approved ? '' : rejectionReason.trim(),
+      },
+    );
+  }
+
+  Future<Uint8List> downloadWorkerVerificationAttachment(
+    String submissionId,
+  ) async {
+    if (_appApiUrl.trim().isEmpty || _appAccessToken.trim().isEmpty) {
+      throw StateError('Требуется вход');
+    }
+    final response = await http
+        .get(
+          Uri.parse(_appApiUrl).resolve(
+            '/app-api/logist/worker-verifications/'
+            '${Uri.encodeComponent(submissionId)}/attachment',
+          ),
+          headers: {
+            'Accept': 'image/jpeg,image/png',
+            'Authorization': 'Bearer ${_appAccessToken.trim()}',
+          },
+        )
+        .timeout(_requestTimeout);
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      _clearLocalSession();
+      onSessionExpired?.call();
+      throw StateError('Сессия истекла. Войдите снова');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('Не удалось загрузить вложение');
+    }
+    return response.bodyBytes;
+  }
+
+  static List<Map<String, dynamic>> _mapList(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map(
+          (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+        )
+        .toList();
+  }
+
+  static Map<String, dynamic> _requiredMap(dynamic value, String error) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    throw StateError(error);
   }
 
   Future<Map<String, dynamic>> getMyDashboard() {

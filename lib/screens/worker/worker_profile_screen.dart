@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
@@ -17,7 +18,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _email = TextEditingController();
-  final _telegram = TextEditingController();
   final _birthDate = TextEditingController();
   final _cities = TextEditingController();
   final _addressCity = TextEditingController();
@@ -31,6 +31,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   Map<String, dynamic> _profile = {};
   bool _loading = true;
   bool _saving = false;
+  bool _submittingVerification = false;
   bool _nationality = false;
   bool _hasStraps = false;
   bool _hasTools = false;
@@ -49,7 +50,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       _name,
       _phone,
       _email,
-      _telegram,
       _birthDate,
       _cities,
       _addressCity,
@@ -76,7 +76,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       _name.text = _text(raw['display_name'] ?? raw['full_name']);
       _phone.text = _text(raw['phone'] ?? raw['phone_number']);
       _email.text = _text(raw['email']);
-      _telegram.text = _text(raw['telegram']);
       _birthDate.text = _text(raw['date_birth']);
       _cities.text = (raw['cities'] as List? ?? const []).join(', ');
       _addressCity.text = _text(raw['address_city']);
@@ -94,7 +93,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           ? 'contract'
           : _text(raw['employment_type']);
       _payoutMethod = _text(raw['payout_method']);
-    } catch (error) {
+    } catch (_) {
       if (mounted) _showError('Не удалось загрузить профиль');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -108,7 +107,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       'display_name': _name.text.trim(),
       'phone': _phone.text.trim(),
       'email': _email.text.trim(),
-      'telegram': _telegram.text.trim(),
       'date_birth': _birthDate.text.trim(),
       'nationality': _nationality,
       'cities': _cities.text
@@ -148,10 +146,80 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
         ),
       );
       setState(() {});
-    } catch (error) {
+    } catch (_) {
       if (mounted) _showError('Не удалось сохранить профиль');
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _submitPassport() async {
+    final draft = await showDialog<_PassportDraft>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _PassportDialog(initialFullName: _name.text.trim()),
+    );
+    if (draft == null || !mounted) return;
+    setState(() => _submittingVerification = true);
+    try {
+      if (gpmApi.isApiMode) {
+        final bytes = await draft.photo.readAsBytes();
+        await gpmApi.submitMyVerification(
+          verificationType: 'identity',
+          data: draft.data,
+          attachmentBytes: bytes,
+          attachmentName: draft.photo.name,
+          attachmentMediaType: _imageMediaType(draft.photo),
+        );
+        await _load();
+      } else {
+        setState(() {
+          _profile = {
+            ..._profile,
+            'identity_status': 'pending',
+            'identity_rejection_reason': '',
+          };
+        });
+      }
+      if (!mounted) return;
+      _showSuccess('Паспорт отправлен на модерацию');
+    } catch (_) {
+      if (mounted) _showError('Не удалось отправить паспорт на модерацию');
+    } finally {
+      if (mounted) setState(() => _submittingVerification = false);
+    }
+  }
+
+  Future<void> _submitNpd() async {
+    final inn = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _NpdDialog(),
+    );
+    if (inn == null || !mounted) return;
+    setState(() => _submittingVerification = true);
+    try {
+      if (gpmApi.isApiMode) {
+        await gpmApi.submitMyVerification(
+          verificationType: 'npd',
+          data: {'inn': inn},
+        );
+        await _load();
+      } else {
+        setState(() {
+          _profile = {
+            ..._profile,
+            'npd_status': 'pending',
+            'npd_rejection_reason': '',
+          };
+        });
+      }
+      if (!mounted) return;
+      _showSuccess('Заявка на подтверждение НПД отправлена');
+    } catch (_) {
+      if (mounted) _showError('Не удалось отправить заявку на модерацию');
+    } finally {
+      if (mounted) setState(() => _submittingVerification = false);
     }
   }
 
@@ -161,18 +229,27 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(text), backgroundColor: Colors.red));
   }
 
+  void _showSuccess(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: Colors.green),
+    );
+  }
+
+  String? _required(String? value) {
+    return value == null || value.trim().isEmpty ? 'Заполните поле' : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
-    final cities = _cities.text.trim();
     final identityStatus = _text(_profile['identity_status']);
     final npdStatus = _text(_profile['npd_status']);
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 16, 14, 36),
+        padding: const EdgeInsets.all(16),
         children: [
           Center(
             child: ConstrainedBox(
@@ -182,59 +259,122 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ProfileHeader(
-                      name: _name.text.trim().isEmpty
-                          ? gpmApi.currentUsername
-                          : _name.text.trim(),
-                      username: _telegram.text.trim().isEmpty
-                          ? gpmApi.currentUsername
-                          : _telegram.text.trim().replaceFirst('@', ''),
-                      completion: _asInt(_profile['profile_completion']),
-                      profile: _profile,
+                    const _ProfileHeader(
+                      icon: Icons.engineering_outlined,
+                      title: 'Кабинет исполнителя',
+                      subtitle: 'Личные данные, оснащение и подтверждения',
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     _Section(
                       title: 'Основные данные',
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _InfoRow(label: 'Телефон', value: _phone.text),
-                          _InfoRow(
-                            label: 'Дата рождения',
-                            value: _birthDate.text,
+                          _AdaptiveRow(
+                            children: [
+                              TextFormField(
+                                controller: _name,
+                                decoration: const InputDecoration(
+                                  labelText: 'ФИО',
+                                ),
+                                validator: _required,
+                              ),
+                              TextFormField(
+                                controller: _birthDate,
+                                decoration: const InputDecoration(
+                                  labelText: 'Дата рождения',
+                                  hintText: 'ДД.ММ.ГГГГ',
+                                ),
+                                validator: _required,
+                              ),
+                            ],
                           ),
-                          _InfoRow(
+                          const SizedBox(height: 12),
+                          _AdaptiveRow(
+                            children: [
+                              TextFormField(
+                                controller: _phone,
+                                keyboardType: TextInputType.phone,
+                                decoration: const InputDecoration(
+                                  labelText: 'Телефон',
+                                ),
+                                validator: _required,
+                              ),
+                              TextFormField(
+                                controller: _email,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _AdaptiveRow(
+                            children: [
+                              TextFormField(
+                                controller: _cities,
+                                decoration: const InputDecoration(
+                                  labelText: 'Города работы',
+                                  hintText: 'Москва, Химки',
+                                ),
+                                validator: _required,
+                              ),
+                              DropdownButtonFormField<String>(
+                                initialValue: _employmentType,
+                                decoration: const InputDecoration(
+                                  labelText: 'Тип занятости',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'contract',
+                                    child: Text('Подрядчик'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'state',
+                                    child: Text('Штатный исполнитель'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _employmentType = value);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          _YesNoField(
                             label: 'Гражданство РФ',
-                            value: _nationality ? 'Да' : 'Нет',
+                            value: _nationality,
+                            onChanged: (value) =>
+                                setState(() => _nationality = value),
                           ),
-                          _InfoRow(label: 'Города', value: cities),
-                          _InfoRow(
-                            label: 'Тип занятости',
-                            value: _employmentType == 'state'
-                                ? 'Штатный'
-                                : 'Подрядчик',
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Адрес',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _addressCity,
-                            decoration: const InputDecoration(
-                              labelText: 'Город',
-                              hintText: 'Москва',
+                          const SizedBox(height: 14),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Адрес',
+                              style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
                           const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _addressStreet,
-                            decoration: const InputDecoration(
-                              labelText: 'Улица',
-                            ),
+                          _AdaptiveRow(
+                            children: [
+                              TextFormField(
+                                controller: _addressCity,
+                                decoration: const InputDecoration(
+                                  labelText: 'Город',
+                                ),
+                              ),
+                              TextFormField(
+                                controller: _addressStreet,
+                                decoration: const InputDecoration(
+                                  labelText: 'Улица',
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _AdaptiveRow(
                             children: [
                               TextFormField(
@@ -254,14 +394,34 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
+                    _Section(
+                      title: 'Оснащение',
+                      child: _AdaptiveRow(
+                        children: [
+                          _YesNoField(
+                            label: 'Такелажные ремни',
+                            value: _hasStraps,
+                            onChanged: (value) =>
+                                setState(() => _hasStraps = value),
+                          ),
+                          _YesNoField(
+                            label: 'Свои инструменты',
+                            value: _hasTools,
+                            onChanged: (value) =>
+                                setState(() => _hasTools = value),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     _Section(
                       title: 'Выплаты',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'Самозанятым по умолчанию выбрана выплата по счету.',
+                            'Самозанятым по умолчанию выбрана выплата по счёту.',
                             style: TextStyle(
                               color: GpmColors.graphite,
                               fontSize: 12,
@@ -292,7 +452,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                             ),
                           ),
                           if (_payoutMethod == 'card') ...[
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                             TextFormField(
                               controller: _cardLast4,
                               keyboardType: TextInputType.number,
@@ -309,63 +469,77 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                             ),
                           ],
                           if (_payoutMethod == 'account') ...[
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              controller: _payoutAccount,
-                              decoration: const InputDecoration(
-                                labelText: 'Счёт для выплат',
-                              ),
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(20),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _payoutBik,
-                              decoration: const InputDecoration(
-                                labelText: 'БИК банка',
-                              ),
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(9),
+                            const SizedBox(height: 12),
+                            _AdaptiveRow(
+                              children: [
+                                TextFormField(
+                                  controller: _payoutAccount,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Счёт для выплат',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(20),
+                                  ],
+                                ),
+                                TextFormField(
+                                  controller: _payoutBik,
+                                  decoration: const InputDecoration(
+                                    labelText: 'БИК банка',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(9),
+                                  ],
+                                ),
                               ],
                             ),
                           ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     _Section(
                       title: 'Проверки',
                       child: Column(
                         children: [
-                          _CheckRow(
+                          _VerificationCard(
                             title: 'Паспортные данные',
-                            value: _verificationLabel(identityStatus),
-                            isOk: identityStatus == 'verified',
+                            description:
+                                'Заполните данные паспорта и приложите фотографию основного разворота.',
+                            status: identityStatus,
+                            rejectionReason: _text(
+                              _profile['identity_rejection_reason'],
+                            ),
+                            actionLabel: identityStatus == 'rejected'
+                                ? 'Исправить и отправить повторно'
+                                : 'Отправить паспорт на проверку',
+                            onPressed: _submittingVerification
+                                ? null
+                                : _submitPassport,
                           ),
-                          _CheckRow(
+                          const SizedBox(height: 12),
+                          _VerificationCard(
                             title: 'Самозанятость / НПД',
-                            value: _verificationLabel(npdStatus),
-                            isOk: npdStatus == 'verified',
-                          ),
-                          _CheckRow(
-                            title: 'Такелажные ремни',
-                            value: _hasStraps ? 'Есть' : 'Нет',
-                            isOk: _hasStraps,
-                          ),
-                          _CheckRow(
-                            title: 'Инструменты',
-                            value: _hasTools ? 'Есть' : 'Нет',
-                            isOk: _hasTools,
+                            description:
+                                'Укажите ИНН, чтобы логист проверил статус самозанятого.',
+                            status: npdStatus,
+                            rejectionReason: _text(
+                              _profile['npd_rejection_reason'],
+                            ),
+                            actionLabel: npdStatus == 'rejected'
+                                ? 'Исправить и отправить повторно'
+                                : 'Отправить заявку на подтверждение',
+                            onPressed: _submittingVerification
+                                ? null
+                                : _submitNpd,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -393,8 +567,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    ElevatedButton.icon(
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
                       onPressed: _saving ? null : _save,
                       icon: _saving
                           ? const SizedBox(
@@ -419,45 +593,47 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  final String name;
-  final String username;
-  final int completion;
-  final Map<String, dynamic> profile;
+  final IconData icon;
+  final String title;
+  final String subtitle;
 
   const _ProfileHeader({
-    required this.name,
-    required this.username,
-    required this.completion,
-    required this.profile,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const CircleAvatar(
-          radius: 28,
-          backgroundColor: Color(0xFF5B4FFF),
-          foregroundColor: Colors.white,
-          child: Icon(Icons.engineering, size: 29),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 3),
-              Text('@$username'),
-              const SizedBox(height: 7),
-              _StatusPill(
-                text: _workerGroupLabel(profile, completion),
-                color: Colors.green,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: GpmColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: GpmColors.red,
+              foregroundColor: Colors.white,
+              child: Icon(icon),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 4),
+                  Text(subtitle),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -481,7 +657,7 @@ class _Section extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           child,
         ],
       ),
@@ -522,59 +698,121 @@ class _AdaptiveRow extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _YesNoField extends StatelessWidget {
   final String label;
-  final String value;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF6F6F6F)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value.isEmpty ? 'Не указано' : value,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CheckRow extends StatelessWidget {
-  final String title;
-  final String value;
-  final bool isOk;
-
-  const _CheckRow({
-    required this.title,
+  const _YesNoField({
+    required this.label,
     required this.value,
-    required this.isOk,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        isOk ? Icons.verified : Icons.error_outline,
-        color: isOk ? Colors.green : Colors.orange,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(value: true, label: Text('Да')),
+            ButtonSegment(value: false, label: Text('Нет')),
+          ],
+          selected: {value},
+          onSelectionChanged: (selection) => onChanged(selection.first),
+        ),
+      ],
+    );
+  }
+}
+
+class _VerificationCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final String status;
+  final String rejectionReason;
+  final String actionLabel;
+  final VoidCallback? onPressed;
+
+  const _VerificationCard({
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.rejectionReason,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final verified = status == 'verified';
+    final pending = status == 'pending';
+    final rejected = status == 'rejected';
+    final color = verified
+        ? Colors.green
+        : pending
+        ? GpmColors.yellow
+        : rejected
+        ? GpmColors.red
+        : GpmColors.graphite;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: GpmColors.line),
       ),
-      title: Text(title),
-      subtitle: Text(value),
-      dense: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                verified
+                    ? Icons.verified
+                    : pending
+                    ? Icons.schedule
+                    : Icons.verified_user_outlined,
+                color: color,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Text(
+                _verificationLabel(status),
+                style: TextStyle(color: color, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(description),
+          if (rejected && rejectionReason.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Причина: $rejectionReason',
+              style: const TextStyle(
+                color: GpmColors.red,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (!verified && !pending) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onPressed,
+              icon: const Icon(Icons.send_outlined),
+              label: Text(actionLabel),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -617,40 +855,342 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  final String text;
-  final Color color;
+class _PassportDraft {
+  final Map<String, dynamic> data;
+  final XFile photo;
 
-  const _StatusPill({required this.text, required this.color});
+  const _PassportDraft({required this.data, required this.photo});
+}
+
+class _PassportDialog extends StatefulWidget {
+  final String initialFullName;
+
+  const _PassportDialog({required this.initialFullName});
+
+  @override
+  State<_PassportDialog> createState() => _PassportDialogState();
+}
+
+class _PassportDialogState extends State<_PassportDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _fullName;
+  final _series = TextEditingController();
+  final _number = TextEditingController();
+  final _issuedAt = TextEditingController();
+  final _departmentCode = TextEditingController();
+  final _issuedBy = TextEditingController();
+  XFile? _photo;
+  bool _picking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fullName = TextEditingController(text: widget.initialFullName);
+  }
+
+  @override
+  void dispose() {
+    _fullName.dispose();
+    _series.dispose();
+    _number.dispose();
+    _issuedAt.dispose();
+    _departmentCode.dispose();
+    _issuedBy.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pick(ImageSource source) async {
+    setState(() => _picking = true);
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 2400,
+        imageQuality: 90,
+      );
+      if (mounted && photo != null) setState(() => _photo = photo);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось выбрать фотографию')),
+      );
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  String? _required(String? value) =>
+      value == null || value.trim().isEmpty ? 'Заполните поле' : null;
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Приложите фотографию паспорта')),
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      _PassportDraft(
+        data: {
+          'full_name': _fullName.text.trim(),
+          'passport_series': _series.text.trim(),
+          'passport_number': _number.text.trim(),
+          'issued_at': _issuedAt.text.trim(),
+          'department_code': _departmentCode.text.trim(),
+          'issued_by': _issuedBy.text.trim(),
+        },
+        photo: _photo!,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+    return AlertDialog(
+      title: const Text('Паспортные данные'),
+      content: SizedBox(
+        width: 620,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Используйте только закрытый тестовый контур. Фотография будет храниться в защищённом серверном каталоге.',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _fullName,
+                  decoration: const InputDecoration(labelText: 'ФИО'),
+                  validator: _required,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _series,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(4),
+                        ],
+                        decoration: const InputDecoration(labelText: 'Серия'),
+                        validator: (value) =>
+                            value?.length == 4 ? null : 'Укажите 4 цифры',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _number,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        decoration: const InputDecoration(labelText: 'Номер'),
+                        validator: (value) =>
+                            value?.length == 6 ? null : 'Укажите 6 цифр',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _issuedAt,
+                        decoration: const InputDecoration(
+                          labelText: 'Дата выдачи',
+                          hintText: 'ДД.ММ.ГГГГ',
+                        ),
+                        validator: _required,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _departmentCode,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [_DepartmentCodeFormatter()],
+                        decoration: const InputDecoration(
+                          labelText: 'Код подразделения',
+                          hintText: '000-000',
+                        ),
+                        validator: _required,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _issuedBy,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Кем выдан'),
+                  validator: _required,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: GpmColors.line),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _photo == null
+                            ? Icons.photo_camera_outlined
+                            : Icons.check_circle,
+                        color: _photo == null
+                            ? GpmColors.graphite
+                            : Colors.green,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _photo?.name ?? 'Фото основного разворота не выбрано',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _picking
+                                ? null
+                                : () => _pick(ImageSource.gallery),
+                            icon: const Icon(Icons.image_outlined),
+                            label: const Text('Выбрать фото'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _picking
+                                ? null
+                                : () => _pick(ImageSource.camera),
+                            icon: const Icon(Icons.photo_camera_outlined),
+                            label: const Text('Сделать фото'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      child: Text(text, style: TextStyle(fontSize: 11, color: color)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton.icon(
+          onPressed: _submit,
+          icon: const Icon(Icons.send_outlined),
+          label: const Text('Отправить на проверку'),
+        ),
+      ],
     );
   }
 }
 
-String _workerGroupLabel(Map<String, dynamic> profile, int completion) {
-  if (profile['employment_type'] == 'state') return 'Группа 1: штатный';
-  final russian = profile['nationality'] == true;
-  final identity = profile['identity_status'] == 'verified';
-  final npd = profile['npd_status'] == 'verified';
-  if (russian && identity && npd) {
-    return 'Группа 2: РФ, паспорт, самозанятый';
+class _DepartmentCodeFormatter extends TextInputFormatter {
+  const _DepartmentCodeFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final limited = digits.length > 6 ? digits.substring(0, 6) : digits;
+    final formatted = limited.length > 3
+        ? '${limited.substring(0, 3)}-${limited.substring(3)}'
+        : limited;
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
-  if (russian && npd) return 'Группа 3: РФ, самозанятый';
-  if (identity && npd) return 'Группа 4: паспорт, самозанятый';
-  if (npd) return 'Группа 5: самозанятый';
-  if (russian && identity) return 'Группа 6: РФ, паспорт';
-  if (identity) return 'Группа 7: паспорт';
-  if (russian) return 'Группа 8: РФ';
-  return 'Профиль заполнен на $completion%';
+}
+
+class _NpdDialog extends StatefulWidget {
+  const _NpdDialog();
+
+  @override
+  State<_NpdDialog> createState() => _NpdDialogState();
+}
+
+class _NpdDialogState extends State<_NpdDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _inn = TextEditingController();
+
+  @override
+  void dispose() {
+    _inn.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Подтверждение самозанятости'),
+      content: SizedBox(
+        width: 480,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'После отправки заявка появится у логиста на модерации.',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _inn,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(12),
+                ],
+                decoration: const InputDecoration(labelText: 'ИНН'),
+                validator: (value) =>
+                    value?.length == 12 ? null : 'Укажите 12 цифр ИНН',
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton.icon(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.of(context).pop(_inn.text.trim());
+            }
+          },
+          icon: const Icon(Icons.send_outlined),
+          label: const Text('Отправить на проверку'),
+        ),
+      ],
+    );
+  }
+}
+
+String _imageMediaType(XFile photo) {
+  final mimeType = photo.mimeType?.toLowerCase();
+  if (mimeType == 'image/png') return 'image/png';
+  return 'image/jpeg';
 }
 
 String _verificationLabel(String status) {

@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import sqlite3
@@ -50,6 +51,9 @@ class ActiveApiTests(unittest.TestCase):
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_READS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_MESSAGES_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_THREADS_TABLE_NAME}")
+                cursor.execute(
+                    f"DROP TABLE IF EXISTS {api.WORKER_VERIFICATIONS_TABLE_NAME}"
+                )
                 cursor.execute(f"DROP TABLE IF EXISTS {api.PROFILES_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.SESSIONS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.INVITATIONS_TABLE_NAME}")
@@ -79,6 +83,17 @@ class ActiveApiTests(unittest.TestCase):
                 "Strong synthetic password 42!",
                 expected_role="worker",
             )
+            invited_worker = api.current_user(
+                "Bearer "
+                + api.check_app_credentials(
+                    "postgres-worker", "Strong synthetic password 42!"
+                )["access_token"]
+            )
+            verification = api.submit_worker_verification(
+                invited_worker,
+                "npd",
+                {"data": {"inn": "000000000000"}},
+            )
             account = api.check_app_credentials(
                 "postgres-client",
                 "a-strong-test-password",
@@ -90,6 +105,7 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 401)
         self.assertEqual(invited_account["role"], "worker")
+        self.assertEqual(verification["status"], "pending")
 
     def test_api_lock_contains_all_direct_pins(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
@@ -634,6 +650,116 @@ class ActiveApiTests(unittest.TestCase):
                     api.persist_published_order(incoming, actor=actor)
 
         self.assertEqual(caught.exception.status_code, 409)
+
+    def test_worker_verification_submission_review_and_invalidation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "verifications.sqlite3")
+            upload_dir = os.path.join(temp_dir, "private-uploads")
+            environment = {
+                "GPM_APP_SQLITE_DB_FILE": db_path,
+                "GPM_APP_PRIVATE_UPLOAD_DIR": upload_dir,
+                "GPM_APP_DATABASE_URL": "",
+                "DATABASE_URL": "",
+                "GPM_APP_WORKER_USERNAME": "verification-worker",
+                "GPM_APP_WORKER_PASSWORD": "strong-worker-password",
+                "GPM_APP_LOGIST_USERNAME": "verification-logist",
+                "GPM_APP_LOGIST_PASSWORD": "strong-logist-password",
+                "GPM_APP_JWT_SECRET": "x" * 32,
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                api.init_db()
+                worker = api.current_user(
+                    "Bearer "
+                    + api.check_app_credentials(
+                        "verification-worker", "strong-worker-password"
+                    )["access_token"]
+                )
+                logist = api.current_user(
+                    "Bearer "
+                    + api.check_app_credentials(
+                        "verification-logist", "strong-logist-password"
+                    )["access_token"]
+                )
+                api.update_account_profile(
+                    worker,
+                    {
+                        "display_name": "Синтетический Исполнитель",
+                        "phone": "+70000000000",
+                        "date_birth": "01.01.1990",
+                        "cities": ["Москва"],
+                        "payout_method": "card",
+                        "card_last4": "1234",
+                    },
+                )
+                jpeg = b"\xff\xd8\xffsynthetic-passport-image"
+                submission = api.submit_worker_verification(
+                    worker,
+                    "identity",
+                    {
+                        "data": {
+                            "full_name": "Синтетический Исполнитель",
+                            "passport_series": "0000",
+                            "passport_number": "000000",
+                            "issued_at": "01.01.2020",
+                            "department_code": "000-000",
+                            "issued_by": "Синтетическое подразделение",
+                        },
+                        "attachment": {
+                            "filename": "passport.jpg",
+                            "media_type": "image/jpeg",
+                            "base64": base64.b64encode(jpeg).decode("ascii"),
+                        },
+                    },
+                )
+
+                self.assertEqual(submission["status"], "pending")
+                self.assertNotIn("data", submission)
+                self.assertNotIn("attachment_path", submission)
+                self.assertEqual(
+                    api.get_account_profile(worker)["identity_status"], "pending"
+                )
+                queue = api.list_worker_verifications(logist)
+                self.assertEqual(len(queue), 1)
+                self.assertEqual(
+                    queue[0]["data"]["passport_number"], "000000"
+                )
+                path, media_type, filename = api.worker_verification_attachment(
+                    logist, submission["submission_id"]
+                )
+                self.assertEqual(path.read_bytes(), jpeg)
+                self.assertEqual(media_type, "image/jpeg")
+                self.assertEqual(filename, "passport.jpg")
+
+                api.review_worker_verification(
+                    logist,
+                    submission["submission_id"],
+                    {"status": "verified"},
+                )
+                self.assertEqual(
+                    api.get_account_profile(worker)["identity_status"], "verified"
+                )
+                self.assertEqual(api.list_worker_verifications(logist), [])
+
+                api.update_account_profile(
+                    worker, {"display_name": "Исполнитель После Изменения"}
+                )
+                profile = api.get_account_profile(worker)
+                self.assertEqual(profile["identity_status"], "rejected")
+                self.assertIn(
+                    "Подайте паспорт повторно",
+                    profile["identity_rejection_reason"],
+                )
+
+                npd = api.submit_worker_verification(
+                    worker,
+                    "npd",
+                    {"data": {"inn": "000000000000"}},
+                )
+                self.assertEqual(npd["status"], "pending")
+                self.assertFalse(npd["has_attachment"])
+                with self.assertRaises(HTTPException) as caught:
+                    api.list_worker_verifications(worker)
+                self.assertEqual(caught.exception.status_code, 403)
 
     def test_role_workspaces_are_server_backed_and_isolated(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

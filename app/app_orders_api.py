@@ -17,8 +17,9 @@ from urllib.request import Request as UrlRequest, urlopen
 from uuid import uuid4
 
 import yaml
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -34,6 +35,7 @@ AUDIT_TABLE_NAME = "gpm_app_audit_log"
 MIGRATIONS_TABLE_NAME = "gpm_app_schema_migrations"
 INVITATIONS_TABLE_NAME = "gpm_app_account_invitations"
 PROFILES_TABLE_NAME = "gpm_app_profiles"
+WORKER_VERIFICATIONS_TABLE_NAME = "gpm_app_worker_verifications"
 CHAT_THREADS_TABLE_NAME = "gpm_app_chat_threads"
 CHAT_MESSAGES_TABLE_NAME = "gpm_app_chat_messages"
 CHAT_READS_TABLE_NAME = "gpm_app_chat_reads"
@@ -41,6 +43,7 @@ APP_ROLES = {"client", "worker", "logist"}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
 INVITATION_SCHEMA_VERSION = "0002_account_invitations"
 WORKSPACE_SCHEMA_VERSION = "0003_role_workspaces"
+WORKER_VERIFICATION_SCHEMA_VERSION = "0004_worker_verifications"
 ACCESS_TOKEN_TTL = timedelta(hours=12)
 INVITATION_TTL = timedelta(days=3)
 LOGIN_FAILURE_LIMIT = 5
@@ -50,6 +53,13 @@ PASSWORD_SCRYPT_R = 8
 PASSWORD_SCRYPT_P = 1
 MIN_PASSWORD_LENGTH = 12
 MAX_PASSWORD_LENGTH = 256
+MAX_VERIFICATION_ATTACHMENT_BYTES = 8 * 1024 * 1024
+MAX_VERIFICATION_REQUEST_BYTES = 12 * 1024 * 1024
+VERIFICATION_TYPES = {"identity", "npd"}
+VERIFICATION_ATTACHMENT_MEDIA_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+}
 DADATA_SUGGEST_URL = (
     "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address"
 )
@@ -165,6 +175,12 @@ def validate_runtime_configuration() -> None:
     if len(jwt_value.encode("utf-8")) < 32:
         raise RuntimeError("GPM_APP_JWT_SECRET must contain at least 32 bytes")
 
+    private_upload_setting = get_setting("GPM_APP_PRIVATE_UPLOAD_DIR")
+    if not private_upload_setting:
+        raise RuntimeError("GPM_APP_PRIVATE_UPLOAD_DIR must be set in production env")
+    if not Path(private_upload_setting).is_absolute():
+        raise RuntimeError("GPM_APP_PRIVATE_UPLOAD_DIR must be an absolute path")
+
 def postgres_dsn() -> str | None:
     dsn = get_setting("GPM_APP_DATABASE_URL") or get_setting("DATABASE_URL")
     if dsn and dsn.startswith("postgresql+asyncpg://"):
@@ -179,6 +195,13 @@ def sqlite_db_file() -> Path:
     if LEGACY_SQLITE_DB_FILE.exists():
         return LEGACY_SQLITE_DB_FILE
     return DEFAULT_SQLITE_DB_FILE
+
+
+def private_upload_dir() -> Path:
+    configured = get_setting("GPM_APP_PRIVATE_UPLOAD_DIR")
+    if configured:
+        return Path(configured)
+    return sqlite_db_file().parent / ".private_uploads"
 
 
 app = FastAPI(title="GPM App Orders API")
@@ -360,6 +383,34 @@ def create_auth_schema(connection: Any) -> None:
             )
             cursor.execute(
                 f"""
+                CREATE TABLE IF NOT EXISTS {WORKER_VERIFICATIONS_TABLE_NAME} (
+                    submission_id TEXT PRIMARY KEY,
+                    worker_account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    verification_type TEXT NOT NULL CHECK (
+                        verification_type IN ('identity', 'npd')
+                    ),
+                    status TEXT NOT NULL CHECK (
+                        status IN ('pending', 'verified', 'rejected')
+                    ),
+                    data JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                    attachment_name TEXT,
+                    attachment_media_type TEXT,
+                    attachment_path TEXT,
+                    submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    reviewed_at TIMESTAMPTZ,
+                    reviewer_account_id TEXT REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    rejection_reason TEXT
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE INDEX IF NOT EXISTS gpm_app_worker_verifications_queue_idx
+                ON {WORKER_VERIFICATIONS_TABLE_NAME}(status, submitted_at)
+                """
+            )
+            cursor.execute(
+                f"""
                 CREATE TABLE IF NOT EXISTS {CHAT_THREADS_TABLE_NAME} (
                     thread_id TEXT PRIMARY KEY,
                     order_id TEXT NOT NULL,
@@ -429,6 +480,14 @@ def create_auth_schema(connection: Any) -> None:
                 ON CONFLICT (version) DO NOTHING
                 """,
                 (WORKSPACE_SCHEMA_VERSION,),
+            )
+            cursor.execute(
+                f"""
+                INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
+                VALUES (%s)
+                ON CONFLICT (version) DO NOTHING
+                """,
+                (WORKER_VERIFICATION_SCHEMA_VERSION,),
             )
         return
 
@@ -539,6 +598,34 @@ def create_auth_schema(connection: Any) -> None:
     )
     connection.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS {WORKER_VERIFICATIONS_TABLE_NAME} (
+            submission_id TEXT PRIMARY KEY,
+            worker_account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            verification_type TEXT NOT NULL CHECK (
+                verification_type IN ('identity', 'npd')
+            ),
+            status TEXT NOT NULL CHECK (
+                status IN ('pending', 'verified', 'rejected')
+            ),
+            data TEXT NOT NULL DEFAULT '{{}}',
+            attachment_name TEXT,
+            attachment_media_type TEXT,
+            attachment_path TEXT,
+            submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at TEXT,
+            reviewer_account_id TEXT REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            rejection_reason TEXT
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS gpm_app_worker_verifications_queue_idx
+        ON {WORKER_VERIFICATIONS_TABLE_NAME}(status, submitted_at)
+        """
+    )
+    connection.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS {CHAT_THREADS_TABLE_NAME} (
             thread_id TEXT PRIMARY KEY,
             order_id TEXT NOT NULL,
@@ -602,6 +689,12 @@ def create_auth_schema(connection: Any) -> None:
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (WORKSPACE_SCHEMA_VERSION,),
+    )
+    connection.execute(
+        f"""
+        INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
+        """,
+        (WORKER_VERIFICATION_SCHEMA_VERSION,),
     )
 
 
@@ -2366,6 +2459,544 @@ def _profile_from_row(row: Any) -> dict[str, Any]:
     return dict(decoded) if isinstance(decoded, dict) else {}
 
 
+VERIFICATION_SELECT_FIELDS = """
+    submission_id, worker_account_id, verification_type, status, data,
+    attachment_name, attachment_media_type, attachment_path, submitted_at,
+    reviewed_at, reviewer_account_id, rejection_reason
+"""
+
+
+def _verification_from_row(row: Any, *, include_sensitive: bool) -> dict[str, Any]:
+    raw_data = row[4]
+    if isinstance(raw_data, dict):
+        data = dict(raw_data)
+    else:
+        try:
+            decoded = json.loads(str(raw_data or "{}"))
+        except (json.JSONDecodeError, TypeError):
+            decoded = {}
+        data = dict(decoded) if isinstance(decoded, dict) else {}
+    result: dict[str, Any] = {
+        "submission_id": str(row[0]),
+        "worker_account_id": str(row[1]),
+        "verification_type": str(row[2]),
+        "status": str(row[3]),
+        "has_attachment": bool(row[7]),
+        "attachment_name": str(row[5] or ""),
+        "attachment_media_type": str(row[6] or ""),
+        "submitted_at": serialize_datetime(row[8])
+        if isinstance(row[8], datetime)
+        else str(row[8] or ""),
+        "reviewed_at": serialize_datetime(row[9])
+        if isinstance(row[9], datetime)
+        else str(row[9] or ""),
+        "rejection_reason": str(row[11] or ""),
+    }
+    if include_sensitive:
+        result["data"] = data
+    return result
+
+
+def latest_worker_verifications(account_id: str) -> dict[str, dict[str, Any]]:
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT {VERIFICATION_SELECT_FIELDS}
+                    FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                    WHERE worker_account_id = %s
+                    ORDER BY submitted_at DESC, submission_id DESC
+                    """,
+                    (account_id,),
+                )
+                rows = cursor.fetchall()
+        else:
+            rows = connection.execute(
+                f"""
+                SELECT {VERIFICATION_SELECT_FIELDS}
+                FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                WHERE worker_account_id = ?
+                ORDER BY submitted_at DESC, submission_id DESC
+                """,
+                (account_id,),
+            ).fetchall()
+    latest: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        item = _verification_from_row(row, include_sensitive=False)
+        latest.setdefault(item["verification_type"], item)
+    return latest
+
+
+def _clean_verification_data(
+    verification_type: str, raw_data: Any
+) -> dict[str, str]:
+    if verification_type not in VERIFICATION_TYPES:
+        raise HTTPException(status_code=404, detail="verification type not found")
+    if not isinstance(raw_data, dict):
+        raise HTTPException(status_code=422, detail="data must be an object")
+    try:
+        if verification_type == "identity":
+            allowed = {
+                "full_name",
+                "passport_series",
+                "passport_number",
+                "issued_at",
+                "department_code",
+                "issued_by",
+            }
+            unknown = set(raw_data) - allowed
+            if unknown:
+                raise ValueError("unsupported identity fields")
+            cleaned = {
+                "full_name": bounded_text(
+                    raw_data.get("full_name"), "full_name", max_length=200, required=True
+                ),
+                "passport_series": bounded_text(
+                    raw_data.get("passport_series"),
+                    "passport_series",
+                    max_length=4,
+                    required=True,
+                ),
+                "passport_number": bounded_text(
+                    raw_data.get("passport_number"),
+                    "passport_number",
+                    max_length=6,
+                    required=True,
+                ),
+                "issued_at": bounded_text(
+                    raw_data.get("issued_at"), "issued_at", max_length=10, required=True
+                ),
+                "department_code": bounded_text(
+                    raw_data.get("department_code"),
+                    "department_code",
+                    max_length=7,
+                    required=True,
+                ),
+                "issued_by": bounded_text(
+                    raw_data.get("issued_by"), "issued_by", max_length=500, required=True
+                ),
+            }
+            if not cleaned["passport_series"].isdigit() or len(cleaned["passport_series"]) != 4:
+                raise ValueError("passport_series must contain 4 digits")
+            if not cleaned["passport_number"].isdigit() or len(cleaned["passport_number"]) != 6:
+                raise ValueError("passport_number must contain 6 digits")
+            code = cleaned["department_code"]
+            if len(code) == 6 and code.isdigit():
+                code = f"{code[:3]}-{code[3:]}"
+                cleaned["department_code"] = code
+            if len(code) != 7 or code[3] != "-" or not (code[:3] + code[4:]).isdigit():
+                raise ValueError("department_code must use 000-000 format")
+            issued_at = cleaned["issued_at"]
+            try:
+                datetime.strptime(issued_at, "%d.%m.%Y")
+            except ValueError as error:
+                raise ValueError("issued_at must use DD.MM.YYYY format") from error
+            return cleaned
+
+        unknown = set(raw_data) - {"inn"}
+        if unknown:
+            raise ValueError("unsupported npd fields")
+        inn = bounded_text(raw_data.get("inn"), "inn", max_length=12, required=True)
+        if len(inn) != 12 or not inn.isdigit():
+            raise ValueError("inn must contain 12 digits")
+        return {"inn": inn}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+def _decode_verification_attachment(
+    verification_type: str, raw_attachment: Any
+) -> tuple[str, str, bytes] | None:
+    if raw_attachment is None and verification_type == "npd":
+        return None
+    if not isinstance(raw_attachment, dict):
+        raise HTTPException(status_code=422, detail="passport photo is required")
+    try:
+        name = Path(
+            bounded_text(
+                raw_attachment.get("filename"),
+                "filename",
+                max_length=200,
+                required=True,
+            )
+        ).name
+        media_type = bounded_text(
+            raw_attachment.get("media_type"),
+            "media_type",
+            max_length=50,
+            required=True,
+        ).lower()
+        encoded = bounded_text(
+            raw_attachment.get("base64"),
+            "base64",
+            max_length=MAX_VERIFICATION_REQUEST_BYTES,
+            required=True,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if media_type not in VERIFICATION_ATTACHMENT_MEDIA_TYPES:
+        raise HTTPException(status_code=422, detail="only JPEG and PNG images are allowed")
+    try:
+        content = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError) as error:
+        raise HTTPException(status_code=422, detail="attachment is not valid base64") from error
+    if not content or len(content) > MAX_VERIFICATION_ATTACHMENT_BYTES:
+        raise HTTPException(status_code=413, detail="attachment exceeds 8 MB")
+    if media_type == "image/jpeg" and not content.startswith(b"\xff\xd8\xff"):
+        raise HTTPException(status_code=422, detail="attachment is not a JPEG image")
+    if media_type == "image/png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise HTTPException(status_code=422, detail="attachment is not a PNG image")
+    return name, media_type, content
+
+
+def _write_private_attachment(
+    submission_id: str, media_type: str, content: bytes
+) -> Path:
+    upload_dir = private_upload_dir().resolve()
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        upload_dir.chmod(0o700)
+    except OSError:
+        pass
+    path = upload_dir / f"{submission_id}{VERIFICATION_ATTACHMENT_MEDIA_TYPES[media_type]}"
+    with path.open("xb") as file:
+        file.write(content)
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+    return path
+
+
+def submit_worker_verification(
+    user: dict[str, Any], verification_type: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    require_role(user, "worker")
+    init_db()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="payload must be an object")
+    cleaned_data = _clean_verification_data(verification_type, payload.get("data"))
+    attachment = _decode_verification_attachment(
+        verification_type, payload.get("attachment")
+    )
+    submission_id = str(uuid4())
+    attachment_name = ""
+    attachment_media_type = ""
+    attachment_path: Path | None = None
+    if attachment is not None:
+        attachment_name, attachment_media_type, content = attachment
+        attachment_path = _write_private_attachment(
+            submission_id, attachment_media_type, content
+        )
+    account_id = str(user.get("sub") or "")
+    values = (
+        submission_id,
+        account_id,
+        verification_type,
+        json.dumps(cleaned_data, ensure_ascii=False),
+        attachment_name or None,
+        attachment_media_type or None,
+        str(attachment_path) if attachment_path else None,
+        serialize_datetime(utc_now()),
+    )
+    try:
+        with db_connection() as connection:
+            if not _is_sqlite_connection(connection):
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"""
+                        UPDATE {WORKER_VERIFICATIONS_TABLE_NAME}
+                        SET status = 'rejected', reviewed_at = NOW(),
+                            rejection_reason = 'Заменено новой заявкой'
+                        WHERE worker_account_id = %s AND verification_type = %s
+                          AND status = 'pending'
+                        """,
+                        (account_id, verification_type),
+                    )
+                    cursor.execute(
+                        f"""
+                        INSERT INTO {WORKER_VERIFICATIONS_TABLE_NAME}(
+                            submission_id, worker_account_id, verification_type,
+                            status, data, attachment_name, attachment_media_type,
+                            attachment_path, submitted_at
+                        ) VALUES (%s, %s, %s, 'pending', %s::jsonb, %s, %s, %s, %s)
+                        """,
+                        values,
+                    )
+                    record_audit_event_in_connection(
+                        connection,
+                        event_type="worker_verification_submitted",
+                        outcome="success",
+                        actor_account_id=account_id,
+                        actor_username=str(user.get("username") or ""),
+                        target_type="worker_verification",
+                        target_id=submission_id,
+                        details={"verification_type": verification_type},
+                    )
+                connection.commit()
+            else:
+                connection.execute("BEGIN IMMEDIATE")
+                connection.execute(
+                    f"""
+                    UPDATE {WORKER_VERIFICATIONS_TABLE_NAME}
+                    SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP,
+                        rejection_reason = 'Заменено новой заявкой'
+                    WHERE worker_account_id = ? AND verification_type = ?
+                      AND status = 'pending'
+                    """,
+                    (account_id, verification_type),
+                )
+                connection.execute(
+                    f"""
+                    INSERT INTO {WORKER_VERIFICATIONS_TABLE_NAME}(
+                        submission_id, worker_account_id, verification_type,
+                        status, data, attachment_name, attachment_media_type,
+                        attachment_path, submitted_at
+                    ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+                    """,
+                    values,
+                )
+                record_audit_event_in_connection(
+                    connection,
+                    event_type="worker_verification_submitted",
+                    outcome="success",
+                    actor_account_id=account_id,
+                    actor_username=str(user.get("username") or ""),
+                    target_type="worker_verification",
+                    target_id=submission_id,
+                    details={"verification_type": verification_type},
+                )
+    except Exception:
+        if attachment_path is not None:
+            attachment_path.unlink(missing_ok=True)
+        raise
+    return latest_worker_verifications(account_id)[verification_type]
+
+
+def my_worker_verifications(user: dict[str, Any]) -> list[dict[str, Any]]:
+    require_role(user, "worker")
+    init_db()
+    return list(latest_worker_verifications(str(user.get("sub") or "")).values())
+
+
+def _worker_display_name(account_id: str) -> str:
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT a.username, p.data
+                    FROM {ACCOUNTS_TABLE_NAME} a
+                    LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+                    WHERE a.account_id = %s
+                    """,
+                    (account_id,),
+                )
+                row = cursor.fetchone()
+        else:
+            row = connection.execute(
+                f"""
+                SELECT a.username, p.data
+                FROM {ACCOUNTS_TABLE_NAME} a
+                LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+                WHERE a.account_id = ?
+                """,
+                (account_id,),
+            ).fetchone()
+    if row is None:
+        return "Исполнитель"
+    profile = _profile_from_row((row[1],))
+    return str(profile.get("display_name") or row[0] or "Исполнитель")
+
+
+def list_worker_verifications(user: dict[str, Any]) -> list[dict[str, Any]]:
+    require_role(user, "logist")
+    init_db()
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT {VERIFICATION_SELECT_FIELDS}
+                    FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                    WHERE status = 'pending'
+                    ORDER BY submitted_at ASC
+                    """
+                )
+                rows = cursor.fetchall()
+        else:
+            rows = connection.execute(
+                f"""
+                SELECT {VERIFICATION_SELECT_FIELDS}
+                FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                WHERE status = 'pending'
+                ORDER BY submitted_at ASC
+                """
+            ).fetchall()
+    result = []
+    for row in rows:
+        item = _verification_from_row(row, include_sensitive=True)
+        item["worker_name"] = _worker_display_name(item["worker_account_id"])
+        result.append(item)
+    return result
+
+
+def review_worker_verification(
+    user: dict[str, Any], submission_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    require_role(user, "logist")
+    status = str(payload.get("status") or "").strip().lower()
+    if status not in {"verified", "rejected"}:
+        raise HTTPException(status_code=422, detail="status must be verified or rejected")
+    try:
+        reason = bounded_text(
+            payload.get("rejection_reason"), "rejection_reason", max_length=500
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if status == "rejected" and not reason:
+        raise HTTPException(status_code=422, detail="rejection_reason is required")
+    account_id = str(user.get("sub") or "")
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE {WORKER_VERIFICATIONS_TABLE_NAME}
+                    SET status = %s, reviewed_at = NOW(), reviewer_account_id = %s,
+                        rejection_reason = %s
+                    WHERE submission_id = %s AND status = 'pending'
+                    RETURNING {VERIFICATION_SELECT_FIELDS}
+                    """,
+                    (status, account_id, reason or None, submission_id),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise HTTPException(status_code=409, detail="submission is not pending")
+                record_audit_event_in_connection(
+                    connection,
+                    event_type="worker_verification_reviewed",
+                    outcome="success",
+                    actor_account_id=account_id,
+                    actor_username=str(user.get("username") or ""),
+                    target_type="worker_verification",
+                    target_id=submission_id,
+                    details={"status": status, "verification_type": str(row[2])},
+                )
+            connection.commit()
+        else:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                f"""
+                SELECT {VERIFICATION_SELECT_FIELDS}
+                FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                WHERE submission_id = ? AND status = 'pending'
+                """,
+                (submission_id,),
+            ).fetchone()
+            if existing is None:
+                raise HTTPException(status_code=409, detail="submission is not pending")
+            connection.execute(
+                f"""
+                UPDATE {WORKER_VERIFICATIONS_TABLE_NAME}
+                SET status = ?, reviewed_at = CURRENT_TIMESTAMP,
+                    reviewer_account_id = ?, rejection_reason = ?
+                WHERE submission_id = ?
+                """,
+                (status, account_id, reason or None, submission_id),
+            )
+            record_audit_event_in_connection(
+                connection,
+                event_type="worker_verification_reviewed",
+                outcome="success",
+                actor_account_id=account_id,
+                actor_username=str(user.get("username") or ""),
+                target_type="worker_verification",
+                target_id=submission_id,
+                details={"status": status, "verification_type": str(existing[2])},
+            )
+            row = connection.execute(
+                f"""
+                SELECT {VERIFICATION_SELECT_FIELDS}
+                FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                WHERE submission_id = ?
+                """,
+                (submission_id,),
+            ).fetchone()
+    return _verification_from_row(row, include_sensitive=True)
+
+
+def worker_verification_attachment(
+    user: dict[str, Any], submission_id: str
+) -> tuple[Path, str, str]:
+    require_role(user, "logist")
+    with db_connection() as connection:
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT attachment_path, attachment_media_type, attachment_name
+                    FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                    WHERE submission_id = %s
+                    """,
+                    (submission_id,),
+                )
+                row = cursor.fetchone()
+        else:
+            row = connection.execute(
+                f"""
+                SELECT attachment_path, attachment_media_type, attachment_name
+                FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                WHERE submission_id = ?
+                """,
+                (submission_id,),
+            ).fetchone()
+    if row is None or not row[0]:
+        raise HTTPException(status_code=404, detail="attachment not found")
+    path = Path(str(row[0])).resolve()
+    upload_dir = private_upload_dir().resolve()
+    if not path.is_relative_to(upload_dir) or not path.is_file():
+        raise HTTPException(status_code=404, detail="attachment not found")
+    return path, str(row[1] or "application/octet-stream"), Path(str(row[2] or path.name)).name
+
+
+def _invalidate_identity_verification_in_connection(
+    connection: Any, worker_account_id: str
+) -> None:
+    reason = "Данные профиля изменены после отправки. Подайте паспорт повторно."
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                UPDATE {WORKER_VERIFICATIONS_TABLE_NAME}
+                SET status = 'rejected', reviewed_at = NOW(), rejection_reason = %s
+                WHERE submission_id = (
+                    SELECT submission_id FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+                    WHERE worker_account_id = %s AND verification_type = 'identity'
+                      AND status IN ('pending', 'verified')
+                    ORDER BY submitted_at DESC, submission_id DESC LIMIT 1
+                )
+                """,
+                (reason, worker_account_id),
+            )
+        return
+    connection.execute(
+        f"""
+        UPDATE {WORKER_VERIFICATIONS_TABLE_NAME}
+        SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE submission_id = (
+            SELECT submission_id FROM {WORKER_VERIFICATIONS_TABLE_NAME}
+            WHERE worker_account_id = ? AND verification_type = 'identity'
+              AND status IN ('pending', 'verified')
+            ORDER BY submitted_at DESC, submission_id DESC LIMIT 1
+        )
+        """,
+        (reason, worker_account_id),
+    )
+
+
 def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
     account_id = str(user.get("sub") or "")
     role = str(user.get("role") or "")
@@ -2385,6 +3016,20 @@ def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
                 ).fetchone()
             )
     result = {**default_profile(user), **profile}
+    if role == "worker":
+        latest = latest_worker_verifications(account_id)
+        for verification_type, status_field in {
+            "identity": "identity_status",
+            "npd": "npd_status",
+        }.items():
+            verification = latest.get(verification_type)
+            if verification is None:
+                continue
+            result[status_field] = verification["status"]
+            result[f"{verification_type}_submitted_at"] = verification["submitted_at"]
+            result[f"{verification_type}_rejection_reason"] = verification[
+                "rejection_reason"
+            ]
     result.update(
         {
             "username": str(user.get("username") or ""),
@@ -2462,6 +3107,10 @@ def update_account_profile(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
     current = get_account_profile(user)
+    invalidates_identity = role == "worker" and any(
+        field in cleaned and cleaned[field] != current.get(field)
+        for field in {"display_name", "date_birth", "nationality"}
+    )
     stored_fields = ROLE_PROFILE_FIELDS.get(role, set())
     updated = {
         field: value
@@ -2483,6 +3132,10 @@ def update_account_profile(
                     """,
                     (account_id, serialized),
                 )
+                if invalidates_identity:
+                    _invalidate_identity_verification_in_connection(
+                        connection, account_id
+                    )
                 record_audit_event_in_connection(
                     connection,
                     event_type="profile_updated",
@@ -2505,6 +3158,8 @@ def update_account_profile(
                 """,
                 (account_id, serialized),
             )
+            if invalidates_identity:
+                _invalidate_identity_verification_in_connection(connection, account_id)
             record_audit_event_in_connection(
                 connection,
                 event_type="profile_updated",
@@ -3368,6 +4023,102 @@ async def patch_my_profile(
         raise HTTPException(status_code=400, detail=str(error)) from error
     profile = await asyncio.to_thread(update_account_profile, user, patch)
     return {"success": True, "profile": profile}
+
+
+async def bounded_json_payload(request: Request, *, max_bytes: int) -> dict[str, Any]:
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > max_bytes:
+                raise HTTPException(status_code=413, detail="request is too large")
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="invalid content-length") from error
+    body = await request.body()
+    if len(body) > max_bytes:
+        raise HTTPException(status_code=413, detail="request is too large")
+    try:
+        payload = json.loads(body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise HTTPException(status_code=400, detail="invalid JSON") from error
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="payload must be an object")
+    return payload
+
+
+@app.get("/app-api/me/verifications")
+async def get_my_verifications(
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    submissions = await asyncio.to_thread(my_worker_verifications, user)
+    return {"submissions": submissions}
+
+
+@app.post("/app-api/me/verifications/{verification_type}")
+async def post_my_verification(
+    verification_type: str,
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    payload = await bounded_json_payload(
+        request, max_bytes=MAX_VERIFICATION_REQUEST_BYTES
+    )
+    submission = await asyncio.to_thread(
+        submit_worker_verification, user, verification_type, payload
+    )
+    return {"success": True, "submission": submission}
+
+
+@app.get("/app-api/logist/worker-verifications")
+async def get_worker_verification_queue(
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    submissions = await asyncio.to_thread(list_worker_verifications, user)
+    return {"submissions": submissions}
+
+
+@app.patch("/app-api/logist/worker-verifications/{submission_id}")
+async def patch_worker_verification(
+    submission_id: str,
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    payload = await bounded_json_payload(request, max_bytes=4096)
+    submission = await asyncio.to_thread(
+        review_worker_verification, user, submission_id, payload
+    )
+    return {"success": True, "submission": submission}
+
+
+@app.get("/app-api/logist/worker-verifications/{submission_id}/attachment")
+async def get_worker_verification_attachment(
+    submission_id: str,
+    authorization: str | None = Header(default=None),
+) -> FileResponse:
+    user = await authenticated_user(authorization)
+    path, media_type, filename = await asyncio.to_thread(
+        worker_verification_attachment, user, submission_id
+    )
+    return FileResponse(
+        path,
+        media_type=media_type,
+        filename=filename,
+        headers={
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @app.get("/app-api/me/dashboard")
