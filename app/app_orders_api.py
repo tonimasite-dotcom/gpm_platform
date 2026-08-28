@@ -2548,7 +2548,7 @@ def _profile_completion(profile: dict[str, Any], role: str) -> int:
             "cities",
             "payout_method",
         ),
-        "logist": ("display_name", "email", "cities"),
+        "logist": ("display_name",),
     }.get(role, ("display_name",))
     completed = sum(bool(profile.get(field)) for field in required)
     return round(completed * 100 / len(required))
