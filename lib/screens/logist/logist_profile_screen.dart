@@ -20,7 +20,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
   final _nameController = TextEditingController(text: 'Демо Логист');
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController(text: 'logist@gpm.ru');
-  final _telegramController = TextEditingController();
   final _cityController = TextEditingController(text: 'Москва');
   final _maxOrdersController = TextEditingController(text: '25');
   final _commentController = TextEditingController();
@@ -47,7 +46,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _telegramController.dispose();
     _cityController.dispose();
     _maxOrdersController.dispose();
     _commentController.dispose();
@@ -77,7 +75,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
       _phoneController.text = data['phone']?.toString() ?? '';
       _emailController.text =
           data['email']?.toString() ?? _emailController.text;
-      _telegramController.text = data['telegram']?.toString() ?? '';
       final cities = data['cities'];
       _cityController.text = cities is List
           ? cities.join(', ')
@@ -107,7 +104,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
       'display_name': _nameController.text.trim(),
       'phone': _phoneController.text.trim(),
       'email': _emailController.text.trim(),
-      'telegram': _telegramController.text.trim(),
       'cities': _cityController.text
           .split(',')
           .map((item) => item.trim())
@@ -324,29 +320,13 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                 validator: (value) => _required(value, 'Укажите ФИО'),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Телефон',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _telegramController,
-                      decoration: const InputDecoration(
-                        labelText: 'Telegram',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Телефон',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -356,7 +336,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                   labelText: 'Email',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => _required(value, 'Укажите email'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -392,7 +371,6 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                   hintText: 'Например: Москва, Химки, Красногорск',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => _required(value, 'Укажите зону работы'),
               ),
               const SizedBox(height: 12),
               TextFormField(
