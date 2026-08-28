@@ -7,11 +7,11 @@
 > Публичный пилот допустим только после закрытия P0 из
 > `PROJECT_AUDIT_2026-08-25.md` и `LEGAL_READINESS_RU.md`.
 >
-> Текущий production frontend/backend: `597a9d2`, опубликован 28.08.2026.
+> Текущий production frontend/backend: `411561b`, опубликован 28.08.2026.
 > Полная точка продолжения:
-> `PROJECT_HANDOFF_2026-08-28_CURRENT_PRODUCTION_AND_CRM_RECOVERY.md`.
+> `PROJECT_HANDOFF_2026-08-28_LOGIST_PROFILE_LIVE_CRM_OWNERSHIP_PENDING.md`.
 > Готовый промт нового чата:
-> `CONTINUE_PROJECT_PROMPT_2026-08-28_CURRENT_PRODUCTION_AND_CRM_RECOVERY.md`.
+> `CONTINUE_PROJECT_PROMPT_2026-08-28_LOGIST_PROFILE_LIVE_CRM_OWNERSHIP_PENDING.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
