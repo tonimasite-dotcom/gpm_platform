@@ -7,6 +7,54 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
 
 void main() {
+  test('draft update keeps CRM order number with slash in route', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    String? patchPath;
+    Map<String, dynamic>? patchBody;
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      if (request.uri.path == '/app-api/auth/login') {
+        request.response.write(
+          jsonEncode({
+            'access_token': 'draft-access-token',
+            'username': 'logist',
+            'role': 'logist',
+          }),
+        );
+      } else if (request.method == 'PATCH') {
+        patchPath = request.uri.path;
+        patchBody = jsonDecode(await utf8.decoder.bind(request).join());
+        request.response.write(jsonEncode({'success': true, 'order': {}}));
+      } else if (request.uri.path == '/app-api/me/orders') {
+        request.response.write(jsonEncode({'orders': []}));
+      }
+      await request.response.close();
+    });
+
+    dotenv.testLoad(
+      fileInput:
+          'GPM_APP_MODE=api\n'
+          'GPM_APP_API_URL=http://${server.address.host}:${server.port}\n',
+    );
+    final api = GpmApiService();
+    await api.login(
+      username: 'logist',
+      password: 'synthetic-password',
+      role: 'logist',
+    );
+
+    final result = await api.updateOrderDraft('033/25', {
+      'city': 'Москва',
+      'workers_count': 2,
+    });
+
+    expect(result['success'], isTrue);
+    expect(patchPath, '/app-api/me/orders/033/25');
+    expect(patchBody?['city'], 'Москва');
+    expect(patchBody?['workers_count'], 2);
+  });
+
   test('API worker orders preserve server-owned worker metadata', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../client/client_create_order_screen.dart';
+import '../orders/order_draft_edit_screen.dart';
 
 class LogistOrdersScreen extends StatefulWidget {
   const LogistOrdersScreen({super.key});
@@ -58,10 +59,10 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => const ClientCreateOrderScreen(
-          publishImmediately: true,
+          publishImmediately: false,
           closeOnSuccess: true,
           title: 'Новая заявка',
-          submitText: 'Опубликовать заявку',
+          submitText: 'Создать черновик',
         ),
       ),
     );
@@ -299,6 +300,19 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
     });
   }
 
+  Future<void> _editOrder() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderDraftEditScreen(order: order),
+      ),
+    );
+    if (updated == true) {
+      await _refreshOrderSnapshot();
+      widget.onUpdate();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = _orderStatusText(order['status']);
@@ -371,35 +385,48 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
           if (order['status'] == 'NEW')
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        await _updateOrderStatus(
-                          context,
-                          'JUNK',
-                          'Заказ отклонен',
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                      child: const Text('Отклонить'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _editOrder,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Редактировать'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await _updateOrderStatus(
-                          context,
-                          'PROCESSED',
-                          'Заказ одобрен и доступен исполнителям',
-                        );
-                      },
-                      child: const Text('Опубликовать'),
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await _updateOrderStatus(
+                              context,
+                              'JUNK',
+                              'Заказ отклонен',
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          child: const Text('Отклонить'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await _updateOrderStatus(
+                              context,
+                              'PROCESSED',
+                              'Заказ одобрен и доступен исполнителям',
+                            );
+                          },
+                          child: const Text('Опубликовать'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -461,6 +488,18 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
       _applicationsFuture = Future.value(applications);
     });
     widget.onUpdate();
+  }
+
+  Future<void> _editDraft() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderDraftEditScreen(order: order),
+      ),
+    );
+    if (updated == true) {
+      await _refreshDetails();
+    }
   }
 
   Future<void> _approve(String applicationId) async {
@@ -616,6 +655,17 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             const SizedBox(height: 8),
             const SizedBox(height: 8),
             _StatusPill(text: status, color: color),
+            if (order['status'] == 'NEW') ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isUpdating ? null : _editDraft,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Редактировать перед публикацией'),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),

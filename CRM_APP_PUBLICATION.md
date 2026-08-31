@@ -181,8 +181,16 @@ contain multiple cities. Direct application requests enforce the same rule.
 3. GPM requires `logist_phone`, resolves it to one active server-backed logist
    account, and rejects missing, unknown, or ambiguous values.
 4. Only that assigned logist can review the draft or its applications.
-5. The logist presses `Опубликовать`; GPM changes the status to `PROCESSED`.
-6. Only workers whose profile contains the order city can discover it.
+5. While the order is `NEW`, that logist may correct operational fields such
+   as the city, schedule, address, worker count, work mode and rates. The CRM
+   order number, source and assigned logist remain server-owned.
+6. The logist presses `Опубликовать`; GPM changes the status to `PROCESSED`.
+7. Only workers whose profile contains the order city can discover it.
+
+Clients and non-CRM logists create their own `NEW` drafts inside the GPM app,
+may edit only those drafts, and publish them from the app. They cannot see,
+edit or publish CRM orders assigned to a company logist. Published orders are
+immutable through the draft editor.
 
 The active integration does not call a Telegram bot and does not use messenger
 usernames as routing identifiers. See `INDEPENDENT_PLATFORM_ARCHITECTURE.md`.

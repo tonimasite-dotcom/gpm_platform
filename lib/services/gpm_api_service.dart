@@ -1079,6 +1079,17 @@ class GpmApiService {
     }
   }
 
+  Future<Map<String, dynamic>> updateOrderDraft(
+    String orderId,
+    Map<String, dynamic> patch,
+  ) async {
+    final result = await _patchAppOrder(orderId, patch);
+    if (result['success'] == true) {
+      await _syncAppPublishedOrders();
+    }
+    return result;
+  }
+
   void _upsertOrder(Map<String, dynamic> order) {
     final externalOrderId = _stringValue(order['external_order_id']);
     final id = _stringValue(order['id'], fallback: externalOrderId);

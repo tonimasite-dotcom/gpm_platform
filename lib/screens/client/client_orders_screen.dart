@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi, supabase;
+import '../orders/order_draft_edit_screen.dart';
 
 enum _SortMode { dateDesc, dateAsc, byStatus, byWorkers }
 
@@ -196,14 +197,15 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                         ],
                       ),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
                                 ClientOrderDetailsScreen(orderId: order['id']),
                           ),
                         );
+                        if (mounted) setState(() {});
                       },
                     ),
                   );
@@ -311,6 +313,41 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
     setState(() => _pendingAction = null);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Не удалось принять выполненную работу')),
+    );
+  }
+
+  Future<void> _editDraft(Map<String, dynamic> order) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderDraftEditScreen(order: order),
+      ),
+    );
+    if (updated == true && mounted) {
+      setState(_reload);
+    }
+  }
+
+  Future<void> _publishDraft() async {
+    setState(() => _pendingAction = 'publish-draft');
+    final success = await gpmApi.updateOrderStatus(
+      widget.orderId,
+      'PROCESSED',
+    );
+    if (!mounted) return;
+    setState(() {
+      _pendingAction = null;
+      if (success) _reload();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Заказ опубликован и доступен исполнителям'
+              : 'Не удалось опубликовать заказ',
+        ),
+        backgroundColor: success ? Colors.green : Colors.red,
+      ),
     );
   }
 
@@ -455,21 +492,27 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Функция изменения/отмены заказа пока демо.',
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text('Изменить / отменить заказ'),
+                if (status == 'NEW') ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _pendingAction == null
+                          ? () => _editDraft(order)
+                          : null,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Редактировать'),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _pendingAction == null ? _publishDraft : null,
+                      icon: const Icon(Icons.publish_outlined),
+                      label: const Text('Опубликовать'),
+                    ),
+                  ),
+                ],
               ],
             ),
           );

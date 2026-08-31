@@ -340,6 +340,82 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 403)
 
+    def test_order_owner_can_edit_draft_but_not_published_order(self) -> None:
+        payload = sample_payload()
+        payload["city"] = "Москва"
+        order = api.normalize_external_order(payload)
+        order["logist_account_id"] = "logist-1"
+        logist = {"sub": "logist-1", "role": "logist"}
+
+        patch = api.validate_order_patch(
+            order,
+            {
+                "city": "Тула",
+                "address": "г Тула, ул. Тестовая, 1",
+                "workers_count": 3,
+                "hours": 6,
+                "national": "yes",
+                "work_mode": "shift",
+                "shift_description": "Тестовая смена",
+            },
+            actor=logist,
+            integration=False,
+        )
+
+        self.assertEqual(patch["city"], "Тула")
+        self.assertEqual(patch["workers_count"], 3)
+        self.assertEqual(patch["nationality"], "ru")
+        self.assertEqual(patch["address_lat"], 0)
+
+        published = {**order, "status": "PROCESSED"}
+        with self.assertRaises(HTTPException) as caught:
+            api.validate_order_patch(
+                published,
+                {"city": "Казань"},
+                actor=logist,
+                integration=False,
+            )
+        self.assertEqual(caught.exception.status_code, 409)
+
+    def test_client_can_edit_only_own_draft(self) -> None:
+        own_order = api.normalize_external_order(
+            sample_payload(source="manual"),
+            created_by="client-1",
+            created_by_role="client",
+        )
+
+        patch = api.validate_order_patch(
+            own_order,
+            {"description": "Исправленное описание", "price_per_hour": 700},
+            actor={"sub": "client-1", "role": "client"},
+            integration=False,
+        )
+        self.assertEqual(patch["description"], "Исправленное описание")
+        self.assertEqual(patch["price_per_hour"], 700)
+
+        with self.assertRaises(HTTPException) as caught:
+            api.validate_order_patch(
+                own_order,
+                {"description": "Чужое изменение"},
+                actor={"sub": "client-2", "role": "client"},
+                integration=False,
+            )
+        self.assertEqual(caught.exception.status_code, 403)
+
+    def test_draft_edit_rejects_system_owned_fields(self) -> None:
+        order = api.normalize_external_order(sample_payload())
+        order["logist_account_id"] = "logist-1"
+
+        with self.assertRaises(HTTPException) as caught:
+            api.validate_order_patch(
+                order,
+                {"source": "manual", "logist_account_id": "logist-2"},
+                actor={"sub": "logist-1", "role": "logist"},
+                integration=False,
+            )
+
+        self.assertEqual(caught.exception.status_code, 422)
+
     def test_public_patch_rejects_unknown_fields(self) -> None:
         order = api.normalize_external_order(
             sample_payload(source="manual"),

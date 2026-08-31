@@ -20,7 +20,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     final screens = [
       const ClientOrdersScreen(),
       ClientCreateOrderScreen(
-        publishImmediately: true,
+        publishImmediately: false,
+        submitText: 'Создать черновик',
         onBack: () => setState(() => _currentIndex = 0),
       ),
       const ChatThreadsScreen(role: ChatRole.client),

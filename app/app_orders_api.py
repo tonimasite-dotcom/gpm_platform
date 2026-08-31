@@ -84,6 +84,27 @@ ORDER_STATUSES = {
 }
 PUBLIC_ORDER_SOURCES = {"manual", "external", "crm"}
 WORKFLOW_FIELDS = {"status", "assigned_worker_ids", "applications"}
+ORDER_DRAFT_EDITABLE_FIELDS = {
+    "title",
+    "description",
+    "address",
+    "workers_count",
+    "hours",
+    "scheduled_at",
+    "city",
+    "metro",
+    "national",
+    "min_time",
+    "price_per_hour",
+    "price_regular",
+    "price_state",
+    "individual_price",
+    "legal_price",
+    "worker_category",
+    "work_mode",
+    "shift_description",
+    "additional_info",
+}
 ALLOWED_STATUS_TRANSITIONS = {
     "NEW": {"PROCESSED", "JUNK"},
     "PROCESSED": {"IN_PROCESS", "JUNK"},
@@ -2317,7 +2338,11 @@ def validate_order_patch(
     integration: bool,
     actor_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    allowed_fields = WORKFLOW_FIELDS if integration else {"status"}
+    allowed_fields = (
+        WORKFLOW_FIELDS
+        if integration
+        else {"status"} | ORDER_DRAFT_EDITABLE_FIELDS
+    )
     unknown_fields = set(patch) - allowed_fields
     if unknown_fields:
         raise HTTPException(
@@ -2326,11 +2351,126 @@ def validate_order_patch(
         )
 
     normalized: dict[str, Any] = {}
+    draft_fields = set(patch) & ORDER_DRAFT_EDITABLE_FIELDS
+    current_status = str(order.get("status") or "").strip().upper()
+    if draft_fields and current_status != "NEW":
+        raise HTTPException(
+            status_code=409,
+            detail="published order cannot be edited",
+        )
+
+    text_fields = {
+        "title": (200, True),
+        "description": (800, False),
+        "address": (500, True),
+        "city": (120, True),
+        "metro": (120, False),
+        "worker_category": (80, True),
+        "shift_description": (800, False),
+        "additional_info": (2000, False),
+    }
+    for field, (max_length, required) in text_fields.items():
+        if field in patch:
+            try:
+                normalized[field] = bounded_text(
+                    patch[field],
+                    field,
+                    max_length=max_length,
+                    required=required,
+                )
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error)) from error
+
+    integer_fields = {
+        "workers_count": (1, 100),
+        "hours": (1, 24),
+        "min_time": (1, 24),
+    }
+    for field, (minimum, maximum) in integer_fields.items():
+        if field in patch:
+            try:
+                normalized[field] = bounded_integer(
+                    patch[field],
+                    field,
+                    minimum=minimum,
+                    maximum=maximum,
+                )
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error)) from error
+
+    for field in (
+        "price_per_hour",
+        "price_regular",
+        "price_state",
+        "individual_price",
+        "legal_price",
+    ):
+        if field in patch:
+            if patch[field] in (None, ""):
+                normalized[field] = None
+                continue
+            try:
+                normalized[field] = bounded_integer(
+                    patch[field],
+                    field,
+                    minimum=0,
+                    maximum=1_000_000_000,
+                )
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if "scheduled_at" in patch:
+        try:
+            scheduled_at = bounded_text(
+                patch["scheduled_at"],
+                "scheduled_at",
+                max_length=80,
+                required=True,
+            )
+            parsed_schedule = datetime.fromisoformat(
+                scheduled_at.replace("Z", "+00:00")
+            )
+            if parsed_schedule.tzinfo is None:
+                raise ValueError("scheduled_at must include a timezone")
+            seconds_until_start = (
+                parsed_schedule.astimezone(timezone.utc)
+                - datetime.now(timezone.utc)
+            ).total_seconds()
+            if seconds_until_start < 30 * 60:
+                raise ValueError("scheduled_at must be at least 30 minutes ahead")
+            if seconds_until_start > 366 * 24 * 60 * 60:
+                raise ValueError("scheduled_at must be within one year")
+            normalized["scheduled_at"] = scheduled_at
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if "national" in patch:
+        national = str(patch["national"] or "").strip().lower()
+        if national not in {"yes", "every"}:
+            raise HTTPException(status_code=422, detail="invalid national value")
+        normalized["national"] = national
+        normalized["nationality"] = "ru" if national == "yes" else "any"
+
+    if "work_mode" in patch:
+        work_mode = str(patch["work_mode"] or "").strip().lower()
+        if work_mode not in {"rate", "shift"}:
+            raise HTTPException(status_code=422, detail="invalid work_mode")
+        normalized["work_mode"] = work_mode
+
+    if "address" in normalized and normalized["address"] != order.get("address"):
+        normalized.update(
+            {
+                "address_street": normalized["address"],
+                "address_number": "0",
+                "address_lat": 0,
+                "address_lon": 0,
+            }
+        )
+
     if "status" in patch:
         status = str(patch["status"] or "").strip().upper()
         if status not in ORDER_STATUSES:
             raise HTTPException(status_code=422, detail="invalid order status")
-        current_status = str(order.get("status") or "").strip().upper()
         allowed_targets = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
         if status != current_status and status not in allowed_targets:
             raise HTTPException(status_code=409, detail="invalid order status transition")
@@ -2362,11 +2502,10 @@ def validate_order_patch(
             if not logist_owns_order(order, actor, profile=actor_profile):
                 raise HTTPException(status_code=403, detail="insufficient permissions")
         elif role == "client":
-            current_status = str(order.get("status") or "").upper()
             owns_order = order.get("created_by") == username
             allowed_transition = (
                 current_status == "NEW"
-                and target_status in {"PROCESSED", "JUNK"}
+                and (target_status in {"PROCESSED", "JUNK"} or bool(draft_fields))
             ) or (
                 current_status == "DONE_PENDING"
                 and target_status in {"CONVERTED", "IN_PROCESS"}
@@ -2438,6 +2577,20 @@ def patch_order_atomically(
             raise HTTPException(status_code=422, detail="empty order patch")
         order.update(normalized_patch)
         write_order_in_connection(connection, order)
+        edited_fields = sorted(
+            set(normalized_patch) & ORDER_DRAFT_EDITABLE_FIELDS
+        )
+        if actor is not None and edited_fields:
+            record_audit_event_in_connection(
+                connection,
+                event_type="order_draft_updated",
+                outcome="success",
+                actor_account_id=str(actor.get("sub") or ""),
+                actor_username=str(actor.get("username") or ""),
+                target_type="order",
+                target_id=str(order.get("id") or order_id),
+                details={"fields": edited_fields},
+            )
         if is_postgres_enabled():
             connection.commit()
     return order
