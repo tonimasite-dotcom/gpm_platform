@@ -4407,7 +4407,7 @@ async def get_my_orders(
     return {"orders": orders_for_user(orders, user, profile=profile)}
 
 
-@app.post("/app-api/me/orders/{order_id}/applications")
+@app.post("/app-api/me/orders/{order_id:path}/applications")
 async def create_my_order_application(
     order_id: str,
     authorization: str | None = Header(default=None),
@@ -4417,7 +4417,7 @@ async def create_my_order_application(
     return {"success": True, "application": application}
 
 
-@app.patch("/app-api/me/orders/{order_id}/applications/{application_id}")
+@app.patch("/app-api/me/orders/{order_id:path}/applications/{application_id}")
 async def decide_my_order_application(
     order_id: str,
     application_id: str,
@@ -4514,7 +4514,7 @@ async def get_orders(
     return {"orders": await asyncio.to_thread(list_orders)}
 
 
-@app.patch("/app-api/orders/{order_id}")
+@app.patch("/app-api/orders/{order_id:path}")
 async def update_order(
     order_id: str,
     request: Request,
@@ -4524,7 +4524,7 @@ async def update_order(
     return await update_order_payload(order_id, request, integration=True)
 
 
-@app.patch("/app-api/me/orders/{order_id}")
+@app.patch("/app-api/me/orders/{order_id:path}")
 async def update_my_order(
     order_id: str,
     request: Request,

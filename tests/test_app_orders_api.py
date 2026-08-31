@@ -37,6 +37,27 @@ def sample_payload(*, source: str = "external") -> dict:
 
 
 class ActiveApiTests(unittest.TestCase):
+    def test_order_routes_accept_crm_numbers_with_slashes(self) -> None:
+        cases = (
+            ("/app-api/me/orders/{order_id:path}", "/app-api/me/orders/033/25"),
+            ("/app-api/orders/{order_id:path}", "/app-api/orders/033/25"),
+            (
+                "/app-api/me/orders/{order_id:path}/applications",
+                "/app-api/me/orders/033/25/applications",
+            ),
+            (
+                "/app-api/me/orders/{order_id:path}/applications/{application_id}",
+                "/app-api/me/orders/033/25/applications/application-1",
+            ),
+        )
+
+        routes = {route.path: route for route in api.app.routes}
+        for route_path, request_path in cases:
+            with self.subTest(route=route_path):
+                match = routes[route_path].path_regex.fullmatch(request_path)
+                self.assertIsNotNone(match)
+                self.assertEqual(match.groupdict()["order_id"], "033/25")
+
     @unittest.skipUnless(
         os.getenv("GPM_TEST_POSTGRES_URL"),
         "GPM_TEST_POSTGRES_URL is only configured in backend CI",
