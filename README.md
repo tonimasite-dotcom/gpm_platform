@@ -7,13 +7,14 @@
 > Публичный пилот допустим только после закрытия P0 из
 > `PROJECT_AUDIT_2026-08-25.md` и `LEGAL_READINESS_RU.md`.
 >
-> Текущий production на 31.08.2026: backend `7024d76`, frontend `8de928f`.
-> CRM ownership и фильтрация заказов по городу опубликованы и проверены.
-> Редактор черновика перед публикацией готов в `feature/edit-order-drafts`, но
-> ещё не опубликован. Полная точка продолжения:
-> `PROJECT_HANDOFF_2026-08-31_FULL_PROJECT_SNAPSHOT.md`.
+> Текущий production на 01.09.2026: backend и frontend `3f857c5`.
+> CRM ownership, фильтрация по городу и редактор черновика перед публикацией
+> опубликованы. Production run #11 с `target=all` завершён успешно.
+> Новая синтетическая CRM-заявка `001/26` отправлена в GPM; следующая точка —
+> ручная ролевая проверка editor внутри приложения. Полный источник истины:
+> `PROJECT_HANDOFF_2026-09-01_FULL_PROJECT_SNAPSHOT.md`.
 > Готовый промт нового чата:
-> `CONTINUE_PROJECT_PROMPT_2026-08-31_FULL_PROJECT_SNAPSHOT.md`.
+> `CONTINUE_PROJECT_PROMPT_2026-09-01_FULL_PROJECT_SNAPSHOT.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
