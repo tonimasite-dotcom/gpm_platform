@@ -278,6 +278,27 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual([item["id"] for item in visible], ["ORDER-1"])
 
+    def test_worker_discovers_order_with_city_embedded_in_address(self) -> None:
+        payload = sample_payload()
+        payload["order_data"]["info"]["address"] = (
+            "г Москва, шоссе Алтуфьевское 1-й км"
+        )
+        order = api.normalize_external_order(payload)
+        order["status"] = "PROCESSED"
+
+        self.assertEqual(order["city"], "Москва")
+        self.assertTrue(
+            api.worker_can_discover_order(order, {"cities": ["Москва"]})
+        )
+
+        order["city"] = ""
+        self.assertTrue(
+            api.worker_can_discover_order(order, {"cities": ["г. Москва"]})
+        )
+        self.assertFalse(
+            api.worker_can_discover_order(order, {"cities": ["Тула"]})
+        )
+
     def test_logist_publication_makes_city_order_visible_to_workers(self) -> None:
         payload = sample_payload()
         payload["city"] = "Москва"

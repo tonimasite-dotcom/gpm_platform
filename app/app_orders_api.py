@@ -2033,7 +2033,11 @@ def normalize_external_order(
         ),
         "scheduled_at": scheduled_at,
         "city": bounded_text(
-            payload.get("city") or order_data.get("city"),
+            payload.get("city")
+            or order_data.get("city")
+            or info.get("city")
+            or info.get("address_city")
+            or city_from_address(address),
             "city",
             max_length=120,
         ),
@@ -2200,6 +2204,21 @@ def normalized_city_identity(value: Any) -> str:
     return city.strip(" .,\t\r\n")
 
 
+def city_from_address(value: Any) -> str:
+    first_part = str(value or "").split(",", 1)[0].strip()
+    normalized_first_part = first_part.casefold().replace("ё", "е")
+    for prefix in ("город ", "г. ", "г "):
+        if normalized_first_part.startswith(prefix):
+            return first_part[len(prefix) :].strip(" .\t\r\n")
+    return ""
+
+
+def order_city_identity(order: dict[str, Any]) -> str:
+    return normalized_city_identity(
+        order.get("city") or city_from_address(order.get("address"))
+    )
+
+
 def worker_profile_cities(profile: dict[str, Any] | None) -> set[str]:
     if profile is None:
         return set()
@@ -2220,7 +2239,7 @@ def worker_can_discover_order(
 ) -> bool:
     if str(order.get("status") or "").upper() != "PROCESSED":
         return False
-    order_city = normalized_city_identity(order.get("city"))
+    order_city = order_city_identity(order)
     return bool(order_city and order_city in worker_profile_cities(profile))
 
 
