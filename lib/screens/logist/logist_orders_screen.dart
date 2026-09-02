@@ -654,7 +654,10 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               value: _formatSchedule(order['scheduled_at']),
             ),
             _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
-            _OrderFact(label: 'Гражданство РФ', value: _nationalText(order)),
+            _OrderFact(
+              label: 'Гражданство исполнителя',
+              value: _nationalText(order),
+            ),
             _OrderFact(label: 'Режим работы', value: _workModeText(order)),
             _OrderFact(label: 'Метро', value: order['metro']),
             _OrderFact(label: 'Адрес', value: order['address']),
@@ -976,8 +979,9 @@ class _StatusPill extends StatelessWidget {
 
 String _nationalText(Map<String, dynamic> order) {
   final value = order['national'] ?? order['nationality'];
-  if (value == true || value == 'yes' || value == 'ru') return 'Да';
-  return 'Необязательно';
+  if (value == true || value == 'yes' || value == 'ru') return 'РФ';
+  if (value == false || value == 'no' || value == 'non_ru') return 'Не РФ';
+  return 'Не важно';
 }
 
 String _minPayText(Map<String, dynamic> order) {

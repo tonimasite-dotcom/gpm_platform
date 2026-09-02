@@ -222,13 +222,13 @@ class _ConversationNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = switch (thread.type) {
       ChatThreadType.clientWorker =>
-        'Рабочий чат клиента и исполнителя. При споре можно подключить логиста GPM.',
+        'Единый рабочий чат по заявке для согласования деталей и выполнения заказа.',
       ChatThreadType.support =>
         'Канал поддержки. Логист фиксирует договоренности и решение спорной ситуации.',
       ChatThreadType.clientLogist =>
         'Канал клиента и логиста по заявке. Здесь уточняются детали заказа.',
       ChatThreadType.workerLogist =>
-        'Канал исполнителя и логиста по выходу на заказ и операционным вопросам.',
+        'Единый рабочий чат по заявке с назначенным логистом и исполнителями.',
     };
 
     return Container(

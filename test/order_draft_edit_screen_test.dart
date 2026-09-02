@@ -41,5 +41,9 @@ void main() {
     );
     expect(find.widgetWithText(TextFormField, 'Город'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Адрес'), findsOneWidget);
+    expect(
+      find.byKey(const Key('order-nationality-field'), skipOffstage: false),
+      findsOneWidget,
+    );
   });
 }

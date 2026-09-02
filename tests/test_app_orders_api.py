@@ -58,6 +58,36 @@ class ActiveApiTests(unittest.TestCase):
                 self.assertIsNotNone(match)
                 self.assertEqual(match.groupdict()["order_id"], "033/25")
 
+    def test_chat_routes_accept_crm_numbers_with_slashes(self) -> None:
+        cases = (
+            (
+                "/app-api/me/chats/{thread_id:path}",
+                "/app-api/me/chats/chat-033/25-workerLogist",
+            ),
+            (
+                "/app-api/me/chats/{thread_id:path}/messages",
+                "/app-api/me/chats/chat-033/25-workerLogist/messages",
+            ),
+            (
+                "/app-api/me/chats/{thread_id:path}/support",
+                "/app-api/me/chats/chat-033/25-workerLogist/support",
+            ),
+            (
+                "/app-api/me/chats/{thread_id:path}/attention",
+                "/app-api/me/chats/chat-033/25-workerLogist/attention",
+            ),
+        )
+
+        routes = {route.path: route for route in api.app.routes}
+        for route_path, request_path in cases:
+            with self.subTest(route=route_path):
+                match = routes[route_path].path_regex.fullmatch(request_path)
+                self.assertIsNotNone(match)
+                self.assertEqual(
+                    match.groupdict()["thread_id"],
+                    "chat-033/25-workerLogist",
+                )
+
     @unittest.skipUnless(
         os.getenv("GPM_TEST_POSTGRES_URL"),
         "GPM_TEST_POSTGRES_URL is only configured in backend CI",
@@ -302,6 +332,34 @@ class ActiveApiTests(unittest.TestCase):
         self.assertFalse(
             api.worker_can_discover_order(order, {"cities": ["Тула"]})
         )
+
+    def test_worker_discovery_respects_order_citizenship(self) -> None:
+        russian_payload = sample_payload()
+        russian_payload["city"] = "Москва"
+        russian_payload["order_data"]["national"] = "yes"
+        russian = api.normalize_external_order(russian_payload)
+        russian["status"] = "PROCESSED"
+
+        non_russian_payload = sample_payload()
+        non_russian_payload["city"] = "Москва"
+        non_russian_payload["order_data"]["order_number"] = "ORDER-NON-RU"
+        non_russian_payload["order_data"]["national"] = "no"
+        non_russian = api.normalize_external_order(non_russian_payload)
+        non_russian["status"] = "PROCESSED"
+
+        russian_profile = {"cities": ["Москва"], "nationality": True}
+        non_russian_profile = {"cities": ["Москва"], "nationality": False}
+
+        self.assertTrue(api.worker_can_discover_order(russian, russian_profile))
+        self.assertFalse(api.worker_can_discover_order(russian, non_russian_profile))
+        self.assertFalse(
+            api.worker_can_discover_order(non_russian, russian_profile)
+        )
+        self.assertTrue(
+            api.worker_can_discover_order(non_russian, non_russian_profile)
+        )
+        self.assertEqual(non_russian["national"], "no")
+        self.assertEqual(non_russian["nationality"], "non_ru")
 
     def test_logist_publication_makes_city_order_visible_to_workers(self) -> None:
         payload = sample_payload()
@@ -898,6 +956,48 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 409)
 
+    def test_crm_order_has_one_chat_with_external_number_title(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                },
+                clear=False,
+            ):
+                payload = sample_payload()
+                payload["order_data"]["order_number"] = "001/26"
+                order = api.normalize_external_order(payload)
+                order["status"] = "IN_PROCESS"
+                order["logist_account_id"] = "logist-1"
+                order["assigned_worker_ids"] = ["worker-1"]
+                api.persist_published_order(order, actor=None)
+                with api.db_connection() as connection:
+                    api._ensure_chat_thread_in_connection(
+                        connection, order, "clientLogist"
+                    )
+                    api._ensure_chat_thread_in_connection(
+                        connection, order, "clientWorker"
+                    )
+                    api._ensure_chat_thread_in_connection(connection, order, "support")
+
+                worker = {"sub": "worker-1", "role": "worker"}
+                logist = {"sub": "logist-1", "role": "logist"}
+                worker_threads = api.list_account_chat_threads(worker)
+                logist_threads = api.list_account_chat_threads(logist)
+
+                self.assertEqual(len(worker_threads), 1)
+                self.assertEqual(len(logist_threads), 1)
+                self.assertEqual(worker_threads[0]["id"], logist_threads[0]["id"])
+                self.assertEqual(worker_threads[0]["type"], "workerLogist")
+                self.assertEqual(worker_threads[0]["title"], "Заявка № 001/26")
+                with self.assertRaises(HTTPException) as caught:
+                    api.get_account_chat_messages("chat-001/26-clientWorker", worker)
+                self.assertEqual(caught.exception.status_code, 404)
+
     def test_user_publish_rejects_existing_order_number(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, "orders.sqlite3")
@@ -1160,7 +1260,7 @@ class ActiveApiTests(unittest.TestCase):
 
                 worker_threads = api.list_account_chat_threads(worker)
                 client_threads = api.list_account_chat_threads(client)
-                self.assertEqual(len(worker_threads), 2)
+                self.assertEqual(len(worker_threads), 1)
                 self.assertEqual(len(client_threads), 1)
                 self.assertEqual(
                     api.account_dashboard(logist)["summary"]["total_orders"], 0

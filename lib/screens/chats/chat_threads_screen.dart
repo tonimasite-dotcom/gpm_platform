@@ -151,10 +151,6 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
                   thread.type == ChatThreadType.clientWorker,
             )
             .toList(),
-      _ThreadFilter.support =>
-        threads
-            .where((thread) => thread.type == ChatThreadType.support)
-            .toList(),
       _ThreadFilter.archived =>
         threads.where((thread) => thread.isArchived).toList(),
     };
@@ -171,7 +167,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   }
 }
 
-enum _ThreadFilter { all, attention, orders, support, archived }
+enum _ThreadFilter { all, attention, orders, archived }
 
 class _ThreadsData {
   final List<ChatThread> threads;
@@ -208,9 +204,6 @@ class _ChatFilters extends StatelessWidget {
               thread.type == ChatThreadType.clientWorker,
         )
         .length;
-    final supportCount = threads
-        .where((thread) => thread.type == ChatThreadType.support)
-        .length;
     final archivedCount = threads.where((thread) => thread.isArchived).length;
 
     return SingleChildScrollView(
@@ -234,12 +227,6 @@ class _ChatFilters extends StatelessWidget {
             count: orderCount,
             selected: selected == _ThreadFilter.orders,
             onTap: () => onSelected(_ThreadFilter.orders),
-          ),
-          _FilterChipButton(
-            label: 'Поддержка',
-            count: supportCount,
-            selected: selected == _ThreadFilter.support,
-            onTap: () => onSelected(_ThreadFilter.support),
           ),
           _FilterChipButton(
             label: 'Архив',
@@ -298,7 +285,6 @@ class _FilteredEmptyState extends StatelessWidget {
     final text = switch (filter) {
       _ThreadFilter.attention => 'Чатов, требующих внимания, нет.',
       _ThreadFilter.orders => 'Чатов по заказам пока нет.',
-      _ThreadFilter.support => 'Обращений в поддержку пока нет.',
       _ThreadFilter.archived => 'Архивных чатов пока нет.',
       _ThreadFilter.all => 'Чатов пока нет.',
     };
@@ -441,14 +427,7 @@ class _ThreadCard extends StatelessWidget {
     ChatRole role,
     Map<String, dynamic>? order,
   ) {
-    final orderTitle = order?['title']?.toString();
-    return switch (thread.type) {
-      ChatThreadType.support => 'Поддержка 24/7',
-      ChatThreadType.clientWorker =>
-        role == ChatRole.worker ? 'Клиент по заказу' : 'Исполнитель по заказу',
-      ChatThreadType.clientLogist => orderTitle ?? 'Заказ',
-      ChatThreadType.workerLogist => 'Координация выхода',
-    };
+    return thread.title;
   }
 
   String _threadSubtitle(
@@ -469,14 +448,7 @@ class _ThreadCard extends StatelessWidget {
   }
 
   String _threadKindLabel(ChatThread thread, ChatRole role) {
-    return switch (thread.type) {
-      ChatThreadType.support => 'Поддержка',
-      ChatThreadType.clientWorker => 'Заказ',
-      ChatThreadType.clientLogist =>
-        role == ChatRole.client ? 'Заказ' : 'Клиент',
-      ChatThreadType.workerLogist =>
-        role == ChatRole.worker ? 'Заказ' : 'Исполнитель',
-    };
+    return thread.type == ChatThreadType.support ? 'Поддержка' : 'Заявка';
   }
 }
 

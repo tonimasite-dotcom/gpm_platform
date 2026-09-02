@@ -31,6 +31,13 @@ class ChatService {
     final visibleThreads = _threads
         .where((thread) => thread.isVisibleFor(role))
         .where((thread) {
+          final matchingOrders = orders.where(
+            (order) => order['id']?.toString() == thread.orderId,
+          );
+          return matchingOrders.isNotEmpty &&
+              thread.type == _canonicalType(matchingOrders.first);
+        })
+        .where((thread) {
           if (role == ChatRole.worker) {
             return _isRelevantForDemoWorker(thread, orders);
           }
@@ -142,45 +149,6 @@ class ChatService {
       unreadCount: sourceThread.unreadCount + 1,
     );
 
-    final supportThreadId = _threadId(
-      sourceThread.orderId,
-      ChatThreadType.support,
-    );
-    if (!_threads.any((thread) => thread.id == supportThreadId)) {
-      _threads.add(
-        ChatThread(
-          id: supportThreadId,
-          orderId: sourceThread.orderId,
-          type: ChatThreadType.support,
-          title: 'Спор по заказу #${sourceThread.orderId}',
-          subtitle: 'Клиент, исполнитель и логист GPM',
-          isArchived: sourceThread.isArchived,
-          requiresLogistAttention: true,
-          unreadCount: 1,
-          updatedAt: now,
-        ),
-      );
-      _messages.add(
-        ChatMessage(
-          id: 'msg-${now.microsecondsSinceEpoch + 1}',
-          threadId: supportThreadId,
-          senderRole: ChatRole.system,
-          senderName: 'GPM',
-          text:
-              'Создан канал поддержки. Логист видит историю обращения и может подключиться к решению ситуации.',
-          createdAt: now,
-          isSystem: true,
-        ),
-      );
-    } else {
-      _touchThread(
-        supportThreadId,
-        updatedAt: now,
-        requiresLogistAttention: true,
-        unreadCount: 1,
-      );
-    }
-
     _saveState();
   }
 
@@ -236,15 +204,8 @@ class ChatService {
     for (final order in orders) {
       final orderId = order['id']?.toString();
       if (orderId == null || orderId.isEmpty) continue;
-
-      changed = _ensureThread(order, ChatThreadType.clientLogist) || changed;
-
-      if (_isPublishedOrAssigned(order)) {
-        changed = _ensureThread(order, ChatThreadType.workerLogist) || changed;
-      }
-
       if (_assignedWorkerIds(order).isNotEmpty) {
-        changed = _ensureThread(order, ChatThreadType.clientWorker) || changed;
+        changed = _ensureThread(order, _canonicalType(order)) || changed;
       }
     }
 
@@ -260,7 +221,7 @@ class ChatService {
         DateTime.tryParse(order['created_at']?.toString() ?? '') ??
         DateTime.now();
     final archived = order['status'] == 'CONVERTED';
-    final orderTitle = order['title']?.toString() ?? 'Заказ #$orderId';
+    final orderTitle = _orderTitle(order);
 
     _threads.add(
       ChatThread(
@@ -270,7 +231,7 @@ class ChatService {
         title: _titleForType(type, orderTitle),
         subtitle: order['address']?.toString() ?? 'Адрес не указан',
         isArchived: archived,
-        requiresLogistAttention: type == ChatThreadType.clientLogist,
+        requiresLogistAttention: false,
         updatedAt: createdAt,
       ),
     );
@@ -386,12 +347,23 @@ class ChatService {
   }
 
   String _titleForType(ChatThreadType type, String orderTitle) {
-    return switch (type) {
-      ChatThreadType.clientLogist => orderTitle,
-      ChatThreadType.workerLogist => 'Исполнители: $orderTitle',
-      ChatThreadType.clientWorker => 'Связь с исполнителем',
-      ChatThreadType.support => 'Поддержка GPM',
-    };
+    return type == ChatThreadType.support ? 'Поддержка GPM' : orderTitle;
+  }
+
+  ChatThreadType _canonicalType(Map<String, dynamic> order) {
+    return order['created_by_role'] == 'client'
+        ? ChatThreadType.clientWorker
+        : ChatThreadType.workerLogist;
+  }
+
+  String _orderTitle(Map<String, dynamic> order) {
+    final externalOrderId = order['external_order_id']?.toString().trim() ?? '';
+    final source = order['source']?.toString();
+    if ((source == 'external' || source == 'crm') &&
+        externalOrderId.isNotEmpty) {
+      return 'Заявка № $externalOrderId';
+    }
+    return order['title']?.toString() ?? 'Заказ № ${order['id']}';
   }
 
   ChatThreadType? _threadType(String threadId) {

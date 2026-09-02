@@ -57,12 +57,14 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
 
   bool _matchesNationalityRequirement(Map<String, dynamic> order) {
     final national = order['national'] ?? order['nationality'];
-    final requiresRussianCitizenship =
-        national == true || national == 'yes' || national == 'ru';
-    if (!requiresRussianCitizenship) return true;
-
     final worker = gpmApi.getWorkerProfileSync(GpmApiService.demoWorkerId);
-    return worker?['nationality'] == true;
+    if (national == true || national == 'yes' || national == 'ru') {
+      return worker?['nationality'] == true;
+    }
+    if (national == false || national == 'no' || national == 'non_ru') {
+      return worker?['nationality'] == false;
+    }
+    return true;
   }
 
   bool _isActiveForWorker(Map<String, dynamic> order) {
@@ -181,7 +183,9 @@ class OrdersList extends StatelessWidget {
                 Text('🗓 ${_formatSchedule(order['scheduled_at'])}'),
                 const SizedBox(height: 4),
                 Text(
-                  '👷 ${order['assigned_count'] ?? 0}/${order['workers_count']} чел. × ${order['hours']} ч',
+                  _isRecruitmentClosedForWorker(order)
+                      ? '👷 Набор исполнителей завершен'
+                      : '👷 ${order['assigned_count'] ?? 0}/${order['workers_count']} чел. × ${order['hours']} ч',
                 ),
                 const SizedBox(height: 4),
                 _StatusPill(text: statusText, color: color),
@@ -359,8 +363,14 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
               label: 'Дата и время выполнения работ',
               value: _formatSchedule(order['scheduled_at']),
             ),
-            _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
-            _OrderFact(label: 'Гражданство РФ', value: _nationalText(order)),
+            if (_isRecruitmentClosedForWorker(order))
+              const _OrderFact(label: 'Набор исполнителей', value: 'завершен')
+            else
+              _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
+            _OrderFact(
+              label: 'Гражданство исполнителя',
+              value: _nationalText(order),
+            ),
             _OrderFact(label: 'Режим работы', value: _workModeText(order)),
             _OrderFact(label: 'Метро', value: order['metro']),
             _OrderFact(label: 'Адрес', value: order['address']),
@@ -493,8 +503,14 @@ class _OrderFact extends StatelessWidget {
 
 String _nationalText(Map<String, dynamic> order) {
   final value = order['national'] ?? order['nationality'];
-  if (value == true || value == 'yes' || value == 'ru') return 'Да';
-  return 'Необязательно';
+  if (value == true || value == 'yes' || value == 'ru') return 'РФ';
+  if (value == false || value == 'no' || value == 'non_ru') return 'Не РФ';
+  return 'Не важно';
+}
+
+bool _isRecruitmentClosedForWorker(Map<String, dynamic> order) {
+  return order['worker_application_status'] != null ||
+      order['is_assigned_to_worker'] == true;
 }
 
 String _minPayText(Map<String, dynamic> order) {

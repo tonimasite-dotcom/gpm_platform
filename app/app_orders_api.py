@@ -1982,7 +1982,17 @@ def normalize_external_order(
         max_length=2000,
     )
 
-    rf_only = "Только РФ" in additional or "RF only" in additional
+    raw_national = order_data.get("national", order_data.get("nationality"))
+    if raw_national in (True, "yes", "ru", "rf", "russian"):
+        national = "yes"
+    elif raw_national in (False, "no", "non_ru", "non-rf", "foreign"):
+        national = "no"
+    elif "Только РФ" in additional or "RF only" in additional:
+        national = "yes"
+    elif "Только не РФ" in additional or "non-RF only" in additional:
+        national = "no"
+    else:
+        national = "every"
     address = bounded_text(
         info.get("address") or info.get("address_street") or "Адрес не указан",
         "order_data.info.address",
@@ -2078,14 +2088,16 @@ def normalize_external_order(
         ),
         "external_order_id": order_number,
         "metro": info.get("metro_station"),
-        "national": "yes" if rf_only else "every",
+        "national": national,
         "min_time": min_time,
         "price_per_hour": order_data.get("price_per_hour"),
         "price_regular": order_data.get("price_regular"),
         "price_state": order_data.get("price_state"),
         "individual_price": order_data.get("individual_price"),
         "legal_price": order_data.get("legal_price"),
-        "nationality": "ru" if rf_only else "any",
+        "nationality": (
+            "ru" if national == "yes" else "non_ru" if national == "no" else "any"
+        ),
         "worker_category": order_data.get("worker_category", "loader"),
         "work_mode": order_data.get("work_mode", "rate"),
         "shift_description": order_data.get("shift_description"),
@@ -2261,13 +2273,35 @@ def worker_profile_cities(profile: dict[str, Any] | None) -> set[str]:
     }
 
 
+def worker_matches_nationality_requirement(
+    order: dict[str, Any],
+    profile: dict[str, Any] | None,
+) -> bool:
+    requirement = order.get("national", order.get("nationality"))
+    normalized = str(requirement or "").strip().lower()
+    if requirement is True or normalized in {"yes", "ru", "rf", "russian"}:
+        return profile is not None and profile.get("nationality") is True
+    if requirement is False or normalized in {
+        "no",
+        "non_ru",
+        "non-rf",
+        "foreign",
+    }:
+        return profile is not None and profile.get("nationality") is False
+    return True
+
+
 def worker_can_discover_order(
     order: dict[str, Any], profile: dict[str, Any] | None
 ) -> bool:
     if str(order.get("status") or "").upper() != "PROCESSED":
         return False
     order_city = order_city_identity(order)
-    return bool(order_city and order_city in worker_profile_cities(profile))
+    return bool(
+        order_city
+        and order_city in worker_profile_cities(profile)
+        and worker_matches_nationality_requirement(order, profile)
+    )
 
 
 def logist_owns_order(
@@ -2452,10 +2486,12 @@ def validate_order_patch(
 
     if "national" in patch:
         national = str(patch["national"] or "").strip().lower()
-        if national not in {"yes", "every"}:
+        if national not in {"yes", "no", "every"}:
             raise HTTPException(status_code=422, detail="invalid national value")
         normalized["national"] = national
-        normalized["nationality"] = "ru" if national == "yes" else "any"
+        normalized["nationality"] = (
+            "ru" if national == "yes" else "non_ru" if national == "no" else "any"
+        )
 
     if "work_mode" in patch:
         work_mode = str(patch["work_mode"] or "").strip().lower()
@@ -3548,7 +3584,7 @@ def apply_to_order_atomically(
         if str(order.get("status") or "") != "PROCESSED":
             raise HTTPException(status_code=409, detail="order is not accepting applications")
         if not worker_can_discover_order(order, profile):
-            raise HTTPException(status_code=403, detail="order is outside worker cities")
+            raise HTTPException(status_code=403, detail="order is unavailable for this worker")
         applications = [
             dict(item)
             for item in order.get("applications") or []
@@ -3824,6 +3860,12 @@ def _chat_thread_id(order_id: str, thread_type: str) -> str:
     return f"chat-{order_id}-{thread_type}"
 
 
+def _canonical_order_chat_type(order: dict[str, Any]) -> str:
+    if str(order.get("created_by_role") or "") == "client":
+        return "clientWorker"
+    return "workerLogist"
+
+
 def _ensure_chat_thread_in_connection(
     connection: Any,
     order: dict[str, Any],
@@ -3905,14 +3947,13 @@ def _ensure_order_chat_threads(connection: Any, orders: list[dict[str, Any]]) ->
         order_id = str(order.get("id") or order.get("external_order_id") or "")
         if not order_id:
             continue
-        if order.get("created_by") and (
-            order.get("logist_account_id") or order.get("logist_phone")
-        ):
-            _ensure_chat_thread_in_connection(connection, order, "clientLogist")
         assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
         if assigned:
-            _ensure_chat_thread_in_connection(connection, order, "workerLogist")
-            _ensure_chat_thread_in_connection(connection, order, "clientWorker")
+            _ensure_chat_thread_in_connection(
+                connection,
+                order,
+                _canonical_order_chat_type(order),
+            )
 
 
 def _read_chat_thread_in_connection(connection: Any, thread_id: str) -> Any:
@@ -3944,32 +3985,27 @@ def _chat_thread_access(
     role = str(user.get("role") or "")
     account_id = str(user.get("sub") or "")
     thread_type = str(row[2])
+    if thread_type != _canonical_order_chat_type(order):
+        return False, order
     if role == "logist":
         return logist_owns_order(order, user, profile=profile), order
     if role == "client":
         return (
             order.get("created_by") == account_id
-            and thread_type in {"clientLogist", "clientWorker", "support"},
+            and thread_type == "clientWorker",
             order,
         )
     if role == "worker":
         assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
-        return (
-            account_id in assigned
-            and thread_type in {"workerLogist", "clientWorker", "support"},
-            order,
-        )
+        return account_id in assigned, order
     return False, order
 
 
 def _chat_thread_title(thread_type: str, order: dict[str, Any]) -> str:
-    title = str(order.get("title") or f"Заказ #{order.get('id') or ''}")
-    return {
-        "clientLogist": title,
-        "workerLogist": f"Координация: {title}",
-        "clientWorker": f"Рабочий чат: {title}",
-        "support": f"Поддержка: {title}",
-    }.get(thread_type, title)
+    external_order_id = str(order.get("external_order_id") or "").strip()
+    if str(order.get("source") or "") in {"external", "crm"} and external_order_id:
+        return f"Заявка № {external_order_id}"
+    return str(order.get("title") or f"Заказ № {order.get('id') or ''}")
 
 
 def _messages_for_thread_in_connection(connection: Any, thread_id: str) -> list[Any]:
@@ -4281,20 +4317,19 @@ def request_chat_support(thread_id: str, user: dict[str, Any]) -> str:
             raise HTTPException(status_code=404, detail="chat thread not found")
         if str(user.get("role") or "") == "logist":
             raise HTTPException(status_code=422, detail="logist support is already present")
-        support_id = _ensure_chat_thread_in_connection(connection, order, "support")
         if not _is_sqlite_connection(connection):
             with connection.cursor() as cursor:
                 cursor.execute(
-                    f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = TRUE, updated_at = NOW() WHERE thread_id IN (%s, %s)",
-                    (thread_id, support_id),
+                    f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = TRUE, updated_at = NOW() WHERE thread_id = %s",
+                    (thread_id,),
                 )
             connection.commit()
         else:
             connection.execute(
-                f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = 1, updated_at = CURRENT_TIMESTAMP WHERE thread_id IN (?, ?)",
-                (thread_id, support_id),
+                f"UPDATE {CHAT_THREADS_TABLE_NAME} SET requires_attention = 1, updated_at = CURRENT_TIMESTAMP WHERE thread_id = ?",
+                (thread_id,),
             )
-    return support_id
+    return thread_id
 
 
 @app.on_event("startup")
@@ -4562,7 +4597,7 @@ async def my_chat_threads(
     return {"threads": await asyncio.to_thread(list_account_chat_threads, user)}
 
 
-@app.get("/app-api/me/chats/{thread_id}")
+@app.get("/app-api/me/chats/{thread_id:path}")
 async def my_chat_messages(
     thread_id: str,
     authorization: str | None = Header(default=None),
@@ -4576,7 +4611,7 @@ async def my_chat_messages(
     return {"thread": thread, "messages": messages}
 
 
-@app.post("/app-api/me/chats/{thread_id}/messages")
+@app.post("/app-api/me/chats/{thread_id:path}/messages")
 async def post_my_chat_message(
     thread_id: str,
     request: Request,
@@ -4598,7 +4633,7 @@ async def post_my_chat_message(
     return {"success": True, "message": message}
 
 
-@app.post("/app-api/me/chats/{thread_id}/support")
+@app.post("/app-api/me/chats/{thread_id:path}/support")
 async def request_my_chat_support(
     thread_id: str,
     authorization: str | None = Header(default=None),
@@ -4608,7 +4643,7 @@ async def request_my_chat_support(
     return {"success": True, "support_thread_id": support_thread_id}
 
 
-@app.patch("/app-api/me/chats/{thread_id}/attention")
+@app.patch("/app-api/me/chats/{thread_id:path}/attention")
 async def patch_my_chat_attention(
     thread_id: str,
     request: Request,

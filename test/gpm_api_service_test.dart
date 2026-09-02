@@ -7,6 +7,33 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
 
 void main() {
+  test('demo CRM import preserves non-Russian citizenship requirement', () async {
+    dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
+    final api = GpmApiService();
+
+    final result = await api.importCrmOrder({
+      'source': 'external',
+      'order_data': {
+        'order_number': '099/26',
+        'national': 'no',
+        'completion_date': {
+          'date': DateTime.now()
+              .add(const Duration(days: 1))
+              .toUtc()
+              .toIso8601String(),
+        },
+        'loaders': {'loader_count': 1},
+        'info': {'address': 'Москва, Тестовая улица, 1'},
+        'hours': 4,
+      },
+    });
+    final order = await api.getOrderById(result['orderId'].toString());
+
+    expect(result['success'], isTrue);
+    expect(order?['national'], 'no');
+    expect(order?['nationality'], 'non_ru');
+  });
+
   test('draft update keeps CRM order number with slash in route', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));

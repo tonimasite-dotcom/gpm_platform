@@ -45,6 +45,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   int _hours = 4;
   int _workersCount = 2;
   bool _hasElevator = true;
+  String _national = 'yes';
   String _workerCategory = 'loader';
   String _clientType = 'individual';
   String _clientEmail = '';
@@ -434,11 +435,11 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         city: _cityController.text.trim(),
         source: GpmApiService.sourceManual,
         metro: _metroController.text.trim(),
-        national: 'every',
+        national: _national,
         minTime: _hours,
         individualPrice: _clientType == 'individual' ? price : null,
         legalPrice: _clientType == 'legal' ? price : null,
-        nationality: 'any',
+        nationality: _national == 'yes' ? 'ru' : 'non_ru',
         workerCategory: _workerCategory,
         workMode: 'rate',
         timezone: 'Europe/Moscow',
@@ -498,6 +499,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         _hours = 4;
         _workersCount = 2;
         _hasElevator = true;
+        _national = 'yes';
         _workerCategory = 'loader';
         _selectedAddress = null;
         _addressCandidates = const [];
@@ -720,14 +722,19 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.verified_user_outlined),
-                title: Text('Право на законную работу'),
-                subtitle: Text(
-                  'Гражданство не используется как общий фильтр. Необходимые '
-                  'документы должен проверять серверный процесс верификации.',
-                ),
+              const Text(
+                'Гражданство исполнителя:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'yes', label: Text('РФ')),
+                  ButtonSegment(value: 'no', label: Text('Не РФ')),
+                ],
+                selected: {_national},
+                onSelectionChanged: (selection) =>
+                    setState(() => _national = selection.first),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(

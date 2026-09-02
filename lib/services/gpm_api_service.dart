@@ -648,7 +648,10 @@ class GpmApiService {
       }
 
       final additionalInfo = _stringValue(info['additional']);
-      final national = _nationalFromAdditional(additionalInfo);
+      final national = _nationalFromOrderData(
+        orderData['national'] ?? orderData['nationality'],
+        additionalInfo,
+      );
 
       return createOrder(
         title: 'Заявка № $externalOrderId',
@@ -688,7 +691,11 @@ class GpmApiService {
         priceState: _intOrNull(orderData['price_state']),
         individualPrice: _intOrNull(orderData['individual_price']),
         legalPrice: _intOrNull(orderData['legal_price']),
-        nationality: national == 'yes' ? 'ru' : 'any',
+        nationality: national == 'yes'
+            ? 'ru'
+            : national == 'no'
+            ? 'non_ru'
+            : 'any',
         workerCategory: _stringValue(
           orderData['worker_category'],
           fallback: 'loader',
@@ -760,6 +767,7 @@ class GpmApiService {
     final effectiveAdditional = [
       if (additionalInfo?.trim().isNotEmpty == true) additionalInfo!.trim(),
       if (national == 'yes') 'Только РФ',
+      if (national == 'no') 'Только не РФ',
       if (workMode == 'shift' && shiftDescription?.trim().isNotEmpty == true)
         shiftDescription!.trim(),
     ].join('\n');
@@ -787,6 +795,8 @@ class GpmApiService {
         'note': description,
         'min_time': effectiveMinTime,
         'hours': hours,
+        'national': national,
+        'nationality': nationality,
         'work_mode': workMode,
         'worker_category': workerCategory,
         'price_per_hour': pricePerHour,
@@ -852,6 +862,7 @@ class GpmApiService {
         'scheduled_at': effectiveScheduledAt,
         'city': city,
         'source': effectiveSource,
+        'created_by_role': _appRole,
         'external_order_id': effectiveExternalOrderId,
         'metro': metro,
         'national': national,
@@ -1699,8 +1710,21 @@ class GpmApiService {
     return double.tryParse(value?.toString().trim() ?? '');
   }
 
-  String _nationalFromAdditional(String additionalInfo) {
+  String _nationalFromOrderData(dynamic value, String additionalInfo) {
+    final normalizedValue = value?.toString().trim().toLowerCase();
+    if (value == true ||
+        {'yes', 'ru', 'rf', 'russian'}.contains(normalizedValue)) {
+      return 'yes';
+    }
+    if (value == false ||
+        {'no', 'non_ru', 'non-rf', 'foreign'}.contains(normalizedValue)) {
+      return 'no';
+    }
     final normalized = additionalInfo.toLowerCase();
+    if (normalized.contains('только не рф') ||
+        normalized.contains('non-rf only')) {
+      return 'no';
+    }
     if (normalized.contains('только рф') ||
         normalized.contains('rf only') ||
         normalized.contains('russian only')) {

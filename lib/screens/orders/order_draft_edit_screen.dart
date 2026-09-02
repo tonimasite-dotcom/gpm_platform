@@ -71,7 +71,8 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     _individualPrice = _textController(order['individual_price']);
     _legalPrice = _textController(order['legal_price']);
     _additionalInfo = _textController(order['additional_info']);
-    _national = _value(order['national']) == 'yes' ? 'yes' : 'every';
+    final national = _value(order['national']);
+    _national = national == 'yes' || national == 'no' ? national : 'every';
     _workMode = _value(order['work_mode']) == 'shift' ? 'shift' : 'rate';
   }
 
@@ -303,10 +304,14 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
               validator: (value) => _integer(value, min: 1, max: 24),
             ),
             DropdownButtonFormField<String>(
+              key: const Key('order-nationality-field'),
               initialValue: _national,
-              decoration: const InputDecoration(labelText: 'Гражданство РФ'),
+              decoration: const InputDecoration(
+                labelText: 'Гражданство исполнителя',
+              ),
               items: const [
-                DropdownMenuItem(value: 'yes', child: Text('Обязательно')),
+                DropdownMenuItem(value: 'yes', child: Text('РФ')),
+                DropdownMenuItem(value: 'no', child: Text('Не РФ')),
                 DropdownMenuItem(value: 'every', child: Text('Необязательно')),
               ],
               onChanged: (value) => setState(() => _national = value!),
