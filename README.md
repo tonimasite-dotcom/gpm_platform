@@ -7,15 +7,15 @@
 > Публичный пилот допустим только после закрытия P0 из
 > `PROJECT_AUDIT_2026-08-25.md` и `LEGAL_READINESS_RU.md`.
 >
-> Текущий production на 02.09.2026: backend и frontend `05118c4`.
-> Досрочное закрытие набора выпущено через успешный production run #12.
-> Единый чат заявки, исправление chat ID `001/26`, представление откликнувшегося
-> исполнителя и фильтрация по гражданству готовы локально, но ещё не выпущены.
+> Текущий production на 02.09.2026: backend и frontend `8d7e283`.
+> Досрочное закрытие набора, единый чат заявки, исправление chat ID `001/26`,
+> представление откликнувшегося исполнителя и фильтрация по гражданству
+> выпущены. Production run #13 (`target=all`), attempt #2 завершён успешно.
 > Базовый полный источник истины:
 > `PROJECT_HANDOFF_2026-09-01_FULL_PROJECT_SNAPSHOT.md`. Продолжение сессии:
-> `PROJECT_HANDOFF_2026-09-02_SESSION_CONTINUATION_SNAPSHOT.md`.
+> `PROJECT_HANDOFF_2026-09-02_POST_RELEASE_FULL_BACKUP.md`.
 > Готовый промпт нового чата:
-> `CONTINUE_PROJECT_PROMPT_2026-09-02_SESSION_CONTINUATION_SNAPSHOT.md`.
+> `CONTINUE_PROJECT_PROMPT_2026-09-02_POST_RELEASE_FULL_BACKUP.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
