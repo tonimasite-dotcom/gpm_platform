@@ -22,7 +22,11 @@ CRM -- server-to-server API --> GPM backend --> PostgreSQL --> GPM applications
    endpoint `PATCH /app-api/me/orders/{order_id}`.
 5. Workers discover the published order only when its city is one of the cities
    selected in their server-backed profile, and apply inside GPM.
-6. Assignments, lifecycle statuses, finance, notifications, and chats remain
+6. After assigning at least one GPM worker, the logist may stop recruitment
+   before every requested slot is filled. GPM changes the order to
+   `IN_PROCESS`, rejects remaining pending applications, and keeps confirmed
+   workers assigned so they can complete their work inside the order.
+7. Assignments, lifecycle statuses, finance, notifications, and chats remain
    internal to GPM.
 
 The integration token is server-side only and must never be embedded in the

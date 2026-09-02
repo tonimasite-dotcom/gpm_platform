@@ -186,6 +186,12 @@ contain multiple cities. Direct application requests enforce the same rule.
    order number, source and assigned logist remain server-owned.
 6. The logist presses `Опубликовать`; GPM changes the status to `PROCESSED`.
 7. Only workers whose profile contains the order city can discover it.
+8. The assigned logist may press `Завершить поиск исполнителей` after confirming
+   at least one worker, even if fewer workers were found in GPM than requested.
+   GPM changes the order to `IN_PROCESS`, stops new applications, rejects any
+   still-pending applications, and preserves confirmed workers' access to the
+   order, chat, and completion flow. Workers recruited through other sources
+   remain outside GPM.
 
 Clients and non-CRM logists create their own `NEW` drafts inside the GPM app,
 may edit only those drafts, and publish them from the app. They cannot see,

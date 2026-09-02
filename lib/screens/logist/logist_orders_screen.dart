@@ -522,6 +522,43 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     );
   }
 
+  Future<void> _closeRecruitment() async {
+    final assignedCount = (order['assigned_worker_ids'] as List?)?.length ?? 0;
+    final requiredCount =
+        int.tryParse(order['workers_count']?.toString() ?? '') ?? 1;
+    final pendingCount =
+        int.tryParse(order['pending_applications_count']?.toString() ?? '') ??
+        0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Завершить поиск исполнителей?'),
+        content: Text(
+          'Подтверждено $assignedCount из $requiredCount. '
+          'Новые отклики станут недоступны'
+          '${pendingCount > 0 ? ', а необработанные отклики ($pendingCount) будут отклонены' : ''}. '
+          'Подтвержденные исполнители продолжат работу по заявке.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Завершить поиск'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _runAction(
+      () => gpmApi.closeOrderRecruitment(order['id'].toString()),
+      'Поиск завершен, заявка остается в работе',
+    );
+  }
+
   Future<void> _confirmCompletion(String result) async {
     final workerId = _assignedWorkerId();
     if (workerId == null) {
@@ -663,6 +700,19 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                   onPressed: _isUpdating ? null : _editDraft,
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Редактировать перед публикацией'),
+                ),
+              ),
+            ],
+            if (order['status'] == 'PROCESSED' &&
+                (order['assigned_worker_ids'] as List?)?.isNotEmpty ==
+                    true) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isUpdating ? null : _closeRecruitment,
+                  icon: const Icon(Icons.person_search_outlined),
+                  label: const Text('Завершить поиск исполнителей'),
                 ),
               ),
             ],

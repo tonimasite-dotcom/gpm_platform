@@ -1515,6 +1515,48 @@ class GpmApiService {
     return {'success': true};
   }
 
+  Future<Map<String, dynamic>> closeOrderRecruitment(String orderId) async {
+    if (isApiMode) {
+      final result = await _patchAppOrder(orderId, {'status': 'IN_PROCESS'});
+      if (result['success'] == true) {
+        await _syncAppPublishedOrders();
+      }
+      return result;
+    }
+
+    final orderIndex = _demoOrders.indexWhere(
+      (order) => order['id'] == orderId,
+    );
+    if (orderIndex == -1) {
+      return {'success': false, 'error': 'Заявка не найдена'};
+    }
+    final order = _demoOrders[orderIndex];
+    final assignedWorkerIds = _assignedWorkerIds(order);
+    if (order['status'] != 'PROCESSED') {
+      return {'success': false, 'error': 'Поиск уже завершен'};
+    }
+    if (assignedWorkerIds.isEmpty) {
+      return {
+        'success': false,
+        'error': 'Сначала подтвердите хотя бы одного исполнителя',
+      };
+    }
+
+    final decidedAt = DateTime.now().toUtc().toIso8601String();
+    for (final application in _demoApplications) {
+      if (application['order_id'] == orderId &&
+          application['status'] == 'PENDING') {
+        application['status'] = 'REJECTED';
+        application['decided_at'] = decidedAt;
+        application['decision_reason'] = 'recruitment_closed';
+      }
+    }
+    order['status'] = 'IN_PROCESS';
+    order['recruitment_closed_at'] = decidedAt;
+    _saveDemoState();
+    return {'success': true, 'order': Map<String, dynamic>.from(order)};
+  }
+
   Future<Map<String, dynamic>> completeOrderWithResult({
     required String orderId,
     required String workerId,

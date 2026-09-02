@@ -182,6 +182,8 @@ class ActiveApiTests(unittest.TestCase):
             "status": "IN_PROCESS",
             "assigned_worker_ids": ["worker-1"],
             "applications": [{"id": "application-1"}],
+            "recruitment_closed_at": "2026-08-01T01:00:00Z",
+            "recruitment_closed_by": "logist-1",
             "created_at": "2026-08-01T00:00:00Z",
         }
 
@@ -190,6 +192,8 @@ class ActiveApiTests(unittest.TestCase):
         self.assertEqual(merged["status"], "IN_PROCESS")
         self.assertEqual(merged["assigned_worker_ids"], ["worker-1"])
         self.assertEqual(merged["applications"], [{"id": "application-1"}])
+        self.assertEqual(merged["recruitment_closed_by"], "logist-1")
+        self.assertEqual(merged["recruitment_closed_at"], "2026-08-01T01:00:00Z")
         self.assertEqual(merged["created_at"], "2026-08-01T00:00:00Z")
 
     def test_worker_response_redacts_contact_fields(self) -> None:
@@ -790,6 +794,109 @@ class ActiveApiTests(unittest.TestCase):
 
                 self.assertEqual(updated["status"], "PROCESSED")
                 self.assertEqual(api.get_order(saved["id"])["status"], "PROCESSED")
+
+    def test_logist_can_close_recruitment_with_partially_filled_order(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                },
+                clear=False,
+            ):
+                incoming = api.normalize_external_order(sample_payload())
+                incoming["logist_account_id"] = "logist-1"
+                saved = api.persist_published_order(incoming, actor=None)
+                published = api.patch_order_atomically(
+                    saved["id"],
+                    {
+                        "status": "PROCESSED",
+                        "assigned_worker_ids": ["worker-1"],
+                        "applications": [
+                            {
+                                "id": "approved-1",
+                                "worker_id": "worker-1",
+                                "status": "APPROVED",
+                            },
+                            {
+                                "id": "pending-2",
+                                "worker_id": "worker-2",
+                                "status": "PENDING",
+                            },
+                        ],
+                    },
+                    actor=None,
+                    integration=True,
+                )
+                self.assertEqual(published["workers_count"], 2)
+
+                closed = api.patch_order_atomically(
+                    saved["id"],
+                    {"status": "IN_PROCESS"},
+                    actor={
+                        "sub": "logist-1",
+                        "role": "logist",
+                        "username": "synthetic-logist",
+                    },
+                    integration=False,
+                )
+
+                self.assertEqual(closed["status"], "IN_PROCESS")
+                self.assertEqual(closed["assigned_worker_ids"], ["worker-1"])
+                applications = {item["id"]: item for item in closed["applications"]}
+                self.assertEqual(applications["approved-1"]["status"], "APPROVED")
+                self.assertEqual(applications["pending-2"]["status"], "REJECTED")
+                self.assertEqual(
+                    applications["pending-2"]["decision_reason"],
+                    "recruitment_closed",
+                )
+                self.assertEqual(closed["recruitment_closed_by"], "logist-1")
+                self.assertTrue(closed["recruitment_closed_at"])
+                worker = {"sub": "worker-1", "role": "worker"}
+                visible_to_assigned = api.orders_for_user(
+                    [closed],
+                    worker,
+                    profile={"cities": []},
+                )
+                self.assertEqual(len(visible_to_assigned), 1)
+                self.assertTrue(visible_to_assigned[0]["is_assigned_to_worker"])
+                done_pending = api.patch_order_atomically(
+                    closed["id"],
+                    {"status": "DONE_PENDING"},
+                    actor=worker,
+                    integration=False,
+                )
+                self.assertEqual(done_pending["status"], "DONE_PENDING")
+
+    def test_logist_cannot_close_recruitment_without_assigned_worker(self) -> None:
+        order = api.normalize_external_order(sample_payload())
+        order["status"] = "PROCESSED"
+        order["logist_account_id"] = "logist-1"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                },
+                clear=False,
+            ):
+                api.persist_published_order(order, actor=None)
+                with self.assertRaises(HTTPException) as caught:
+                    api.patch_order_atomically(
+                        order["id"],
+                        {"status": "IN_PROCESS"},
+                        actor={"sub": "logist-1", "role": "logist"},
+                        integration=False,
+                    )
+
+        self.assertEqual(caught.exception.status_code, 409)
 
     def test_user_publish_rejects_existing_order_number(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

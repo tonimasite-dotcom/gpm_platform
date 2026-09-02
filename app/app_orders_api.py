@@ -83,7 +83,13 @@ ORDER_STATUSES = {
     "JUNK",
 }
 PUBLIC_ORDER_SOURCES = {"manual", "external", "crm"}
-WORKFLOW_FIELDS = {"status", "assigned_worker_ids", "applications"}
+WORKFLOW_FIELDS = {
+    "status",
+    "assigned_worker_ids",
+    "applications",
+    "recruitment_closed_at",
+    "recruitment_closed_by",
+}
 ORDER_DRAFT_EDITABLE_FIELDS = {
     "title",
     "description",
@@ -2575,6 +2581,25 @@ def patch_order_atomically(
         )
         if not normalized_patch:
             raise HTTPException(status_code=422, detail="empty order patch")
+        current_status = str(order.get("status") or "").upper()
+        target_status = str(normalized_patch.get("status") or "").upper()
+        closes_recruitment = (
+            actor is not None
+            and current_status == "PROCESSED"
+            and target_status == "IN_PROCESS"
+        )
+        rejected_pending_count = 0
+        if closes_recruitment:
+            if not order.get("assigned_worker_ids"):
+                raise HTTPException(
+                    status_code=409,
+                    detail="assign at least one worker before closing recruitment",
+                )
+            normalized_patch.pop("status", None)
+            rejected_pending_count = close_recruitment_in_order(
+                order,
+                actor_id=str(actor.get("sub") or ""),
+            )
         order.update(normalized_patch)
         write_order_in_connection(connection, order)
         edited_fields = sorted(
@@ -2590,6 +2615,22 @@ def patch_order_atomically(
                 target_type="order",
                 target_id=str(order.get("id") or order_id),
                 details={"fields": edited_fields},
+            )
+        if closes_recruitment:
+            record_audit_event_in_connection(
+                connection,
+                event_type="order_recruitment_closed",
+                outcome="success",
+                actor_account_id=str(actor.get("sub") or ""),
+                actor_username=str(actor.get("username") or ""),
+                target_type="order",
+                target_id=str(order.get("id") or order_id),
+                details={
+                    "assigned_count": len(order.get("assigned_worker_ids") or []),
+                    "required_count": int(order.get("workers_count") or 1),
+                    "rejected_pending_count": rejected_pending_count,
+                    "reason": "closed_by_owner",
+                },
             )
         if is_postgres_enabled():
             connection.commit()
@@ -3465,6 +3506,32 @@ def _worker_application(order: dict[str, Any], account_id: str) -> dict[str, Any
     )
 
 
+def close_recruitment_in_order(
+    order: dict[str, Any],
+    *,
+    actor_id: str,
+) -> int:
+    closed_at = serialize_datetime(utc_now())
+    rejected_pending_count = 0
+    applications = []
+    for raw_application in order.get("applications") or []:
+        if not isinstance(raw_application, dict):
+            continue
+        application = dict(raw_application)
+        if str(application.get("status") or "").upper() == "PENDING":
+            application["status"] = "REJECTED"
+            application["decided_at"] = closed_at
+            application["decided_by"] = actor_id
+            application["decision_reason"] = "recruitment_closed"
+            rejected_pending_count += 1
+        applications.append(application)
+    order["applications"] = applications
+    order["status"] = "IN_PROCESS"
+    order["recruitment_closed_at"] = closed_at
+    order["recruitment_closed_by"] = actor_id
+    return rejected_pending_count
+
+
 def apply_to_order_atomically(
     order_id: str,
     user: dict[str, Any],
@@ -3567,10 +3634,16 @@ def decide_order_application_atomically(
         application["decided_by"] = str(user.get("sub") or "")
         order["applications"] = applications
         order["assigned_worker_ids"] = assigned
+        recruitment_closed = False
+        rejected_pending_count = 0
         if normalized_decision == "APPROVED" and len(assigned) >= int(
             order.get("workers_count") or 1
         ):
-            order["status"] = "IN_PROCESS"
+            rejected_pending_count = close_recruitment_in_order(
+                order,
+                actor_id=str(user.get("sub") or ""),
+            )
+            recruitment_closed = True
         write_order_in_connection(connection, order)
         record_audit_event_in_connection(
             connection,
@@ -3582,6 +3655,22 @@ def decide_order_application_atomically(
             target_id=application_id,
             details={"decision": normalized_decision},
         )
+        if recruitment_closed:
+            record_audit_event_in_connection(
+                connection,
+                event_type="order_recruitment_closed",
+                outcome="success",
+                actor_account_id=str(user.get("sub") or ""),
+                actor_username=str(user.get("username") or ""),
+                target_type="order",
+                target_id=str(order.get("id") or order_id),
+                details={
+                    "assigned_count": len(assigned),
+                    "required_count": int(order.get("workers_count") or 1),
+                    "rejected_pending_count": rejected_pending_count,
+                    "reason": "all_slots_filled",
+                },
+            )
         if not _is_sqlite_connection(connection):
             connection.commit()
     return application

@@ -107,6 +107,58 @@ void main() {
     expect(orders.single['assigned_count'], 1);
   });
 
+  test(
+    'closing recruitment keeps slash order id and requests IN_PROCESS',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      String? patchPath;
+      Map<String, dynamic>? patchBody;
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        if (request.uri.path == '/app-api/auth/login') {
+          request.response.write(
+            jsonEncode({
+              'access_token': 'close-recruitment-token',
+              'username': 'logist',
+              'role': 'logist',
+            }),
+          );
+        } else if (request.method == 'PATCH') {
+          patchPath = request.uri.path;
+          patchBody = jsonDecode(await utf8.decoder.bind(request).join());
+          request.response.write(
+            jsonEncode({
+              'success': true,
+              'order': {'id': '001/26', 'status': 'IN_PROCESS'},
+            }),
+          );
+        } else {
+          request.response.write(jsonEncode({'orders': []}));
+        }
+        await request.response.close();
+      });
+
+      dotenv.testLoad(
+        fileInput:
+            'GPM_APP_MODE=api\n'
+            'GPM_APP_API_URL=http://${server.address.host}:${server.port}\n',
+      );
+      final api = GpmApiService();
+      await api.login(
+        username: 'logist',
+        password: 'synthetic-password',
+        role: 'logist',
+      );
+
+      final result = await api.closeOrderRecruitment('001/26');
+
+      expect(result['success'], isTrue);
+      expect(patchPath, '/app-api/me/orders/001/26');
+      expect(patchBody, {'status': 'IN_PROCESS'});
+    },
+  );
+
   test('worker verification sends private attachment only to backend', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
