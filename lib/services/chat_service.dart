@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import '../models/chat_models.dart';
 import 'demo_storage.dart';
@@ -10,6 +11,67 @@ class ChatService {
   final List<ChatThread> _threads = [];
   final List<ChatMessage> _messages = [];
   final GpmApiService? _api;
+  final Map<String, String> _drafts = {};
+  final Map<String, List<PendingChatMessage>> _outboxes = {};
+  String? _scope;
+
+  String get sessionScope =>
+      '${_api?.currentUsername}:${_api?.currentRole}:${_api?.sessionRevision}';
+
+  void _checkScope() {
+    final scope = sessionScope;
+    if (_scope == scope) return;
+    if (_api?.isApiMode == true) {
+      _threads.clear();
+      _messages.clear();
+    }
+    _drafts.clear();
+    _outboxes.clear();
+    _scope = scope;
+  }
+
+  String draft(String threadId, ChatRole role) {
+    _checkScope();
+    return _drafts['${role.name}:$threadId'] ?? '';
+  }
+
+  void saveDraft(String threadId, ChatRole role, String text) {
+    _checkScope();
+    _drafts['${role.name}:$threadId'] = text;
+  }
+
+  List<PendingChatMessage> outbox(String threadId, ChatRole role) {
+    _checkScope();
+    return _outboxes.putIfAbsent('${role.name}:$threadId', () => []);
+  }
+
+  static String newMessageId() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
+
+  Future<ChatConversation> getConversation(String threadId) async {
+    _checkScope();
+    if (_api?.isApiMode == true) {
+      await _loadApiConversation(threadId);
+    } else {
+      await markThreadRead(threadId);
+    }
+    final thread = _threads.where((item) => item.id == threadId).firstOrNull;
+    if (thread == null) throw StateError('Чат не найден');
+    final messages =
+        _messages.where((item) => item.threadId == threadId).toList()
+          ..sort((a, b) {
+            final time = a.createdAt.compareTo(b.createdAt);
+            return time == 0 ? a.id.compareTo(b.id) : time;
+          });
+    return ChatConversation(thread: thread, messages: messages);
+  }
 
   ChatService({GpmApiService? api}) : _api = api {
     if (api?.isApiMode != true) _loadState();
@@ -19,14 +81,32 @@ class ChatService {
     required ChatRole role,
     required List<Map<String, dynamic>> orders,
   }) async {
+    _checkScope();
     if (_api?.isApiMode == true) {
+      final scope = sessionScope;
       final rawThreads = await _api!.getMyChatThreads();
+      if (scope != sessionScope) throw StateError('Сессия завершена');
       _threads
         ..clear()
         ..addAll(rawThreads.map(ChatThread.fromJson));
       return List<ChatThread>.unmodifiable(_threads);
     }
     _ensureThreadsForOrders(orders);
+    for (var index = 0; index < _threads.length; index++) {
+      final thread = _threads[index];
+      final messages =
+          _messages.where((item) => item.threadId == thread.id).toList()
+            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final order = orders
+          .where((item) => item['id'].toString() == thread.orderId)
+          .firstOrNull;
+      _threads[index] = thread.copyWith(
+        subtitle: messages.isEmpty ? thread.subtitle : messages.last.text,
+        isArchived: order == null
+            ? thread.isArchived
+            : order['status'] == 'CONVERTED',
+      );
+    }
 
     final visibleThreads = _threads
         .where((thread) => thread.isVisibleFor(role))
@@ -75,32 +155,42 @@ class ChatService {
     }
   }
 
-  Future<void> sendMessage({
+  Future<ChatMessage> sendMessage({
     required String threadId,
     required ChatRole senderRole,
     required String senderName,
     required String text,
+    String? clientMessageId,
   }) async {
     final cleanText = text.trim();
-    if (cleanText.isEmpty) return;
+    if (cleanText.isEmpty || cleanText.length > 2000) {
+      throw ArgumentError('Сообщение должно содержать от 1 до 2000 символов');
+    }
     if (_api?.isApiMode == true) {
-      await _api!.sendMyChatMessage(threadId, cleanText);
-      await _loadApiConversation(threadId);
-      return;
+      final response = await _api!.sendMyChatMessage(
+        threadId,
+        cleanText,
+        clientMessageId: clientMessageId,
+      );
+      return ChatMessage.fromJson(
+        Map<String, dynamic>.from(response['message'] as Map),
+      );
     }
 
     final now = DateTime.now();
-    _messages.add(
-      ChatMessage(
-        id: 'msg-${now.microsecondsSinceEpoch}',
-        threadId: threadId,
-        senderRole: senderRole,
-        senderName: senderName,
-        text: cleanText,
-        createdAt: now,
-        isSystem: false,
-      ),
+    final id = clientMessageId ?? newMessageId();
+    final existing = _messages.where((item) => item.id == id).firstOrNull;
+    if (existing != null) return existing;
+    final message = ChatMessage(
+      id: id,
+      threadId: threadId,
+      senderRole: senderRole,
+      senderName: senderName,
+      text: cleanText,
+      createdAt: now,
+      isSystem: false,
     );
+    _messages.add(message);
 
     _touchThread(
       threadId,
@@ -114,6 +204,7 @@ class ChatService {
       _touchThread(threadId, unreadCount: thread.unreadCount + 1);
     }
     _saveState();
+    return message;
   }
 
   Future<void> requestLogistSupport({
@@ -172,7 +263,9 @@ class ChatService {
   }
 
   Future<void> _loadApiConversation(String threadId) async {
+    final scope = sessionScope;
     final response = await _api!.getMyChatConversation(threadId);
+    if (scope != sessionScope) throw StateError('Сессия завершена');
     final rawThread = response['thread'];
     if (rawThread is Map) {
       final thread = ChatThread.fromJson(

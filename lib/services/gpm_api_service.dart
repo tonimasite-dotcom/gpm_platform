@@ -133,6 +133,8 @@ class GpmApiService {
   bool get hasAuthSession => !requiresAuth || _appAccessToken.trim().isNotEmpty;
   String get currentUsername => _appUsername;
   String get currentRole => _appRole;
+  int _sessionRevision = 0;
+  int get sessionRevision => _sessionRevision;
 
   Future<Map<String, dynamic>> registerWithInvitation({
     required String invitation,
@@ -287,6 +289,7 @@ class GpmApiService {
   }
 
   void _clearLocalSession() {
+    _sessionRevision++;
     _appAccessToken = '';
     _appUsername = '';
     _appRole = 'logist';
@@ -531,11 +534,18 @@ class GpmApiService {
     );
   }
 
-  Future<Map<String, dynamic>> sendMyChatMessage(String threadId, String text) {
+  Future<Map<String, dynamic>> sendMyChatMessage(
+    String threadId,
+    String text, {
+    String? clientMessageId,
+  }) {
     return _authenticatedJsonRequest(
       '/app-api/me/chats/${Uri.encodeComponent(threadId)}/messages',
       method: 'POST',
-      body: {'text': text},
+      body: {
+        'text': text,
+        if (clientMessageId != null) 'client_message_id': clientMessageId,
+      },
     );
   }
 

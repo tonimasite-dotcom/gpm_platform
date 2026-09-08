@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi, chatService;
@@ -15,14 +17,46 @@ class ChatThreadsScreen extends StatefulWidget {
   State<ChatThreadsScreen> createState() => _ChatThreadsScreenState();
 }
 
-class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
+class _ChatThreadsScreenState extends State<ChatThreadsScreen>
+    with WidgetsBindingObserver {
   late Future<_ThreadsData> _threadsFuture;
+  _ThreadsData? _cachedData;
+  Timer? _timer;
+  bool _refreshing = false;
+  bool _active = true;
+  bool _conversationOpen = false;
+  bool _refreshFailed = false;
+  String _query = '';
   _ThreadFilter _filter = _ThreadFilter.all;
 
   @override
   void initState() {
     super.initState();
-    _threadsFuture = _loadThreads();
+    _refreshing = true;
+    _threadsFuture = _loadThreads().whenComplete(() => _refreshing = false);
+    WidgetsBinding.instance.addObserver(this);
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted &&
+          _active &&
+          !_conversationOpen &&
+          TickerMode.of(context) &&
+          ModalRoute.of(context)?.isCurrent == true) {
+        _refresh();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _active = state == AppLifecycleState.resumed;
+    if (_active && mounted && !_conversationOpen) _refresh();
   }
 
   Future<_ThreadsData> _loadThreads() async {
@@ -34,16 +68,29 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
       role: widget.role,
       orders: orders,
     );
-    return _ThreadsData(
+    final data = _ThreadsData(
       threads: threads,
       ordersById: {for (final order in orders) order['id'].toString(): order},
     );
+    _cachedData = data;
+    return data;
   }
 
-  void _refresh() {
-    setState(() {
-      _threadsFuture = _loadThreads();
-    });
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      final data = await _loadThreads();
+      if (!mounted) return;
+      setState(() {
+        _refreshFailed = false;
+        _threadsFuture = Future.value(data);
+      });
+    } catch (_) {
+      if (mounted) setState(() => _refreshFailed = true);
+    } finally {
+      _refreshing = false;
+    }
   }
 
   @override
@@ -51,23 +98,31 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
     return FutureBuilder<_ThreadsData>(
       future: _threadsFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            _cachedData == null) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError) {
+        if (snapshot.hasError && _cachedData == null) {
           return Center(
-            child: Text('Ошибка загрузки чатов: ${snapshot.error}'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Не удалось загрузить чаты.'),
+                TextButton(onPressed: _refresh, child: const Text('Повторить')),
+              ],
+            ),
           );
         }
 
-        final data = snapshot.data ?? const _ThreadsData();
+        final data = _cachedData ?? snapshot.data ?? const _ThreadsData();
         final threads = data.threads;
         final visibleThreads = _applyFilter(threads);
         if (threads.isEmpty) {
           return RefreshIndicator(
-            onRefresh: () async => _refresh(),
+            onRefresh: _refresh,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 SizedBox(
                   height: MediaQuery.sizeOf(context).height * 0.45,
@@ -88,10 +143,23 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
         }
 
         return RefreshIndicator(
-          onRefresh: () async => _refresh(),
+          onRefresh: _refresh,
           child: ListView(
+            key: const PageStorageKey('chat-threads'),
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
             children: [
+              if (_refreshFailed)
+                const Text('Не удалось обновить чаты. Повторяем подключение…'),
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Поиск по заявке или последнему сообщению',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) =>
+                    setState(() => _query = value.trim().toLowerCase()),
+              ),
+              const SizedBox(height: 10),
               if (widget.role != ChatRole.logist) ...[
                 _ChatPolicyBanner(role: widget.role),
                 const SizedBox(height: 10),
@@ -112,6 +180,7 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
                     order: data.ordersById[thread.orderId],
                     role: widget.role,
                     onTap: () async {
+                      _conversationOpen = true;
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -121,7 +190,8 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
                           ),
                         ),
                       );
-                      _refresh();
+                      _conversationOpen = false;
+                      if (mounted) await _refresh();
                     },
                   ),
                 ),
@@ -133,6 +203,13 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen> {
   }
 
   List<ChatThread> _applyFilter(List<ChatThread> threads) {
+    threads = threads
+        .where(
+          (thread) => '${thread.title} ${thread.subtitle} ${thread.orderId}'
+              .toLowerCase()
+              .contains(_query),
+        )
+        .toList();
     return switch (_filter) {
       _ThreadFilter.all => threads,
       _ThreadFilter.attention =>
@@ -435,6 +512,7 @@ class _ThreadCard extends StatelessWidget {
     ChatRole role,
     Map<String, dynamic>? order,
   ) {
+    if (thread.subtitle.isNotEmpty) return thread.subtitle;
     final address = order?['address']?.toString();
     final workers = order?['workers_count']?.toString();
     final hours = order?['hours']?.toString();

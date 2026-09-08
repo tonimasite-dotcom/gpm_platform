@@ -1,16 +1,6 @@
-enum ChatRole {
-  client,
-  worker,
-  logist,
-  system,
-}
+enum ChatRole { client, worker, logist, system }
 
-enum ChatThreadType {
-  clientLogist,
-  workerLogist,
-  clientWorker,
-  support,
-}
+enum ChatThreadType { clientLogist, workerLogist, clientWorker, support }
 
 class ChatThread {
   final String id;
@@ -84,7 +74,8 @@ class ChatThread {
       isArchived: json['is_archived'] == true,
       requiresLogistAttention: json['requires_logist_attention'] == true,
       unreadCount: (json['unread_count'] as int?) ?? 0,
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
           DateTime.now(),
     );
   }
@@ -121,6 +112,9 @@ class ChatMessage {
   final DateTime createdAt;
   final bool isSystem;
 
+  /// Set by the server for the authenticated account, never inferred from role.
+  final bool? isOwn;
+
   const ChatMessage({
     required this.id,
     required this.threadId,
@@ -129,6 +123,7 @@ class ChatMessage {
     required this.text,
     required this.createdAt,
     required this.isSystem,
+    this.isOwn,
   });
 
   Map<String, dynamic> toJson() {
@@ -140,6 +135,7 @@ class ChatMessage {
       'text': text,
       'created_at': createdAt.toUtc().toIso8601String(),
       'is_system': isSystem,
+      if (isOwn != null) 'is_own': isOwn,
     };
   }
 
@@ -153,9 +149,27 @@ class ChatMessage {
       ),
       senderName: json['sender_name']?.toString() ?? 'GPM',
       text: json['text']?.toString() ?? '',
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
       isSystem: json['is_system'] == true,
+      isOwn: json['is_own'] as bool?,
     );
   }
+}
+
+class ChatConversation {
+  final ChatThread thread;
+  final List<ChatMessage> messages;
+
+  const ChatConversation({required this.thread, required this.messages});
+}
+
+enum ChatDelivery { sending, failed, sent }
+
+class PendingChatMessage {
+  ChatMessage message;
+  ChatDelivery delivery;
+
+  PendingChatMessage(this.message, {this.delivery = ChatDelivery.sending});
 }

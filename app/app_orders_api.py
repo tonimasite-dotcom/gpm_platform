@@ -14,7 +14,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request as UrlRequest, urlopen
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import yaml
 from fastapi import FastAPI, Header, HTTPException, Request, Response
@@ -4014,7 +4014,7 @@ def _messages_for_thread_in_connection(connection: Any, thread_id: str) -> list[
                sender_name, message_text, created_at, is_system
         FROM {CHAT_MESSAGES_TABLE_NAME}
         WHERE thread_id = {{placeholder}}
-        ORDER BY created_at ASC
+        ORDER BY created_at ASC, message_id ASC
     """
     if not _is_sqlite_connection(connection):
         with connection.cursor() as cursor:
@@ -4039,7 +4039,7 @@ def _chat_read_at(connection: Any, thread_id: str, account_id: str) -> datetime 
     return parse_db_datetime(row[0]) if row else None
 
 
-def _serialize_chat_message(row: Any) -> dict[str, Any]:
+def _serialize_chat_message(row: Any, account_id: str = "") -> dict[str, Any]:
     created_at = parse_db_datetime(row[6]) or utc_now()
     return {
         "id": str(row[0]),
@@ -4049,6 +4049,7 @@ def _serialize_chat_message(row: Any) -> dict[str, Any]:
         "text": str(row[5]),
         "created_at": serialize_datetime(created_at),
         "is_system": bool(row[7]),
+        "is_own": bool(account_id) and str(row[2] or "") == account_id,
     }
 
 
@@ -4145,40 +4146,46 @@ def get_account_chat_messages(
         if not allowed or row is None or order is None:
             raise HTTPException(status_code=404, detail="chat thread not found")
         messages = [
-            _serialize_chat_message(item)
+            _serialize_chat_message(item, str(user.get("sub") or ""))
             for item in _messages_for_thread_in_connection(connection, thread_id)
         ]
         account_id = str(user.get("sub") or "")
+        read_at = messages[-1]["created_at"] if messages else serialize_datetime(utc_now())
         if not _is_sqlite_connection(connection):
             with connection.cursor() as cursor:
                 cursor.execute(
                     f"""
                     INSERT INTO {CHAT_READS_TABLE_NAME}(thread_id, account_id, read_at)
-                    VALUES (%s, %s, NOW())
-                    ON CONFLICT(thread_id, account_id) DO UPDATE SET read_at = NOW()
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT(thread_id, account_id) DO UPDATE
+                    SET read_at = GREATEST(gpm_app_chat_reads.read_at, EXCLUDED.read_at)
                     """,
-                    (thread_id, account_id),
+                    (thread_id, account_id, read_at),
                 )
             connection.commit()
         else:
             connection.execute(
                 f"""
                 INSERT INTO {CHAT_READS_TABLE_NAME}(thread_id, account_id, read_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(thread_id, account_id) DO UPDATE SET read_at = CURRENT_TIMESTAMP
+                VALUES (?, ?, ?)
+                ON CONFLICT(thread_id, account_id) DO UPDATE
+                SET read_at = MAX(read_at, excluded.read_at)
                 """,
-                (thread_id, account_id),
+                (thread_id, account_id, read_at),
             )
-    thread = next(
-        (
-            item
-            for item in list_account_chat_threads(user)
-            if item["id"] == thread_id
+    thread = {
+        "id": str(row[0]),
+        "order_id": str(row[1]),
+        "type": str(row[2]),
+        "title": _chat_thread_title(str(row[2]), order),
+        "subtitle": messages[-1]["text"] if messages else str(order.get("city") or ""),
+        "is_archived": bool(row[3]) or order.get("status") == "CONVERTED",
+        "requires_logist_attention": bool(row[4]),
+        "unread_count": 0,
+        "updated_at": messages[-1]["created_at"] if messages else serialize_datetime(
+            parse_db_datetime(row[6]) or utc_now()
         ),
-        None,
-    )
-    if thread is None:
-        raise HTTPException(status_code=404, detail="chat thread not found")
+    }
     return thread, messages
 
 
@@ -4186,37 +4193,56 @@ def send_account_chat_message(
     thread_id: str,
     text: str,
     user: dict[str, Any],
+    client_message_id: str | None = None,
 ) -> dict[str, Any]:
-    clean_text = bounded_text(text, "message", max_length=2000, required=True)
+    try:
+        clean_text = bounded_text(text, "message", max_length=2000, required=True)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    try:
+        message_id = str(UUID(client_message_id)) if client_message_id else str(uuid4())
+    except (ValueError, TypeError, AttributeError) as error:
+        raise HTTPException(status_code=400, detail="invalid client_message_id") from error
     profile = get_account_profile(user)
     with db_connection() as connection:
         row = _read_chat_thread_in_connection(connection, thread_id)
-        allowed, _ = _chat_thread_access(
+        allowed, order = _chat_thread_access(
             connection, row, user, profile=profile
         )
         if not allowed or row is None:
             raise HTTPException(status_code=404, detail="chat thread not found")
-        if bool(row[3]):
-            raise HTTPException(status_code=409, detail="chat thread is archived")
-        message_id = str(uuid4())
         account_id = str(user.get("sub") or "")
+        # A retry must return the original message, including after archival.
+        existing = next(
+            (item for item in _messages_for_thread_in_connection(connection, thread_id)
+             if str(item[0]) == message_id), None
+        )
+        if existing is not None:
+            if str(existing[2]) != account_id or str(existing[5]) != clean_text:
+                raise HTTPException(status_code=409, detail="message id already used")
+            return _serialize_chat_message(existing, account_id)
+        if bool(row[3]) or (order or {}).get("status") == "CONVERTED":
+            raise HTTPException(status_code=409, detail="chat thread is archived")
         role = str(user.get("role") or "")
         sender_name = str(
             profile.get("display_name")
             or user.get("username")
             or "Пользователь"
         )
+        created_at = serialize_datetime(utc_now())
         if not _is_sqlite_connection(connection):
             with connection.cursor() as cursor:
                 cursor.execute(
                     f"""
                     INSERT INTO {CHAT_MESSAGES_TABLE_NAME}(
                         message_id, thread_id, sender_account_id, sender_role,
-                        sender_name, message_text
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                        sender_name, message_text, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT(message_id) DO NOTHING
                     """,
-                    (message_id, thread_id, account_id, role, sender_name, clean_text),
+                    (message_id, thread_id, account_id, role, sender_name, clean_text, created_at),
                 )
+                inserted = cursor.rowcount > 0
                 cursor.execute(
                     f"""
                     UPDATE {CHAT_THREADS_TABLE_NAME}
@@ -4225,21 +4251,21 @@ def send_account_chat_message(
                             WHEN %s <> 'logist' THEN TRUE
                             ELSE requires_attention
                         END
-                    WHERE thread_id = %s
+                    WHERE thread_id = %s AND %s
                     """,
-                    (role, thread_id),
+                    (role, thread_id, inserted),
                 )
-            connection.commit()
         else:
-            connection.execute(
+            inserted = connection.execute(
                 f"""
                 INSERT INTO {CHAT_MESSAGES_TABLE_NAME}(
                     message_id, thread_id, sender_account_id, sender_role,
-                    sender_name, message_text
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    sender_name, message_text, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(message_id) DO NOTHING
                 """,
-                (message_id, thread_id, account_id, role, sender_name, clean_text),
-            )
+                (message_id, thread_id, account_id, role, sender_name, clean_text, created_at),
+            ).rowcount > 0
             connection.execute(
                 f"""
                 UPDATE {CHAT_THREADS_TABLE_NAME}
@@ -4248,23 +4274,29 @@ def send_account_chat_message(
                         WHEN ? <> 'logist' THEN 1
                         ELSE requires_attention
                     END
-                WHERE thread_id = ?
+                WHERE thread_id = ? AND ?
                 """,
-                (role, thread_id),
+                (role, thread_id, inserted),
             )
-        record_audit_event_in_connection(
-            connection,
-            event_type="chat_message_sent",
-            outcome="success",
-            actor_account_id=account_id,
-            actor_username=str(user.get("username") or ""),
-            target_type="chat_thread",
-            target_id=thread_id,
+        result = next(
+            (item for item in _messages_for_thread_in_connection(connection, thread_id)
+             if str(item[0]) == message_id), None
         )
+        if result is None or str(result[2]) != account_id or str(result[5]) != clean_text:
+            raise HTTPException(status_code=409, detail="message id already used")
+        if inserted:
+            record_audit_event_in_connection(
+                connection,
+                event_type="chat_message_sent",
+                outcome="success",
+                actor_account_id=account_id,
+                actor_username=str(user.get("username") or ""),
+                target_type="chat_thread",
+                target_id=thread_id,
+            )
         if not _is_sqlite_connection(connection):
             connection.commit()
-    _, messages = get_account_chat_messages(thread_id, user)
-    return messages[-1]
+    return _serialize_chat_message(result, account_id)
 
 
 def set_chat_attention(
@@ -4629,6 +4661,7 @@ async def post_my_chat_message(
         thread_id,
         str(payload.get("text") or ""),
         user,
+        payload.get("client_message_id"),
     )
     return {"success": True, "message": message}
 
