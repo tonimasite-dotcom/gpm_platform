@@ -178,7 +178,7 @@ class OrdersList extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Text('📍 ${order['address'] ?? ''}'),
+                _LocationLine(order: order),
                 const SizedBox(height: 4),
                 Text('🗓 ${_formatSchedule(order['scheduled_at'])}'),
                 const SizedBox(height: 4),
@@ -231,6 +231,29 @@ class OrdersList extends StatelessWidget {
     if (applicationStatus == 'APPROVED') return Colors.green;
     if (applicationStatus == 'REJECTED') return Colors.red;
     return _orderStatusColor(order['status']?.toString());
+  }
+}
+
+class _LocationLine extends StatelessWidget {
+  final Map<String, dynamic> order;
+
+  const _LocationLine({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final address = order['address']?.toString().trim() ?? '';
+    final metro = order['metro']?.toString().trim() ?? '';
+
+    if (address.isEmpty && metro.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (address.isNotEmpty) Text('📍 $address'),
+        if (address.isNotEmpty && metro.isNotEmpty) const SizedBox(height: 4),
+        if (metro.isNotEmpty) Text('🚇 $metro'),
+      ],
+    );
   }
 }
 

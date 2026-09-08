@@ -7,6 +7,7 @@ import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
+import '../../utils/date_time_input_formatters.dart';
 
 class ClientCreateOrderScreen extends StatefulWidget {
   final bool publishImmediately;
@@ -349,7 +350,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   Widget _buildCounters() {
     final hoursCounter = _BoundedCounter(
-      label: 'Часы',
+      label: 'Минимальное время оплаты',
       value: _hours,
       min: 1,
       max: 24,
@@ -581,6 +582,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     child: TextFormField(
                       controller: _dateController,
                       keyboardType: TextInputType.datetime,
+                      inputFormatters: dateAutoSeparatorFormatters,
                       decoration: const InputDecoration(
                         labelText: 'Дата',
                         hintText: '18.08.2026',
@@ -595,6 +597,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     child: TextFormField(
                       controller: _timeController,
                       keyboardType: TextInputType.datetime,
+                      inputFormatters: timeAutoSeparatorFormatters,
                       decoration: const InputDecoration(
                         labelText: 'Время',
                         hintText: '14:30',

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
+import '../../utils/date_time_input_formatters.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -276,6 +277,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               ),
                               TextFormField(
                                 controller: _birthDate,
+                                inputFormatters: dateAutoSeparatorFormatters,
                                 decoration: const InputDecoration(
                                   labelText: 'Дата рождения',
                                   hintText: 'ДД.ММ.ГГГГ',
@@ -992,6 +994,7 @@ class _PassportDialogState extends State<_PassportDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _issuedAt,
+                        inputFormatters: dateAutoSeparatorFormatters,
                         decoration: const InputDecoration(
                           labelText: 'Дата выдачи',
                           hintText: 'ДД.ММ.ГГГГ',

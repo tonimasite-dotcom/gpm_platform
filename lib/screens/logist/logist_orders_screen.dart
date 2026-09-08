@@ -304,7 +304,7 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => OrderDraftEditScreen(order: order),
+        builder: (_) => OrderDraftEditScreen(order: order, isLogist: true),
       ),
     );
     if (updated == true) {
@@ -494,7 +494,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => OrderDraftEditScreen(order: order),
+        builder: (_) => OrderDraftEditScreen(order: order, isLogist: true),
       ),
     );
     if (updated == true) {

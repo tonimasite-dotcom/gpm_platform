@@ -111,6 +111,7 @@ ORDER_DRAFT_EDITABLE_FIELDS = {
     "shift_description",
     "additional_info",
 }
+LOGIST_RESTRICTED_DRAFT_FIELDS = {"individual_price", "legal_price"}
 ALLOWED_STATUS_TRANSITIONS = {
     "NEW": {"PROCESSED", "JUNK"},
     "PROCESSED": {"IN_PROCESS", "JUNK"},
@@ -2134,6 +2135,14 @@ def merge_existing_workflow_state(
     for field in WORKFLOW_FIELDS:
         if field in existing:
             merged[field] = existing[field]
+    # Once an order has left the draft stage, its content is owned by the
+    # app (edited through the draft editor while it was still NEW). A later
+    # re-sync of the same external order number must not silently revert
+    # those edits back to the CRM's original values.
+    if str(existing.get("status") or "").strip().upper() != "NEW":
+        for field in ORDER_DRAFT_EDITABLE_FIELDS:
+            if field in existing:
+                merged[field] = existing[field]
     for field in ("created_at", "created_by", "created_by_role"):
         if existing.get(field) not in (None, ""):
             merged[field] = existing[field]
@@ -2179,15 +2188,6 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
             "created_by_role",
         ):
             visible.pop(field, None)
-        if account_id not in assigned:
-            for field in (
-                "address",
-                "address_street",
-                "address_number",
-                "address_lat",
-                "address_lon",
-            ):
-                visible.pop(field, None)
     elif role == "client":
         visible.pop("logist_account_id", None)
     return visible
@@ -2542,6 +2542,8 @@ def validate_order_patch(
         target_status = normalized.get("status")
         if role == "logist":
             if not logist_owns_order(order, actor, profile=actor_profile):
+                raise HTTPException(status_code=403, detail="insufficient permissions")
+            if set(patch) & LOGIST_RESTRICTED_DRAFT_FIELDS:
                 raise HTTPException(status_code=403, detail="insufficient permissions")
         elif role == "client":
             owns_order = order.get("created_by") == username

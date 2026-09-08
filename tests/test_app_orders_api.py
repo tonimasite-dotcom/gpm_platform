@@ -439,6 +439,46 @@ class ActiveApiTests(unittest.TestCase):
             )
         self.assertEqual(caught.exception.status_code, 409)
 
+    def test_logist_cannot_edit_client_facing_prices(self) -> None:
+        order = api.normalize_external_order(sample_payload())
+        order["logist_account_id"] = "logist-1"
+        logist = {"sub": "logist-1", "role": "logist"}
+
+        for field in ("individual_price", "legal_price"):
+            with self.assertRaises(HTTPException) as caught:
+                api.validate_order_patch(
+                    order,
+                    {field: 900},
+                    actor=logist,
+                    integration=False,
+                )
+            self.assertEqual(caught.exception.status_code, 403)
+
+        # Other draft fields remain editable for the owning logist.
+        patch = api.validate_order_patch(
+            order,
+            {"city": "Тула"},
+            actor=logist,
+            integration=False,
+        )
+        self.assertEqual(patch["city"], "Тула")
+
+    def test_republished_order_keeps_locally_edited_content(self) -> None:
+        original = api.normalize_external_order(sample_payload())
+        published = {
+            **original,
+            "status": "PROCESSED",
+            "workers_count": 3,
+            "address": "г Москва, ул. Отредактированная, 5",
+        }
+
+        resynced = api.normalize_external_order(sample_payload())
+        merged = api.merge_existing_workflow_state(resynced, published)
+
+        self.assertEqual(merged["workers_count"], 3)
+        self.assertEqual(merged["address"], "г Москва, ул. Отредактированная, 5")
+        self.assertEqual(merged["status"], "PROCESSED")
+
     def test_client_can_edit_only_own_draft(self) -> None:
         own_order = api.normalize_external_order(
             sample_payload(source="manual"),

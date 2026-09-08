@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
+import '../../utils/date_time_input_formatters.dart';
 
 class OrderDraftEditScreen extends StatefulWidget {
   final Map<String, dynamic> order;
+  final bool isLogist;
 
-  const OrderDraftEditScreen({super.key, required this.order});
+  const OrderDraftEditScreen({
+    super.key,
+    required this.order,
+    this.isLogist = false,
+  });
 
   @override
   State<OrderDraftEditScreen> createState() => _OrderDraftEditScreenState();
@@ -21,7 +28,6 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
   late final TextEditingController _address;
   late final TextEditingController _metro;
   late final TextEditingController _workersCount;
-  late final TextEditingController _hours;
   late final TextEditingController _minTime;
   late final TextEditingController _description;
   late final TextEditingController _shiftDescription;
@@ -61,7 +67,6 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     _address = _textController(order['address']);
     _metro = _textController(order['metro']);
     _workersCount = _textController(order['workers_count']);
-    _hours = _textController(order['hours']);
     _minTime = _textController(order['min_time'] ?? order['hours']);
     _description = _textController(order['description']);
     _shiftDescription = _textController(order['shift_description']);
@@ -86,7 +91,6 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
       _address,
       _metro,
       _workersCount,
-      _hours,
       _minTime,
       _description,
       _shiftDescription,
@@ -189,6 +193,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     if (scheduledAt == null) return;
 
     setState(() => _saving = true);
+    final minTime = int.parse(_minTime.text.trim());
     final result = await gpmApi.updateOrderDraft(
       widget.order['id'].toString(),
       {
@@ -198,8 +203,8 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
         'address': _address.text.trim(),
         'metro': _metro.text.trim(),
         'workers_count': int.parse(_workersCount.text.trim()),
-        'hours': int.parse(_hours.text.trim()),
-        'min_time': int.parse(_minTime.text.trim()),
+        'hours': minTime,
+        'min_time': minTime,
         'description': _description.text.trim(),
         'national': _national,
         'work_mode': _workMode,
@@ -207,8 +212,8 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
         'price_per_hour': _optionalInt(_pricePerHour),
         'price_regular': _optionalInt(_priceRegular),
         'price_state': _optionalInt(_priceState),
-        'individual_price': _optionalInt(_individualPrice),
-        'legal_price': _optionalInt(_legalPrice),
+        if (!widget.isLogist) 'individual_price': _optionalInt(_individualPrice),
+        if (!widget.isLogist) 'legal_price': _optionalInt(_legalPrice),
         'additional_info': _additionalInfo.text.trim(),
       },
     );
@@ -262,6 +267,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
                     _date,
                     'Дата, ДД.ММ.ГГГГ',
                     validator: _dateTimeValidator,
+                    inputFormatters: dateAutoSeparatorFormatters,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -270,32 +276,18 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
                     _time,
                     'Время, ЧЧ:ММ',
                     validator: _dateTimeValidator,
+                    inputFormatters: timeAutoSeparatorFormatters,
                   ),
                 ),
               ],
             ),
             _field(_address, 'Адрес', validator: _required),
             _field(_metro, 'Метро'),
-            Row(
-              children: [
-                Expanded(
-                  child: _field(
-                    _workersCount,
-                    'Количество людей',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => _integer(value, min: 1, max: 100),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _field(
-                    _hours,
-                    'Часы',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => _integer(value, min: 1, max: 24),
-                  ),
-                ),
-              ],
+            _field(
+              _workersCount,
+              'Количество людей',
+              keyboardType: TextInputType.number,
+              validator: (value) => _integer(value, min: 1, max: 100),
             ),
             _field(
               _minTime,
@@ -312,7 +304,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
               items: const [
                 DropdownMenuItem(value: 'yes', child: Text('РФ')),
                 DropdownMenuItem(value: 'no', child: Text('Не РФ')),
-                DropdownMenuItem(value: 'every', child: Text('Необязательно')),
+                DropdownMenuItem(value: 'every', child: Text('Любое')),
               ],
               onChanged: (value) => setState(() => _national = value!),
             ),
@@ -336,8 +328,16 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            _priceField(_individualPrice, 'Стоимость для физлиц'),
-            _priceField(_legalPrice, 'Стоимость для юрлиц'),
+            _priceField(
+              _individualPrice,
+              'Стоимость для физлиц',
+              enabled: !widget.isLogist,
+            ),
+            _priceField(
+              _legalPrice,
+              'Стоимость для юрлиц',
+              enabled: !widget.isLogist,
+            ),
             _priceField(_priceRegular, 'Ставка: постоянный график'),
             _priceField(_priceState, 'Ставка: свободный график'),
             _priceField(_pricePerHour, 'Ставка: наёмник'),
@@ -360,11 +360,16 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     );
   }
 
-  Widget _priceField(TextEditingController controller, String label) => _field(
+  Widget _priceField(
+    TextEditingController controller,
+    String label, {
+    bool enabled = true,
+  }) => _field(
         controller,
         label,
         keyboardType: TextInputType.number,
-        validator: _optionalPrice,
+        validator: enabled ? _optionalPrice : null,
+        enabled: enabled,
       );
 
   Widget _field(
@@ -372,7 +377,9 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     String label, {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -381,7 +388,9 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
         decoration: InputDecoration(labelText: label),
         validator: validator,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         maxLines: maxLines,
+        enabled: enabled,
       ),
     );
   }
