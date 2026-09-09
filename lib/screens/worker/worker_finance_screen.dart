@@ -132,6 +132,11 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                         child: Text('Вывести деньги'),
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Вывод средств скоро будет доступен',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -194,9 +199,16 @@ class _TransactionTile extends StatelessWidget {
 }
 
 int _orderAmount(Map<String, dynamic> order) {
-  final fixed = _asInt(order['individual_price']);
-  if (fixed > 0) return fixed;
-  return _asInt(order['price_per_hour']) * _asInt(order['hours']);
+  // Worker payout is derived from the performer rate, not the client-facing
+  // price (individual_price / legal_price) — that would show GPM's margin as
+  // the worker's earnings.
+  final hours = _asInt(order['hours']);
+  final rate = _asInt(order['price_per_hour']) != 0
+      ? _asInt(order['price_per_hour'])
+      : _asInt(order['price_state']) != 0
+      ? _asInt(order['price_state'])
+      : _asInt(order['price_regular']);
+  return rate * hours;
 }
 
 int _asInt(dynamic value) {

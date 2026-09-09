@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
+import '../../utils/order_display.dart';
 import '../client/client_create_order_screen.dart';
 import '../orders/order_draft_edit_screen.dart';
 
@@ -75,7 +76,7 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> orders) {
     if (_selectedFilter == 'Все') return orders;
     return orders
-        .where((order) => _orderStatusText(order['status']) == _selectedFilter)
+        .where((order) => orderStatusText(order['status']) == _selectedFilter)
         .toList();
   }
 
@@ -315,8 +316,8 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
 
   @override
   Widget build(BuildContext context) {
-    final status = _orderStatusText(order['status']);
-    final color = _orderStatusColor(order['status']);
+    final status = orderStatusText(order['status']);
+    final color = orderStatusColor(order['status']);
     final pendingCount = order['pending_applications_count'] ?? 0;
     final assignedCount = order['assigned_count'] ?? 0;
     final isExternalOrder = gpmApi.isExternalOrder(order);
@@ -348,7 +349,7 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
                 const SizedBox(height: 4),
                 Text(order['address'] ?? ''),
                 const SizedBox(height: 2),
-                Text('🗓 ${_formatSchedule(order['scheduled_at'])}'),
+                Text('🗓 ${formatOrderSchedule(order['scheduled_at'])}'),
                 const SizedBox(height: 2),
                 Text(
                   '$assignedCount/${order['workers_count']} грузчиков × ${order['hours']} ч',
@@ -614,8 +615,8 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final status = _orderStatusText(order['status']);
-    final color = _orderStatusColor(order['status']);
+    final status = orderStatusText(order['status']);
+    final color = orderStatusColor(order['status']);
     final isExternalOrder = gpmApi.isExternalOrder(order);
     final orderNumber = order['external_order_id'] ?? order['id'];
     final title = isExternalOrder
@@ -651,7 +652,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             _OrderFact(label: 'Номер заказа', value: orderNumber),
             _OrderFact(
               label: 'Дата и время выполнения работ',
-              value: _formatSchedule(order['scheduled_at']),
+              value: formatOrderSchedule(order['scheduled_at']),
             ),
             _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
             _OrderFact(
@@ -985,9 +986,7 @@ String _nationalText(Map<String, dynamic> order) {
 }
 
 String _minPayText(Map<String, dynamic> order) {
-  final value = order['min_time'] ?? order['hours'];
-  if (value == null) return '';
-  return '$value часа';
+  return hoursText(order['min_time'] ?? order['hours']);
 }
 
 String _priceText(dynamic value) {
@@ -1004,44 +1003,6 @@ String _workModeText(Map<String, dynamic> order) {
       return 'Смена';
     default:
       return '';
-  }
-}
-
-String _orderStatusText(dynamic status) {
-  switch (status?.toString()) {
-    case 'NEW':
-      return 'На модерации';
-    case 'PROCESSED':
-      return 'Одобрен';
-    case 'IN_PROCESS':
-      return 'В работе';
-    case 'DONE_PENDING':
-      return 'На подтверждении';
-    case 'CONVERTED':
-      return 'Завершен';
-    case 'JUNK':
-      return 'Отклонен';
-    default:
-      return 'Неизвестно';
-  }
-}
-
-Color _orderStatusColor(dynamic status) {
-  switch (status?.toString()) {
-    case 'NEW':
-      return Colors.orange;
-    case 'PROCESSED':
-      return Colors.blue;
-    case 'IN_PROCESS':
-      return Colors.green;
-    case 'DONE_PENDING':
-      return Colors.deepOrange;
-    case 'CONVERTED':
-      return Colors.grey;
-    case 'JUNK':
-      return Colors.red;
-    default:
-      return Colors.grey;
   }
 }
 
@@ -1077,18 +1038,4 @@ Color _priorityColor(int group) {
   if (group >= 5 && group <= 7) return Colors.blue;
   if (group == 8) return Colors.orange;
   return Colors.grey;
-}
-
-String _formatSchedule(dynamic value) {
-  final raw = value?.toString();
-  if (raw == null || raw.isEmpty) return 'Дата не указана';
-
-  final dateTime = DateTime.tryParse(raw)?.toLocal();
-  if (dateTime == null) return raw;
-
-  final day = dateTime.day.toString().padLeft(2, '0');
-  final month = dateTime.month.toString().padLeft(2, '0');
-  final hour = dateTime.hour.toString().padLeft(2, '0');
-  final minute = dateTime.minute.toString().padLeft(2, '0');
-  return '$day.$month $hour:$minute';
 }

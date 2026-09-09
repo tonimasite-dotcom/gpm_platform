@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
+import '../../utils/order_display.dart';
 
 class LogistAnalyticsScreen extends StatefulWidget {
   const LogistAnalyticsScreen({super.key});
@@ -273,10 +274,10 @@ class _StatusBreakdown extends StatelessWidget {
       children: entries
           .map(
             (entry) => _ProgressRow(
-              label: _statusText(entry.key),
+              label: orderStatusText(entry.key),
               value: entry.value,
               total: data.totalOrders,
-              color: _statusColor(entry.key),
+              color: orderStatusColor(entry.key),
             ),
           )
           .toList(),
@@ -377,7 +378,7 @@ class _UpcomingOrders extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              subtitle: Text(_formatSchedule(order['scheduled_at'])),
+              subtitle: Text(formatOrderSchedule(order['scheduled_at'])),
               trailing: _MiniStatus(status: order['status']),
             ),
           )
@@ -444,7 +445,7 @@ class _MiniStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(status);
+    final color = orderStatusColor(status);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
@@ -453,7 +454,7 @@ class _MiniStatus extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
-          _statusText(status),
+          orderStatusText(status),
           style: TextStyle(fontSize: 11, color: color),
         ),
       ),
@@ -485,8 +486,7 @@ class _AnalyticsData {
 
   int get totalOrders => orders.length;
 
-  int get crmOrders =>
-      orders.where(gpmApi.isExternalOrder).length;
+  int get crmOrders => orders.where(gpmApi.isExternalOrder).length;
 
   int get manualOrders => totalOrders - crmOrders;
 
@@ -496,15 +496,13 @@ class _AnalyticsData {
   int get shiftOrders =>
       orders.where((order) => order['work_mode'] == 'shift').length;
 
-  int get requiredWorkers => orders.fold(
-        0,
-        (sum, order) => sum + _readInt(order['workers_count']),
-      );
+  int get requiredWorkers =>
+      orders.fold(0, (sum, order) => sum + _readInt(order['workers_count']));
 
   int get assignedWorkers => orders.fold(0, (sum, order) {
-        final ids = order['assigned_worker_ids'];
-        return sum + (ids is List ? ids.length : 0);
-      });
+    final ids = order['assigned_worker_ids'];
+    return sum + (ids is List ? ids.length : 0);
+  });
 
   int get workerShortage {
     final value = requiredWorkers - assignedWorkers;
@@ -530,14 +528,19 @@ class _AnalyticsData {
   }
 
   List<Map<String, dynamic>> get upcomingOrders {
+    final now = DateTime.now();
     final list = orders.where((order) {
-      final scheduledAt = DateTime.tryParse(order['scheduled_at']?.toString() ?? '');
-      return scheduledAt != null;
+      final status = order['status']?.toString();
+      if (status == 'CONVERTED' || status == 'JUNK') return false;
+      final scheduledAt = DateTime.tryParse(
+        order['scheduled_at']?.toString() ?? '',
+      )?.toLocal();
+      return scheduledAt != null && scheduledAt.isAfter(now);
     }).toList();
     list.sort(
       (a, b) => (a['scheduled_at'] ?? '').toString().compareTo(
-            (b['scheduled_at'] ?? '').toString(),
-          ),
+        (b['scheduled_at'] ?? '').toString(),
+      ),
     );
     return list;
   }
@@ -547,52 +550,4 @@ int _readInt(dynamic value) {
   if (value is int) return value;
   if (value is num) return value.round();
   return int.tryParse(value?.toString() ?? '') ?? 0;
-}
-
-String _formatSchedule(dynamic value) {
-  final date = DateTime.tryParse(value?.toString() ?? '');
-  if (date == null) return 'Дата не указана';
-  final local = date.toLocal();
-  return '${local.day.toString().padLeft(2, '0')}.'
-      '${local.month.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
-}
-
-String _statusText(dynamic status) {
-  switch (status?.toString()) {
-    case 'NEW':
-      return 'На модерации';
-    case 'PROCESSED':
-      return 'Одобрен';
-    case 'IN_PROCESS':
-      return 'В работе';
-    case 'DONE_PENDING':
-      return 'На подтверждении';
-    case 'CONVERTED':
-      return 'Завершен';
-    case 'JUNK':
-      return 'Отклонен';
-    default:
-      return 'Неизвестно';
-  }
-}
-
-Color _statusColor(dynamic status) {
-  switch (status?.toString()) {
-    case 'NEW':
-      return Colors.orange;
-    case 'PROCESSED':
-      return Colors.blue;
-    case 'IN_PROCESS':
-      return Colors.green;
-    case 'DONE_PENDING':
-      return Colors.deepOrange;
-    case 'CONVERTED':
-      return Colors.grey;
-    case 'JUNK':
-      return Colors.red;
-    default:
-      return Colors.grey;
-  }
 }

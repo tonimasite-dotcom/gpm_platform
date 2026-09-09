@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart' show gpmApi, supabase;
+import '../../main.dart' show gpmApi;
+import '../../utils/order_display.dart';
 import '../orders/order_draft_edit_screen.dart';
 
 enum _SortMode { dateDesc, dateAsc, byStatus, byWorkers }
@@ -14,14 +15,6 @@ class ClientOrdersScreen extends StatefulWidget {
 
 class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
   _SortMode _sortMode = _SortMode.dateDesc;
-
-  Color _statusColor(String status) {
-    if (status.contains('модерации')) return Colors.orange;
-    if (status.contains('работе')) return Colors.blue;
-    if (status.contains('Завершен')) return Colors.green;
-    if (status.contains('Отменен')) return Colors.red;
-    return Colors.grey;
-  }
 
   void _showSortSheet() {
     showModalBottomSheet(
@@ -70,14 +63,23 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
     final list = [...orders];
     switch (_sortMode) {
       case _SortMode.dateDesc:
-        list.sort((a, b) => (b['created_at']?.toString() ?? '')
-            .compareTo(a['created_at']?.toString() ?? ''));
+        list.sort(
+          (a, b) => (b['created_at']?.toString() ?? '').compareTo(
+            a['created_at']?.toString() ?? '',
+          ),
+        );
       case _SortMode.dateAsc:
-        list.sort((a, b) => (a['created_at']?.toString() ?? '')
-            .compareTo(b['created_at']?.toString() ?? ''));
+        list.sort(
+          (a, b) => (a['created_at']?.toString() ?? '').compareTo(
+            b['created_at']?.toString() ?? '',
+          ),
+        );
       case _SortMode.byStatus:
-        list.sort((a, b) => (a['status']?.toString() ?? '')
-            .compareTo(b['status']?.toString() ?? ''));
+        list.sort(
+          (a, b) => (a['status']?.toString() ?? '').compareTo(
+            b['status']?.toString() ?? '',
+          ),
+        );
       case _SortMode.byWorkers:
         list.sort(
           (a, b) => _readInt(
@@ -96,39 +98,26 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: supabase
-          .from('orders')
-          .select()
-          .order('created_at', ascending: false)
-          .execute(),
+      future: gpmApi.getOrders(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Ошибка загрузки: ${snapshot.error}'),
-          );
+          return Center(child: Text('Ошибка загрузки: ${snapshot.error}'));
         }
 
         final orders = _sorted(
-          (snapshot.data ?? [])
-              .where(
-                (order) {
-                  final source = order['source']?.toString().toLowerCase();
-                  return source != 'external' && source != 'crm';
-                },
-              )
-              .toList(),
+          (snapshot.data ?? []).where((order) {
+            final source = order['source']?.toString().toLowerCase();
+            return source != 'external' && source != 'crm';
+          }).toList(),
         );
 
         if (orders.isEmpty) {
           return const Center(
-            child: Text(
-              'У вас пока нет заказов.',
-              textAlign: TextAlign.center,
-            ),
+            child: Text('У вас пока нет заказов.', textAlign: TextAlign.center),
           );
         }
 
@@ -148,8 +137,8 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                 itemCount: orders.length,
                 itemBuilder: (context, index) {
                   final order = orders[index];
-                  final status = order['status'] as String? ?? 'Неизвестно';
-                  final color = _statusColor(status);
+                  final status = orderStatusText(order['status']);
+                  final color = orderStatusColor(order['status']);
 
                   return Card(
                     elevation: 2,
@@ -264,10 +253,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
     _orderFuture = gpmApi.getOrderById(widget.orderId);
   }
 
-  Future<void> _decideApplication(
-    String applicationId,
-    bool approve,
-  ) async {
+  Future<void> _decideApplication(String applicationId, bool approve) async {
     setState(() => _pendingAction = applicationId);
     final result = approve
         ? await gpmApi.approveApplication(
@@ -298,10 +284,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
 
   Future<void> _acceptWork() async {
     setState(() => _pendingAction = 'accept-work');
-    final success = await gpmApi.updateOrderStatus(
-      widget.orderId,
-      'CONVERTED',
-    );
+    final success = await gpmApi.updateOrderStatus(widget.orderId, 'CONVERTED');
     if (!mounted) return;
     if (success) {
       setState(() {
@@ -319,9 +302,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
   Future<void> _editDraft(Map<String, dynamic> order) async {
     final updated = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => OrderDraftEditScreen(order: order),
-      ),
+      MaterialPageRoute(builder: (_) => OrderDraftEditScreen(order: order)),
     );
     if (updated == true && mounted) {
       setState(_reload);
@@ -330,10 +311,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
 
   Future<void> _publishDraft() async {
     setState(() => _pendingAction = 'publish-draft');
-    final success = await gpmApi.updateOrderStatus(
-      widget.orderId,
-      'PROCESSED',
-    );
+    final success = await gpmApi.updateOrderStatus(widget.orderId, 'PROCESSED');
     if (!mounted) return;
     setState(() {
       _pendingAction = null;
@@ -354,9 +332,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Детали заказа'),
-      ),
+      appBar: AppBar(title: const Text('Детали заказа')),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _orderFuture,
         builder: (context, snapshot) {
@@ -408,14 +384,16 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
+                        color: orderStatusColor(
+                          order['status'],
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        order['status'] ?? '',
-                        style: const TextStyle(
+                        orderStatusText(order['status']),
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.blue,
+                          color: orderStatusColor(order['status']),
                         ),
                       ),
                     ),
@@ -455,9 +433,9 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                                     onPressed: loading || applicationId.isEmpty
                                         ? null
                                         : () => _decideApplication(
-                                              applicationId,
-                                              true,
-                                            ),
+                                            applicationId,
+                                            true,
+                                          ),
                                     child: const Text('Принять'),
                                   ),
                                 ),
@@ -467,9 +445,9 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                                     onPressed: loading || applicationId.isEmpty
                                         ? null
                                         : () => _decideApplication(
-                                              applicationId,
-                                              false,
-                                            ),
+                                            applicationId,
+                                            false,
+                                          ),
                                     child: const Text('Отклонить'),
                                   ),
                                 ),

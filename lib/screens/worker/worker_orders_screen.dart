@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
+import '../../utils/order_display.dart';
 
 class WorkerOrdersScreen extends StatefulWidget {
   const WorkerOrdersScreen({super.key});
@@ -180,7 +181,7 @@ class OrdersList extends StatelessWidget {
                 const SizedBox(height: 4),
                 _LocationLine(order: order),
                 const SizedBox(height: 4),
-                Text('🗓 ${_formatSchedule(order['scheduled_at'])}'),
+                Text('🗓 ${formatOrderSchedule(order['scheduled_at'])}'),
                 const SizedBox(height: 4),
                 Text(
                   _isRecruitmentClosedForWorker(order)
@@ -210,27 +211,27 @@ class OrdersList extends StatelessWidget {
   String _workerStatusText(Map<String, dynamic> order) {
     final orderStatus = order['status']?.toString();
     if (orderStatus == 'DONE_PENDING' || orderStatus == 'CONVERTED') {
-      return _orderStatusText(orderStatus);
+      return orderStatusText(orderStatus);
     }
 
     final applicationStatus = order['worker_application_status'];
     if (applicationStatus == 'PENDING') return 'Отклик на рассмотрении';
     if (applicationStatus == 'APPROVED') return 'Вы назначены';
     if (applicationStatus == 'REJECTED') return 'Отклик отклонен';
-    return _orderStatusText(order['status']?.toString());
+    return orderStatusText(order['status']?.toString());
   }
 
   Color _workerStatusColor(Map<String, dynamic> order) {
     final orderStatus = order['status']?.toString();
     if (orderStatus == 'DONE_PENDING' || orderStatus == 'CONVERTED') {
-      return _orderStatusColor(orderStatus);
+      return orderStatusColor(orderStatus);
     }
 
     final applicationStatus = order['worker_application_status'];
     if (applicationStatus == 'PENDING') return Colors.orange;
     if (applicationStatus == 'APPROVED') return Colors.green;
     if (applicationStatus == 'REJECTED') return Colors.red;
-    return _orderStatusColor(order['status']?.toString());
+    return orderStatusColor(order['status']?.toString());
   }
 }
 
@@ -372,77 +373,93 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              order['title'] ?? order['description'] ?? 'Заказ',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _OrderFact(label: 'Город', value: order['city']),
-            _OrderFact(
-              label: 'Номер заказа',
-              value: order['external_order_id'] ?? order['id'],
-            ),
-            _OrderFact(
-              label: 'Дата и время выполнения работ',
-              value: _formatSchedule(order['scheduled_at']),
-            ),
-            if (_isRecruitmentClosedForWorker(order))
-              const _OrderFact(label: 'Набор исполнителей', value: 'завершен')
-            else
-              _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
-            _OrderFact(
-              label: 'Гражданство исполнителя',
-              value: _nationalText(order),
-            ),
-            _OrderFact(label: 'Режим работы', value: _workModeText(order)),
-            _OrderFact(label: 'Метро', value: order['metro']),
-            _OrderFact(label: 'Адрес', value: order['address']),
-            _OrderFact(
-              label: 'Стоимость для физлиц',
-              value: _priceText(order['individual_price']),
-            ),
-            _OrderFact(
-              label: 'Стоимость для юрлиц',
-              value: _priceText(order['legal_price']),
-            ),
-            if (order['work_mode'] == 'shift')
-              _OrderFact(
-                label: 'Описание смены',
-                value: order['shift_description'],
-              )
-            else ...[
-              _OrderFact(
-                label: 'Ставка (штатный постоянного графика)',
-                value: order['price_regular'],
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order['title'] ?? order['description'] ?? 'Заказ',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _OrderFact(label: 'Город', value: order['city']),
+                    _OrderFact(
+                      label: 'Номер заказа',
+                      value: order['external_order_id'] ?? order['id'],
+                    ),
+                    _OrderFact(
+                      label: 'Дата и время выполнения работ',
+                      value: formatOrderSchedule(order['scheduled_at']),
+                    ),
+                    if (_isRecruitmentClosedForWorker(order))
+                      const _OrderFact(
+                        label: 'Набор исполнителей',
+                        value: 'завершен',
+                      )
+                    else
+                      _OrderFact(
+                        label: 'Кол-во людей',
+                        value: order['workers_count'],
+                      ),
+                    _OrderFact(
+                      label: 'Гражданство исполнителя',
+                      value: _nationalText(order),
+                    ),
+                    _OrderFact(
+                      label: 'Режим работы',
+                      value: _workModeText(order),
+                    ),
+                    _OrderFact(label: 'Метро', value: order['metro']),
+                    _OrderFact(label: 'Адрес', value: order['address']),
+                    if (order['work_mode'] == 'shift')
+                      _OrderFact(
+                        label: 'Описание смены',
+                        value: order['shift_description'],
+                      )
+                    else ...[
+                      _OrderFact(
+                        label: 'Ставка (штатный постоянного графика)',
+                        value: order['price_regular'],
+                      ),
+                      _OrderFact(
+                        label: 'Ставка (штатный свободного графика)',
+                        value: order['price_state'],
+                      ),
+                      _OrderFact(
+                        label: 'Ставка (наемник)',
+                        value: order['price_per_hour'],
+                      ),
+                      _OrderFact(
+                        label: 'Минимальная оплата',
+                        value: _minPayText(order),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    _StatusPill(
+                      text: _workerStatusText(order),
+                      color: _workerStatusColor(order),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Описание:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(order['description'] ?? 'Нет описания'),
+                  ],
+                ),
               ),
-              _OrderFact(
-                label: 'Ставка (штатный свободного графика)',
-                value: order['price_state'],
-              ),
-              _OrderFact(
-                label: 'Ставка (наемник)',
-                value: order['price_per_hour'],
-              ),
-              _OrderFact(
-                label: 'Минимальная оплата',
-                value: _minPayText(order),
-              ),
-            ],
-            const SizedBox(height: 8),
-            _StatusPill(
-              text: _workerStatusText(order),
-              color: _workerStatusColor(order),
             ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Описание:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(order['description'] ?? 'Нет описания'),
-            const Spacer(),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -537,15 +554,7 @@ bool _isRecruitmentClosedForWorker(Map<String, dynamic> order) {
 }
 
 String _minPayText(Map<String, dynamic> order) {
-  final value = order['min_time'] ?? order['hours'];
-  if (value == null) return '';
-  return '$value часа';
-}
-
-String _priceText(dynamic value) {
-  final price = int.tryParse(value?.toString() ?? '');
-  if (price == null) return '';
-  return '$price ₽';
+  return hoursText(order['min_time'] ?? order['hours']);
 }
 
 String _workModeText(Map<String, dynamic> order) {
@@ -562,77 +571,25 @@ String _workModeText(Map<String, dynamic> order) {
 String _workerStatusText(Map<String, dynamic> order) {
   final orderStatus = order['status']?.toString();
   if (orderStatus == 'DONE_PENDING' || orderStatus == 'CONVERTED') {
-    return _orderStatusText(orderStatus);
+    return orderStatusText(orderStatus);
   }
 
   final applicationStatus = order['worker_application_status'];
   if (applicationStatus == 'PENDING') return 'Отклик на рассмотрении';
   if (applicationStatus == 'APPROVED') return 'Вы назначены';
   if (applicationStatus == 'REJECTED') return 'Отклик отклонен';
-  return _orderStatusText(order['status']?.toString());
+  return orderStatusText(order['status']?.toString());
 }
 
 Color _workerStatusColor(Map<String, dynamic> order) {
   final orderStatus = order['status']?.toString();
   if (orderStatus == 'DONE_PENDING' || orderStatus == 'CONVERTED') {
-    return _orderStatusColor(orderStatus);
+    return orderStatusColor(orderStatus);
   }
 
   final applicationStatus = order['worker_application_status'];
   if (applicationStatus == 'PENDING') return Colors.orange;
   if (applicationStatus == 'APPROVED') return Colors.green;
   if (applicationStatus == 'REJECTED') return Colors.red;
-  return _orderStatusColor(order['status']?.toString());
-}
-
-String _orderStatusText(String? status) {
-  switch (status) {
-    case 'NEW':
-      return 'На модерации';
-    case 'PROCESSED':
-      return 'Одобрен';
-    case 'IN_PROCESS':
-      return 'В работе';
-    case 'DONE_PENDING':
-      return 'На подтверждении';
-    case 'CONVERTED':
-      return 'Завершен';
-    case 'JUNK':
-      return 'Отклонен';
-    default:
-      return 'Неизвестно';
-  }
-}
-
-String _formatSchedule(dynamic value) {
-  final raw = value?.toString();
-  if (raw == null || raw.isEmpty) return 'Дата не указана';
-
-  final dateTime = DateTime.tryParse(raw)?.toLocal();
-  if (dateTime == null) return raw;
-
-  final day = dateTime.day.toString().padLeft(2, '0');
-  final month = dateTime.month.toString().padLeft(2, '0');
-  final hour = dateTime.hour.toString().padLeft(2, '0');
-  final minute = dateTime.minute.toString().padLeft(2, '0');
-  return '$day.$month $hour:$minute';
-}
-
-Color _orderStatusColor(String? status) {
-  switch (status) {
-    case 'NEW':
-      return Colors.orange;
-    case 'PROCESSED':
-      return Colors.blue;
-    case 'IN_PROCESS':
-      return Colors.green;
-    case 'DONE_PENDING':
-      return Colors.deepOrange;
-    case 'CONVERTED':
-      return Colors.grey;
-    case 'JUNK':
-      return Colors.red;
-    default:
-      return Colors.grey;
-  }
+  return orderStatusColor(order['status']?.toString());
 }
