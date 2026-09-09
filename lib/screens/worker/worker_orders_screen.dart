@@ -356,8 +356,8 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final orderId = order['id']?.toString() ?? '';
-    final shortOrderId = orderId.length > 8 ? orderId.substring(0, 8) : orderId;
+    final orderNumber =
+        (order['external_order_id'] ?? order['id'])?.toString() ?? '';
     final applicationStatus = order['worker_application_status'];
     final canApply =
         applicationStatus == null && order['status'] == 'PROCESSED';
@@ -367,7 +367,7 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
         (order['status'] == 'PROCESSED' || order['status'] == 'IN_PROCESS');
 
     return Scaffold(
-      appBar: AppBar(title: Text('Заказ #$shortOrderId')),
+      appBar: AppBar(title: Text('Заявка № $orderNumber')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

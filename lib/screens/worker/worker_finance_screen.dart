@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
+import '../../theme/gpm_theme.dart';
 
 class WorkerFinanceScreen extends StatefulWidget {
   const WorkerFinanceScreen({super.key});
@@ -87,47 +88,51 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.all(14),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF5B4FFF), Color(0xFF8A7FFF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  color: GpmColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: GpmColors.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Доступно к выводу',
-                      style: TextStyle(color: Colors.white70),
+                      style: TextStyle(
+                        color: GpmColors.graphite,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF6D8),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE9CE73)),
+                      ),
+                      child: Text(
+                        '${_formatMoney(_asInt(data['available']))} ₽',
+                        style: const TextStyle(
+                          color: GpmColors.black,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${_formatMoney(_asInt(data['available']))} ₽',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
                       'Завершенных заказов: $completedCount',
-                      style: const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: GpmColors.graphite),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     const SizedBox(
                       width: double.infinity,
-                      child: FilledButton.tonal(
+                      child: FilledButton(
                         onPressed: null,
                         child: Text('Вывести деньги'),
                       ),
@@ -135,7 +140,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                     const SizedBox(height: 6),
                     const Text(
                       'Вывод средств скоро будет доступен',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: GpmColors.graphite, fontSize: 12),
                     ),
                   ],
                 ),
