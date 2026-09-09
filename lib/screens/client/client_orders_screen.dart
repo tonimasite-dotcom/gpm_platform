@@ -178,6 +178,8 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                             '${order['workers_count']} грузчиков, ${order['hours']} ч',
                           ),
                           const SizedBox(height: 2),
+                          Text(formatOrderSchedule(order['scheduled_at'])),
+                          const SizedBox(height: 2),
                           Text(
                             order['address'] ?? '',
                             maxLines: 1,
@@ -373,6 +375,11 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '${order['workers_count']} грузчиков, ${order['hours']} ч',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Дата и время: '
+                  '${formatOrderSchedule(order['scheduled_at'])}',
                 ),
                 const SizedBox(height: 12),
                 Row(
