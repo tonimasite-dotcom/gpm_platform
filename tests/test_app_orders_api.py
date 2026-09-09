@@ -1346,5 +1346,29 @@ class ActiveApiTests(unittest.TestCase):
                 self.assertEqual(len(finance["transactions"]), 1)
 
 
+class OrderAmountTests(unittest.TestCase):
+    def test_uses_performer_rate_not_client_price(self):
+        order = {
+            "hours": 4,
+            "price_per_hour": 500,
+            "individual_price": 9000,
+            "legal_price": 12000,
+        }
+        # individual_price / legal_price are what the client pays GPM and must
+        # never be reported as the worker's accrual.
+        self.assertEqual(api._order_amount(order), 2000)
+
+    def test_falls_back_through_rate_fields(self):
+        self.assertEqual(
+            api._order_amount({"hours": 3, "price_state": 400}), 1200
+        )
+        self.assertEqual(
+            api._order_amount({"hours": 2, "price_regular": 350}), 700
+        )
+
+    def test_missing_rate_yields_zero(self):
+        self.assertEqual(api._order_amount({"hours": 4}), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

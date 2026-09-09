@@ -39,7 +39,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   final _addressFocusNode = FocusNode();
   final _metroController = TextEditingController();
   final _cargoTypeController = TextEditingController();
-  final _cargoWeightController = TextEditingController();
+  final _workDescriptionController = TextEditingController();
+  final _totalWeightController = TextEditingController();
+  final _unitWeightController = TextEditingController();
   final _floorController = TextEditingController();
   final _priceController = TextEditingController();
   Timer? _addressLookupTimer;
@@ -74,7 +76,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     _addressFocusNode.dispose();
     _metroController.dispose();
     _cargoTypeController.dispose();
-    _cargoWeightController.dispose();
+    _workDescriptionController.dispose();
+    _totalWeightController.dispose();
+    _unitWeightController.dispose();
     _floorController.dispose();
     _priceController.dispose();
     super.dispose();
@@ -132,6 +136,15 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       return 'Введите целое число от $min до $max';
     }
     return null;
+  }
+
+  String? _requiredIntegerInRange(
+    String? value, {
+    required int min,
+    required int max,
+  }) {
+    if (value == null || value.trim().isEmpty) return 'Заполните поле';
+    return _optionalIntegerInRange(value, min: min, max: max);
   }
 
   void _scheduleAddressLookup(String value) {
@@ -333,14 +346,20 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   }
 
   String _buildDescription() {
-    return [
+    final facts = [
       'Вид груза: ${_cargoTypeController.text.trim()}',
-      if (_cargoWeightController.text.trim().isNotEmpty)
-        'Вес: ${_cargoWeightController.text.trim()} кг',
+      if (_totalWeightController.text.trim().isNotEmpty)
+        'Общий вес: ${_totalWeightController.text.trim()} кг',
+      if (_unitWeightController.text.trim().isNotEmpty)
+        'Вес одной единицы (макс., прибл.): '
+            '${_unitWeightController.text.trim()} кг',
       if (_floorController.text.trim().isNotEmpty)
         'Этаж: ${_floorController.text.trim()}',
       'Лифт: ${_hasElevator ? 'есть' : 'нет'}',
     ].join('\n');
+
+    final work = _workDescriptionController.text.trim();
+    return work.isEmpty ? facts : '$work\n\n$facts';
   }
 
   int get _recommendedPrice {
@@ -401,7 +420,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
   Future<void> _submit() async {
     final scheduledAt = _parseScheduledAt();
-    final countersAreValid = _hours >= 1 &&
+    final countersAreValid =
+        _hours >= 1 &&
         _hours <= 24 &&
         _workersCount >= 1 &&
         _workersCount <= 50;
@@ -410,8 +430,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         !countersAreValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Проверьте поля, дату, время и количество исполнителей'),
+          content: Text(
+            'Проверьте поля, дату, время и количество исполнителей',
+          ),
         ),
       );
       return;
@@ -440,7 +461,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         minTime: _hours,
         individualPrice: _clientType == 'individual' ? price : null,
         legalPrice: _clientType == 'legal' ? price : null,
-        nationality: _national == 'yes' ? 'ru' : 'non_ru',
+        nationality: _national == 'yes' ? 'ru' : null,
         workerCategory: _workerCategory,
         workMode: 'rate',
         timezone: 'Europe/Moscow',
@@ -493,7 +514,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       _timeController.clear();
       _metroController.clear();
       _cargoTypeController.clear();
-      _cargoWeightController.clear();
+      _workDescriptionController.clear();
+      _totalWeightController.clear();
+      _unitWeightController.clear();
       _floorController.clear();
       _priceController.clear();
       setState(() {
@@ -510,9 +533,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       });
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: $error')));
     } finally {
       if (mounted) {
         setState(() {
@@ -626,44 +649,65 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 validator: (value) => _requiredText(value, 'Укажите вид груза'),
               ),
               const SizedBox(height: 12),
+              TextFormField(
+                controller: _workDescriptionController,
+                maxLines: 4,
+                minLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Описание работ',
+                  hintText: 'Что нужно сделать, откуда и куда, особенности',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                validator: (value) => _requiredText(value, 'Опишите работы'),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _cargoWeightController,
+                      controller: _totalWeightController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Вес, кг (необязательно)',
-                        hintText: 'Например: 300',
+                        labelText: 'Общий вес, кг',
+                        hintText: 'Например: 800',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) => _optionalIntegerInRange(
-                        value,
-                        min: 1,
-                        max: 100000,
-                      ),
+                      validator: (value) =>
+                          _requiredIntegerInRange(value, min: 1, max: 100000),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
-                      controller: _floorController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        signed: true,
-                      ),
+                      controller: _unitWeightController,
+                      keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Этаж (необязательно)',
-                        hintText: 'Например: 4',
+                        labelText: 'Вес одной единицы, кг',
+                        hintText:
+                            'Укажите приблизительный '
+                            'максимальный вес единицы',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) => _optionalIntegerInRange(
-                        value,
-                        min: -5,
-                        max: 200,
-                      ),
+                      validator: (value) =>
+                          _requiredIntegerInRange(value, min: 1, max: 100000),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _floorController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Этаж (необязательно)',
+                  hintText: 'Например: 4',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    _optionalIntegerInRange(value, min: -5, max: 200),
               ),
               const SizedBox(height: 12),
               SwitchListTile(
@@ -732,8 +776,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
               const SizedBox(height: 8),
               SegmentedButton<String>(
                 segments: const [
-                  ButtonSegment(value: 'yes', label: Text('РФ')),
-                  ButtonSegment(value: 'no', label: Text('Не РФ')),
+                  ButtonSegment(value: 'yes', label: Text('Только РФ')),
+                  ButtonSegment(value: 'every', label: Text('Любое')),
                 ],
                 selected: {_national},
                 onSelectionChanged: (selection) =>
@@ -753,10 +797,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     value: 'assembler',
                     child: Text('Сборщики / разборщики'),
                   ),
-                  DropdownMenuItem(
-                    value: 'mover',
-                    child: Text('Разнорабочие'),
-                  ),
+                  DropdownMenuItem(value: 'mover', child: Text('Разнорабочие')),
                   DropdownMenuItem(
                     value: 'packer',
                     child: Text('Упаковщики / комплектовщики'),
@@ -789,8 +830,10 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : Text(widget.submitText,
-                        style: const TextStyle(fontSize: 16)),
+                    : Text(
+                        widget.submitText,
+                        style: const TextStyle(fontSize: 16),
+                      ),
               ),
             ],
           ),
@@ -966,7 +1009,8 @@ class _AddressCandidate {
       houseNumber: houseNumber?.isNotEmpty == true ? houseNumber : null,
       latitude: latitude,
       longitude: longitude,
-      isComplete: json['complete'] == true &&
+      isComplete:
+          json['complete'] == true &&
           latitude != null &&
           longitude != null &&
           houseNumber?.isNotEmpty == true,

@@ -89,32 +89,49 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'КАБИНЕТ ИСПОЛНИТЕЛЯ',
-                      style: Theme.of(context).textTheme.headlineSmall,
+                      'Кабинет исполнителя',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     const Text(
-                      'Берите доступные заявки, отслеживайте назначенные смены и контролируйте выплаты.',
+                      'Берите доступные заявки, отслеживайте назначенные '
+                      'смены и контролируйте выплаты.',
+                      style: TextStyle(color: GpmColors.graphite),
                     ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _DashboardStat(
-                          label: 'Активные заявки',
-                          value: '$activeApplications',
-                        ),
-                        _DashboardStat(
-                          label: 'Рейтинг',
-                          value: '${_asInt(profile['rating'])}',
-                        ),
-                        _DashboardStat(
-                          label: 'Выплаты',
-                          value:
-                              '${_formatMoney(_asInt(summary['available_balance']))} ₽',
-                        ),
-                      ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _DashboardStat(
+                        icon: Icons.assignment_outlined,
+                        accent: GpmColors.red,
+                        label: 'Активные заявки',
+                        value: '$activeApplications',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _DashboardStat(
+                        icon: Icons.star_outline,
+                        accent: GpmColors.yellow,
+                        label: 'Рейтинг',
+                        value: '${_asInt(profile['rating'])}',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _DashboardStat(
+                        icon: Icons.account_balance_wallet_outlined,
+                        accent: GpmColors.graphite,
+                        label: 'Выплаты',
+                        value:
+                            '${_formatMoney(_asInt(summary['available_balance']))} ₽',
+                      ),
                     ),
                   ],
                 ),
@@ -128,37 +145,50 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
 }
 
 class _DashboardStat extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
   final String label;
   final String value;
 
-  const _DashboardStat({required this.label, required this.value});
+  const _DashboardStat({
+    required this.icon,
+    required this.accent,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 160,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6D8),
+        color: accent.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE9CE73)),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: GpmColors.black,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
+          Icon(icon, color: accent, size: 20),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: GpmColors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
             style: const TextStyle(
               color: GpmColors.graphite,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),

@@ -3715,18 +3715,22 @@ def decide_order_application_atomically(
 
 
 def _order_amount(order: dict[str, Any]) -> int:
-    individual_price = order.get("individual_price")
-    try:
-        if individual_price not in (None, ""):
-            return max(0, int(individual_price))
-    except (TypeError, ValueError):
-        pass
-    try:
-        rate = int(order.get("price_per_hour") or 0)
-        hours = int(order.get("hours") or 0)
-        return max(0, rate * hours)
-    except (TypeError, ValueError):
-        return 0
+    # Worker accrual is based on the performer rate, never on the client-facing
+    # price (individual_price / legal_price) — that is what the client pays GPM
+    # and would overstate the worker's earnings.
+    def _int(value: Any) -> int:
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    hours = _int(order.get("hours"))
+    rate = (
+        _int(order.get("price_per_hour"))
+        or _int(order.get("price_state"))
+        or _int(order.get("price_regular"))
+    )
+    return max(0, rate * hours)
 
 
 def account_finance(user: dict[str, Any]) -> dict[str, Any]:

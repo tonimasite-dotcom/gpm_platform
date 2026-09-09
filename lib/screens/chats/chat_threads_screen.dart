@@ -160,10 +160,6 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen>
                     setState(() => _query = value.trim().toLowerCase()),
               ),
               const SizedBox(height: 10),
-              if (widget.role != ChatRole.logist) ...[
-                _ChatPolicyBanner(role: widget.role),
-                const SizedBox(height: 10),
-              ],
               _ChatFilters(
                 selected: _filter,
                 role: widget.role,
@@ -581,41 +577,6 @@ class _ThreadIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: color),
-    );
-  }
-}
-
-class _ChatPolicyBanner extends StatelessWidget {
-  final ChatRole role;
-
-  const _ChatPolicyBanner({required this.role});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = role == ChatRole.logist
-        ? 'Логисты видят рабочие переписки по заказам для контроля качества, координации и решения спорных ситуаций.'
-        : 'Чаты привязаны к заказам. GPM может подключить логиста для поддержки и разрешения спорных ситуаций.';
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF6D8),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE9CE73)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.verified_user_outlined, color: GpmColors.black),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

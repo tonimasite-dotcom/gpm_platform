@@ -79,6 +79,13 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
         final completedCount = transactions
             .where((item) => item['status'] == 'available')
             .length;
+        final pendingAmount = transactions
+            .where((item) => item['status'] != 'available')
+            .fold<int>(0, (sum, item) => sum + _asInt(item['amount']));
+        final totalEarned = transactions.fold<int>(
+          0,
+          (sum, item) => sum + _asInt(item['amount']),
+        );
 
         return RefreshIndicator(
           onRefresh: _reload,
@@ -124,10 +131,20 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Завершенных заказов: $completedCount',
-                      style: const TextStyle(color: GpmColors.graphite),
+                    const SizedBox(height: 12),
+                    _BreakdownRow(
+                      label: 'На подтверждении',
+                      value: '${_formatMoney(pendingAmount)} ₽',
+                    ),
+                    const SizedBox(height: 6),
+                    _BreakdownRow(
+                      label: 'Всего заработано',
+                      value: '${_formatMoney(totalEarned)} ₽',
+                    ),
+                    const SizedBox(height: 6),
+                    _BreakdownRow(
+                      label: 'Завершённых заказов',
+                      value: '$completedCount',
                     ),
                     const SizedBox(height: 14),
                     const SizedBox(
@@ -165,6 +182,30 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _BreakdownRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _BreakdownRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: GpmColors.graphite)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: GpmColors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

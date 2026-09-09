@@ -18,8 +18,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Гражданство исполнителя:'), findsOneWidget);
-    expect(find.text('РФ'), findsOneWidget);
-    expect(find.text('Не РФ'), findsOneWidget);
-    expect(find.text('Право на законную работу'), findsNothing);
+    expect(find.text('Только РФ'), findsOneWidget);
+    expect(find.text('Любое'), findsOneWidget);
+    expect(find.text('Не РФ'), findsNothing);
+  });
+
+  testWidgets('order form exposes work description and split weight fields', (
+    tester,
+  ) async {
+    dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
+    app.gpmApi = GpmApiService();
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ClientCreateOrderScreen())),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(TextFormField, 'Описание работ'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextFormField, 'Общий вес, кг'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'Вес одной единицы, кг'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(TextFormField, 'Вес, кг (необязательно)'),
+      findsNothing,
+    );
   });
 }
