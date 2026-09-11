@@ -980,9 +980,11 @@ class _StatusPill extends StatelessWidget {
 
 String _nationalText(Map<String, dynamic> order) {
   final value = order['national'] ?? order['nationality'];
-  if (value == true || value == 'yes' || value == 'ru') return 'РФ';
-  if (value == false || value == 'no' || value == 'non_ru') return 'Не РФ';
-  return 'Не важно';
+  if (value == true || value == 'yes' || value == 'ru') return 'Только РФ';
+  if (value == false || value == 'no' || value == 'non_ru') {
+    return 'Только не РФ';
+  }
+  return 'Любое';
 }
 
 String _minPayText(Map<String, dynamic> order) {

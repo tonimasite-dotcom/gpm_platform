@@ -1063,6 +1063,47 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 409)
 
+    def test_actor_create_without_order_number_gets_sequential_number(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                },
+                clear=False,
+            ):
+                payload = sample_payload(source="manual")
+                del payload["order_data"]["order_number"]
+                actor = {"sub": "client-1", "role": "client"}
+
+                def create_one() -> dict:
+                    order = api.normalize_external_order(
+                        payload,
+                        created_by="client-1",
+                        created_by_role="client",
+                        require_order_number=False,
+                    )
+                    self.assertEqual(order["external_order_id"], "")
+                    return api.persist_published_order(order, actor=actor)
+
+                first_saved = create_one()
+                second_saved = create_one()
+
+        self.assertRegex(first_saved["external_order_id"], r"^APP-\d{6}$")
+        self.assertRegex(second_saved["external_order_id"], r"^APP-\d{6}$")
+        self.assertNotEqual(
+            first_saved["external_order_id"], second_saved["external_order_id"]
+        )
+
+    def test_crm_create_without_order_number_still_rejected(self) -> None:
+        payload = sample_payload(source="external")
+        del payload["order_data"]["order_number"]
+        with self.assertRaises(ValueError):
+            api.normalize_external_order(payload)
+
     def test_worker_verification_submission_review_and_invalidation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, "verifications.sqlite3")

@@ -766,11 +766,13 @@ class GpmApiService {
     double? addressLon,
   }) async {
     final effectiveSource = _normalizeOrderSource(source);
+    // No client-side number for manual (app-created) orders any more — the
+    // server assigns the sequential `APP-NNNNNN` inside persist_published_order.
+    // Demo mode (no backend) still needs a local placeholder, generated below
+    // once we know we've fallen through to the demo branch.
     final effectiveExternalOrderId = externalOrderId?.trim().isNotEmpty == true
         ? externalOrderId!.trim()
-        : effectiveSource == sourceExternal
-        ? null
-        : _generateManualOrderNumber();
+        : null;
     final effectiveScheduledAt =
         scheduledAt ?? DateTime.now().toUtc().toIso8601String();
     final effectiveMinTime = minTime ?? hours;
@@ -789,7 +791,10 @@ class GpmApiService {
       'client_phone': clientPhone,
       'city': city,
       'order_data': {
-        'order_number': effectiveExternalOrderId ?? title,
+        // Manual (app-created) orders send no number — the server assigns
+        // one. External/CRM payloads keep the old title fallback.
+        'order_number': effectiveExternalOrderId ??
+            (effectiveSource == sourceExternal ? title : null),
         'completion_date': {'date': effectiveScheduledAt},
         'timezone': timezone ?? 'Europe/Moscow',
         'loaders': {'loader_count': workersCount},
@@ -851,9 +856,7 @@ class GpmApiService {
 
     // Демо-режим если backend не настроен
     {
-      final orderId =
-          effectiveExternalOrderId ??
-          DateTime.now().microsecondsSinceEpoch.toString();
+      final orderId = effectiveExternalOrderId ?? _generateDemoOrderNumber();
       final effectiveTitle = effectiveExternalOrderId == null
           ? title
           : title.contains(effectiveExternalOrderId)
@@ -961,16 +964,19 @@ class GpmApiService {
     }
   }
 
-  String _generateManualOrderNumber() {
-    final now = DateTime.now();
-    final year = (now.year % 100).toString().padLeft(2, '0');
-    final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-    final hour = now.hour.toString().padLeft(2, '0');
-    final minute = now.minute.toString().padLeft(2, '0');
-    final second = now.second.toString().padLeft(2, '0');
-    final millisecond = now.millisecond.toString().padLeft(3, '0');
-    return 'APP-$year$month$day-$hour$minute$second$millisecond';
+  /// Demo mode has no backend to assign the real `APP-NNNNNN` sequence, so it
+  /// keeps its own local counter: highest existing `APP-<n>` id among
+  /// `_demoOrders`, plus one.
+  String _generateDemoOrderNumber() {
+    var maxSeq = 0;
+    for (final order in _demoOrders) {
+      final id = (order['external_order_id'] ?? order['id'] ?? '').toString();
+      final match = RegExp(r'^APP-(\d+)$').firstMatch(id);
+      if (match == null) continue;
+      final value = int.tryParse(match.group(1)!) ?? 0;
+      if (value > maxSeq) maxSeq = value;
+    }
+    return 'APP-${(maxSeq + 1).toString().padLeft(6, '0')}';
   }
 
   Future<List<Map<String, dynamic>>> getOrders() async {

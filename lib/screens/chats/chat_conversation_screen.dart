@@ -342,7 +342,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
             .toList();
     return Column(
       children: [
-        _ConversationNotice(thread: data.thread, role: widget.role),
         if (data.order != null)
           _OrderContextCard(order: data.order!, thread: data.thread),
         if (_searching)
@@ -501,55 +500,6 @@ class _ConversationData {
     required this.messages,
     required this.order,
   });
-}
-
-class _ConversationNotice extends StatelessWidget {
-  final ChatThread thread;
-  final ChatRole role;
-
-  const _ConversationNotice({required this.thread, required this.role});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = switch (thread.type) {
-      ChatThreadType.clientWorker =>
-        'Единый рабочий чат по заявке для согласования деталей и выполнения заказа.',
-      ChatThreadType.support =>
-        'Канал поддержки. Логист фиксирует договоренности и решение спорной ситуации.',
-      ChatThreadType.clientLogist =>
-        'Канал клиента и логиста по заявке. Здесь уточняются детали заказа.',
-      ChatThreadType.workerLogist =>
-        'Единый рабочий чат по заявке с назначенным логистом и исполнителями.',
-    };
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      decoration: const BoxDecoration(
-        color: GpmColors.surface,
-        border: Border(bottom: BorderSide(color: GpmColors.line)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            role == ChatRole.logist
-                ? Icons.admin_panel_settings_outlined
-                : Icons.info_outline,
-            color: GpmColors.red,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _OrderContextCard extends StatelessWidget {

@@ -39,6 +39,7 @@ WORKER_VERIFICATIONS_TABLE_NAME = "gpm_app_worker_verifications"
 CHAT_THREADS_TABLE_NAME = "gpm_app_chat_threads"
 CHAT_MESSAGES_TABLE_NAME = "gpm_app_chat_messages"
 CHAT_READS_TABLE_NAME = "gpm_app_chat_reads"
+ORDER_NUMBER_SEQUENCE_TABLE_NAME = "gpm_app_order_number_seq"
 APP_ROLES = {"client", "worker", "logist"}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
 INVITATION_SCHEMA_VERSION = "0002_account_invitations"
@@ -857,6 +858,14 @@ def init_db() -> None:
                     )
                     """
                 )
+                cursor.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {ORDER_NUMBER_SEQUENCE_TABLE_NAME} (
+                        id INTEGER PRIMARY KEY,
+                        counter BIGINT NOT NULL
+                    )
+                    """
+                )
             create_auth_schema(connection)
             bootstrap_configured_accounts(connection)
             connection.commit()
@@ -878,6 +887,14 @@ def init_db() -> None:
                 order_id TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {ORDER_NUMBER_SEQUENCE_TABLE_NAME} (
+                id INTEGER PRIMARY KEY,
+                counter INTEGER NOT NULL
             )
             """
         )
@@ -1948,6 +1965,7 @@ def normalize_external_order(
     *,
     created_by: str | None = None,
     created_by_role: str | None = None,
+    require_order_number: bool = True,
 ) -> dict[str, Any]:
     order_data = payload.get("order_data")
     if not isinstance(order_data, dict):
@@ -1969,7 +1987,7 @@ def normalize_external_order(
         order_data.get("order_number"),
         "order_data.order_number",
         max_length=120,
-        required=True,
+        required=require_order_number,
     )
     if any(ord(character) < 32 for character in order_number):
         raise ValueError("order_data.order_number contains control characters")
@@ -2570,6 +2588,39 @@ def validate_order_patch(
     return normalized
 
 
+def allocate_order_number(connection: Any) -> str:
+    """Atomically assign the next `APP-NNNNNN` order number.
+
+    Must run inside the caller's already-locked transaction (see
+    `persist_published_order`) so concurrent callers can't allocate the same
+    counter value.
+    """
+    if is_postgres_enabled():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {ORDER_NUMBER_SEQUENCE_TABLE_NAME} (id, counter)
+                VALUES (1, 1)
+                ON CONFLICT (id) DO UPDATE
+                SET counter = {ORDER_NUMBER_SEQUENCE_TABLE_NAME}.counter + 1
+                RETURNING counter
+                """
+            )
+            counter = cursor.fetchone()[0]
+    else:
+        connection.execute(
+            f"""
+            INSERT INTO {ORDER_NUMBER_SEQUENCE_TABLE_NAME} (id, counter)
+            VALUES (1, 1)
+            ON CONFLICT(id) DO UPDATE SET counter = counter + 1
+            """
+        )
+        counter = connection.execute(
+            f"SELECT counter FROM {ORDER_NUMBER_SEQUENCE_TABLE_NAME} WHERE id = 1"
+        ).fetchone()[0]
+    return f"APP-{counter:06d}"
+
+
 def persist_published_order(
     incoming: dict[str, Any],
     *,
@@ -2579,6 +2630,8 @@ def persist_published_order(
     with db_connection() as connection:
         if not is_postgres_enabled():
             connection.execute("BEGIN IMMEDIATE")
+        if actor is not None and not str(incoming.get("external_order_id") or "").strip():
+            incoming = {**incoming, "external_order_id": allocate_order_number(connection)}
         existing = read_order_in_connection(
             connection,
             incoming["external_order_id"],
@@ -4816,6 +4869,7 @@ async def publish_order_payload(
             payload,
             created_by=str(actor.get("sub") or "") if actor else None,
             created_by_role=str(actor.get("role") or "") if actor else None,
+            require_order_number=actor is None,
         )
         if integration:
             order["logist_account_id"] = await asyncio.to_thread(
