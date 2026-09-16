@@ -25,11 +25,18 @@
 > `release/crm-logist-city-visibility` устарели и поглощены main — их
 > функциональность влита ещё 28.08 покоммитно, сами ветки **не мержить**
 > (см. раздел 7 хендоффа 11.09).
+> Сессия 16.09 (`8d66543`, не деплоится — только нативные Android-ресурсы):
+> дизайн системного сплэш-экрана Android 12+ (бежевый фон, adaptive-icon
+> без обрезки логотипа) + решён обход кириллицы в пути Windows-профиля для
+> локальной `flutter build apk` (`subst` + `PUB_CACHE`/`GRADLE_USER_HOME`).
+> Debug- и release-APK собраны в `build/app/outputs/flutter-apk/`;
+> release пока подписан debug-ключом, релизный keystore для Google Play
+> ещё не настроен.
 > `gh` CLI установлен и авторизован на этой машине для самостоятельного
 > запуска деплоя. Главный актуальный источник истины:
-> `PROJECT_HANDOFF_2026-09-11_ORDER_NUMBER_AND_CRM_BRANCH_CLEANUP.md`.
+> `PROJECT_HANDOFF_2026-09-16_SPLASH_SCREEN_AND_LOCAL_BUILD.md`.
 > Готовый промпт нового чата:
-> `CONTINUE_PROJECT_PROMPT_2026-09-11_ORDER_NUMBER_AND_CRM_BRANCH_CLEANUP.md`.
+> `CONTINUE_PROJECT_PROMPT_2026-09-16_SPLASH_SCREEN_AND_LOCAL_BUILD.md`.
 > Настройка нового устройства: `NEW_DEVICE_SETUP_2026-08-26.md`.
 
 ## Архитектура
