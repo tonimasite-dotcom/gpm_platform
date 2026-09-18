@@ -4,6 +4,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -12,6 +13,29 @@ from fastapi import HTTPException
 
 from app import account_invite_cli
 from app import app_orders_api as api
+
+
+class _FixedDateTime(datetime):
+    """A `datetime` subclass whose `.now()` returns a fixed instant.
+
+    Real subclassing (not a Mock) so isinstance checks and other datetime
+    arithmetic elsewhere in the module under test keep working normally.
+    """
+
+    _fixed_now: datetime
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls._fixed_now if tz is None else cls._fixed_now.astimezone(tz)
+
+
+@contextmanager
+def _frozen_moscow_datetime(year: int, month: int, day: int, hour: int, minute: int):
+    """Freeze `app_orders_api.datetime.now(MOSCOW_TZ)` to a fixed local moment."""
+    frozen = type("_FixedDateTime", (_FixedDateTime,), {})
+    frozen._fixed_now = datetime(year, month, day, hour, minute, tzinfo=api.MOSCOW_TZ)
+    with patch("app.app_orders_api.datetime", frozen):
+        yield
 
 
 def sample_payload(*, source: str = "external") -> dict:
@@ -102,6 +126,11 @@ class ActiveApiTests(unittest.TestCase):
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_READS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_MESSAGES_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_THREADS_TABLE_NAME}")
+                cursor.execute(
+                    f"DROP TABLE IF EXISTS {api.ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME}"
+                )
+                cursor.execute(f"DROP TABLE IF EXISTS {api.ACTOR_CODES_TABLE_NAME}")
+                cursor.execute(f"DROP TABLE IF EXISTS {api.ACTOR_CODE_SEQUENCE_TABLE_NAME}")
                 cursor.execute(
                     f"DROP TABLE IF EXISTS {api.WORKER_VERIFICATIONS_TABLE_NAME}"
                 )
@@ -1038,7 +1067,13 @@ class ActiveApiTests(unittest.TestCase):
                     api.get_account_chat_messages("chat-001/26-clientWorker", worker)
                 self.assertEqual(caught.exception.status_code, 404)
 
-    def test_user_publish_rejects_existing_order_number(self) -> None:
+    def test_actor_supplied_order_number_is_ignored_and_replaced(self) -> None:
+        # An actor (client/logist app) create must never keep a
+        # caller-supplied order_number/external_order_id, even if one was
+        # sent — this is the loophole a stale pre-09-11 Android build used
+        # to slip a legacy-format id (`APP-260918-113134028`) into
+        # production. Two submissions of the very same payload must now
+        # produce two distinct, server-generated ids instead of a 409.
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, "orders.sqlite3")
             with patch.dict(
@@ -1050,20 +1085,27 @@ class ActiveApiTests(unittest.TestCase):
                 },
                 clear=False,
             ):
+                payload = sample_payload(source="manual")
+                payload["order_data"]["order_number"] = "APP-260918-113134028"
                 incoming = api.normalize_external_order(
-                    sample_payload(source="manual"),
+                    payload,
                     created_by="client-1",
                     created_by_role="client",
                 )
                 actor = {"sub": "client-1", "role": "client"}
-                api.persist_published_order(incoming, actor=actor)
+                first_saved = api.persist_published_order(incoming, actor=actor)
+                second_saved = api.persist_published_order(incoming, actor=actor)
 
-                with self.assertRaises(HTTPException) as caught:
-                    api.persist_published_order(incoming, actor=actor)
+        for saved in (first_saved, second_saved):
+            self.assertNotEqual(saved["external_order_id"], "APP-260918-113134028")
+        self.assertNotEqual(
+            first_saved["external_order_id"], second_saved["external_order_id"]
+        )
 
-        self.assertEqual(caught.exception.status_code, 409)
-
-    def test_actor_create_without_order_number_gets_sequential_number(self) -> None:
+    def test_actor_without_code_falls_back_to_legacy_sequential_number(self) -> None:
+        # "client-1" isn't a real registered account, so it has no actor
+        # code — persist_published_order must fall back to the legacy
+        # global APP-NNNNNN counter rather than crash or misbehave.
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, "orders.sqlite3")
             with patch.dict(
@@ -1103,6 +1145,228 @@ class ActiveApiTests(unittest.TestCase):
         del payload["order_data"]["order_number"]
         with self.assertRaises(ValueError):
             api.normalize_external_order(payload)
+
+    def _create_actor_account(self, role: str, *, username: str) -> str:
+        """Test helper: redeem a fresh invitation and return the new account_id."""
+        invitation = api.create_account_invitation(username, role, created_by="ci")
+        account = api.redeem_account_invitation(
+            invitation["token"],
+            "Strong synthetic password 42!",
+            expected_role=role,
+        )
+        return account["account_id"]
+
+    def test_actor_code_assigned_on_invitation_redemption(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                client_1 = self._create_actor_account("client", username="client-one")
+                logist_1 = self._create_actor_account("logist", username="logist-one")
+                client_2 = self._create_actor_account("client", username="client-two")
+
+                with api.db_connection() as connection:
+                    self.assertEqual(api.get_actor_code(connection, client_1), 1)
+                    self.assertEqual(api.get_actor_code(connection, logist_1), 1)
+                    self.assertEqual(api.get_actor_code(connection, client_2), 2)
+
+    def test_actor_daily_order_number_format_and_increment(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                account_id = self._create_actor_account("client", username="daily-client")
+                actor = {"sub": account_id, "role": "client"}
+
+                def create_one() -> dict:
+                    payload = sample_payload(source="manual")
+                    del payload["order_data"]["order_number"]
+                    order = api.normalize_external_order(
+                        payload,
+                        created_by=account_id,
+                        created_by_role="client",
+                        require_order_number=False,
+                    )
+                    return api.persist_published_order(order, actor=actor)
+
+                with _frozen_moscow_datetime(2026, 9, 18, 12, 0):
+                    first_saved = create_one()
+                    second_saved = create_one()
+
+        self.assertEqual(first_saved["external_order_id"], "C1-180926-1")
+        self.assertEqual(second_saved["external_order_id"], "C1-180926-2")
+
+    def test_actor_daily_order_number_resets_next_day(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                account_id = self._create_actor_account("logist", username="reset-logist")
+                actor = {"sub": account_id, "role": "logist"}
+
+                def create_one() -> dict:
+                    payload = sample_payload(source="manual")
+                    del payload["order_data"]["order_number"]
+                    order = api.normalize_external_order(
+                        payload,
+                        created_by=account_id,
+                        created_by_role="logist",
+                        require_order_number=False,
+                    )
+                    return api.persist_published_order(order, actor=actor)
+
+                with _frozen_moscow_datetime(2026, 9, 18, 12, 0):
+                    day_one = create_one()
+                with _frozen_moscow_datetime(2026, 9, 19, 12, 0):
+                    day_two = create_one()
+
+        self.assertEqual(day_one["external_order_id"], "L1-180926-1")
+        self.assertEqual(day_two["external_order_id"], "L1-190926-1")
+
+    def test_actor_daily_order_number_isolated_per_actor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                account_a = self._create_actor_account("client", username="isolated-a")
+                account_b = self._create_actor_account("client", username="isolated-b")
+
+                def create_one(account_id: str) -> dict:
+                    payload = sample_payload(source="manual")
+                    del payload["order_data"]["order_number"]
+                    order = api.normalize_external_order(
+                        payload,
+                        created_by=account_id,
+                        created_by_role="client",
+                        require_order_number=False,
+                    )
+                    actor = {"sub": account_id, "role": "client"}
+                    return api.persist_published_order(order, actor=actor)
+
+                with _frozen_moscow_datetime(2026, 9, 18, 12, 0):
+                    saved_a = create_one(account_a)
+                    saved_b = create_one(account_b)
+
+        self.assertEqual(saved_a["external_order_id"], "C1-180926-1")
+        self.assertEqual(saved_b["external_order_id"], "C2-180926-1")
+
+    def test_actor_code_backfill_orders_by_created_at(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                accounts = []
+                with api.db_connection() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    for index, created_at in enumerate(
+                        ["2026-03-03", "2026-01-01", "2026-02-02"]
+                    ):
+                        account_id = f"backfill-client-{index}"
+                        connection.execute(
+                            f"""
+                            INSERT INTO {api.ACCOUNTS_TABLE_NAME}(
+                                account_id, username, username_normalized,
+                                password_hash, role, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                account_id,
+                                account_id,
+                                account_id,
+                                "x",
+                                "client",
+                                created_at,
+                                created_at,
+                            ),
+                        )
+                        accounts.append((account_id, created_at))
+
+                from app import backfill_actor_codes as backfill
+
+                backfill.backfill_actor_codes()
+
+                with api.db_connection() as connection:
+                    codes = {
+                        account_id: api.get_actor_code(connection, account_id)
+                        for account_id, _ in accounts
+                    }
+
+        self.assertEqual(codes["backfill-client-1"], 1)  # 2026-01-01, earliest
+        self.assertEqual(codes["backfill-client-2"], 2)  # 2026-02-02
+        self.assertEqual(codes["backfill-client-0"], 3)  # 2026-03-03, latest
+
+    def test_actor_code_backfill_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                account_id = self._create_actor_account("client", username="idempotent-client")
+
+                from app import backfill_actor_codes as backfill
+
+                first_run = backfill.backfill_actor_codes()
+                second_run = backfill.backfill_actor_codes()
+
+                with api.db_connection() as connection:
+                    code = api.get_actor_code(connection, account_id)
+
+        self.assertEqual(code, 1)
+        self.assertEqual(second_run, {"client": 0, "logist": 0})
+        self.assertIsInstance(first_run, dict)
 
     def test_worker_verification_submission_review_and_invalidation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

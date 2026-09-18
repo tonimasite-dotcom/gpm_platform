@@ -40,11 +40,17 @@ CHAT_THREADS_TABLE_NAME = "gpm_app_chat_threads"
 CHAT_MESSAGES_TABLE_NAME = "gpm_app_chat_messages"
 CHAT_READS_TABLE_NAME = "gpm_app_chat_reads"
 ORDER_NUMBER_SEQUENCE_TABLE_NAME = "gpm_app_order_number_seq"
+ACTOR_CODES_TABLE_NAME = "gpm_app_account_actor_codes"
+ACTOR_CODE_SEQUENCE_TABLE_NAME = "gpm_app_actor_code_seq"
+ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME = "gpm_app_actor_daily_order_seq"
 APP_ROLES = {"client", "worker", "logist"}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
 INVITATION_SCHEMA_VERSION = "0002_account_invitations"
 WORKSPACE_SCHEMA_VERSION = "0003_role_workspaces"
 WORKER_VERIFICATION_SCHEMA_VERSION = "0004_worker_verifications"
+ACTOR_CODE_SCHEMA_VERSION = "0005_actor_order_numbering"
+MOSCOW_TZ = timezone(timedelta(hours=3))  # MSK has had no DST since 2014
+ORDER_NUMBER_ACTOR_ROLES = {"client": "C", "logist": "L"}
 ACCESS_TOKEN_TTL = timedelta(hours=12)
 INVITATION_TTL = timedelta(days=3)
 LOGIN_FAILURE_LIMIT = 5
@@ -488,6 +494,35 @@ def create_auth_schema(connection: Any) -> None:
             )
             cursor.execute(
                 f"""
+                CREATE TABLE IF NOT EXISTS {ACTOR_CODES_TABLE_NAME} (
+                    account_id TEXT PRIMARY KEY REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    role TEXT NOT NULL CHECK (role IN ('client', 'logist')),
+                    actor_code INTEGER NOT NULL,
+                    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(role, actor_code)
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {ACTOR_CODE_SEQUENCE_TABLE_NAME} (
+                    role TEXT PRIMARY KEY CHECK (role IN ('client', 'logist')),
+                    counter INTEGER NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME} (
+                    account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    order_date TEXT NOT NULL,
+                    counter INTEGER NOT NULL,
+                    PRIMARY KEY(account_id, order_date)
+                )
+                """
+            )
+            cursor.execute(
+                f"""
                 INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
                 VALUES (%s)
                 ON CONFLICT (version) DO NOTHING
@@ -517,6 +552,14 @@ def create_auth_schema(connection: Any) -> None:
                 ON CONFLICT (version) DO NOTHING
                 """,
                 (WORKER_VERIFICATION_SCHEMA_VERSION,),
+            )
+            cursor.execute(
+                f"""
+                INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
+                VALUES (%s)
+                ON CONFLICT (version) DO NOTHING
+                """,
+                (ACTOR_CODE_SCHEMA_VERSION,),
             )
         return
 
@@ -703,6 +746,35 @@ def create_auth_schema(connection: Any) -> None:
     )
     connection.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS {ACTOR_CODES_TABLE_NAME} (
+            account_id TEXT PRIMARY KEY REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            role TEXT NOT NULL CHECK (role IN ('client', 'logist')),
+            actor_code INTEGER NOT NULL,
+            assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(role, actor_code)
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {ACTOR_CODE_SEQUENCE_TABLE_NAME} (
+            role TEXT PRIMARY KEY CHECK (role IN ('client', 'logist')),
+            counter INTEGER NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME} (
+            account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            order_date TEXT NOT NULL,
+            counter INTEGER NOT NULL,
+            PRIMARY KEY(account_id, order_date)
+        )
+        """
+    )
+    connection.execute(
+        f"""
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (ACCOUNT_SCHEMA_VERSION,),
@@ -724,6 +796,12 @@ def create_auth_schema(connection: Any) -> None:
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (WORKER_VERIFICATION_SCHEMA_VERSION,),
+    )
+    connection.execute(
+        f"""
+        INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
+        """,
+        (ACTOR_CODE_SCHEMA_VERSION,),
     )
 
 
@@ -832,6 +910,8 @@ def bootstrap_configured_accounts(connection: Any) -> int:
                 """,
                 values,
             )
+        if account["role"] in ORDER_NUMBER_ACTOR_ROLES:
+            ensure_actor_code(connection, account_id, account["role"])
         record_audit_event_in_connection(
             connection,
             event_type="account_bootstrapped",
@@ -1404,6 +1484,8 @@ def redeem_account_invitation(
                         """,
                         (serialize_datetime(now), account_id, str(row[0])),
                     )
+            if role in ORDER_NUMBER_ACTOR_ROLES:
+                ensure_actor_code(connection, account_id, role)
             record_audit_event_in_connection(
                 connection,
                 event_type="invitation_redeemed",
@@ -2621,6 +2703,137 @@ def allocate_order_number(connection: Any) -> str:
     return f"APP-{counter:06d}"
 
 
+def allocate_actor_code(connection: Any, role: str) -> int:
+    """Atomically assign the next per-role actor code (the "1" in L1/C1).
+
+    Must run inside the caller's already-locked transaction, same as
+    `allocate_order_number`.
+    """
+    if is_postgres_enabled():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {ACTOR_CODE_SEQUENCE_TABLE_NAME} (role, counter)
+                VALUES (%s, 1)
+                ON CONFLICT (role) DO UPDATE
+                SET counter = {ACTOR_CODE_SEQUENCE_TABLE_NAME}.counter + 1
+                RETURNING counter
+                """,
+                (role,),
+            )
+            return int(cursor.fetchone()[0])
+    connection.execute(
+        f"""
+        INSERT INTO {ACTOR_CODE_SEQUENCE_TABLE_NAME} (role, counter)
+        VALUES (?, 1)
+        ON CONFLICT(role) DO UPDATE SET counter = counter + 1
+        """,
+        (role,),
+    )
+    return int(
+        connection.execute(
+            f"SELECT counter FROM {ACTOR_CODE_SEQUENCE_TABLE_NAME} WHERE role = ?",
+            (role,),
+        ).fetchone()[0]
+    )
+
+
+def get_actor_code(connection: Any, account_id: str) -> int | None:
+    """Look up an account's permanent actor code, if one has been assigned."""
+    if is_postgres_enabled():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT actor_code FROM {ACTOR_CODES_TABLE_NAME} WHERE account_id = %s",
+                (account_id,),
+            )
+            row = cursor.fetchone()
+    else:
+        row = connection.execute(
+            f"SELECT actor_code FROM {ACTOR_CODES_TABLE_NAME} WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()
+    return int(row[0]) if row is not None else None
+
+
+def ensure_actor_code(connection: Any, account_id: str, role: str) -> int:
+    """Get an account's actor code, assigning one if it doesn't have one yet.
+
+    Idempotent get-or-assign so the same function serves both live
+    registration (`redeem_account_invitation`) and the one-time backfill
+    script for pre-existing accounts.
+    """
+    existing = get_actor_code(connection, account_id)
+    if existing is not None:
+        return existing
+    code = allocate_actor_code(connection, role)
+    if is_postgres_enabled():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {ACTOR_CODES_TABLE_NAME} (account_id, role, actor_code)
+                VALUES (%s, %s, %s)
+                """,
+                (account_id, role, code),
+            )
+    else:
+        connection.execute(
+            f"""
+            INSERT INTO {ACTOR_CODES_TABLE_NAME} (account_id, role, actor_code)
+            VALUES (?, ?, ?)
+            """,
+            (account_id, role, code),
+        )
+    return code
+
+
+def allocate_actor_daily_order_number(connection: Any, account_id: str, role: str) -> str:
+    """Assign the next `{L|C}{code}-DDMMYY-N` order number for this actor.
+
+    `N` resets to 1 every calendar day in Europe/Moscow time, scoped to this
+    one account. Falls back to the legacy global `APP-NNNNNN` counter if the
+    account has no actor code yet (role isn't client/logist, or it predates
+    the one-time backfill). Must run inside the caller's already-locked
+    transaction, same as `allocate_order_number`.
+    """
+    code = get_actor_code(connection, account_id)
+    if code is None:
+        return allocate_order_number(connection)
+    now_msk = datetime.now(MOSCOW_TZ)
+    order_date = now_msk.strftime("%Y-%m-%d")
+    date_label = now_msk.strftime("%d%m%y")
+    if is_postgres_enabled():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO {ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME} (account_id, order_date, counter)
+                VALUES (%s, %s, 1)
+                ON CONFLICT (account_id, order_date) DO UPDATE
+                SET counter = {ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME}.counter + 1
+                RETURNING counter
+                """,
+                (account_id, order_date),
+            )
+            counter = cursor.fetchone()[0]
+    else:
+        connection.execute(
+            f"""
+            INSERT INTO {ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME} (account_id, order_date, counter)
+            VALUES (?, ?, 1)
+            ON CONFLICT(account_id, order_date) DO UPDATE SET counter = counter + 1
+            """,
+            (account_id, order_date),
+        )
+        counter = connection.execute(
+            f"""
+            SELECT counter FROM {ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME}
+            WHERE account_id = ? AND order_date = ?
+            """,
+            (account_id, order_date),
+        ).fetchone()[0]
+    prefix = ORDER_NUMBER_ACTOR_ROLES.get(role, "")
+    return f"{prefix}{code}-{date_label}-{counter}"
+
+
 def persist_published_order(
     incoming: dict[str, Any],
     *,
@@ -2630,8 +2843,18 @@ def persist_published_order(
     with db_connection() as connection:
         if not is_postgres_enabled():
             connection.execute("BEGIN IMMEDIATE")
-        if actor is not None and not str(incoming.get("external_order_id") or "").strip():
-            incoming = {**incoming, "external_order_id": allocate_order_number(connection)}
+        if actor is not None:
+            role = str(actor.get("role") or "")
+            account_id = str(actor.get("sub") or "")
+            if role in ORDER_NUMBER_ACTOR_ROLES and account_id:
+                order_number = allocate_actor_daily_order_number(connection, account_id, role)
+            else:
+                order_number = allocate_order_number(connection)
+            # `id` must stay in lockstep with `external_order_id` — it's the
+            # same value under a different key (see normalize_external_order)
+            # and callers key later lookups (e.g. patch_order_atomically) off
+            # `id`.
+            incoming = {**incoming, "external_order_id": order_number, "id": order_number}
         existing = read_order_in_connection(
             connection,
             incoming["external_order_id"],

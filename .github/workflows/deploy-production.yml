@@ -187,6 +187,13 @@ jobs:
           set +a
           "$NEW_VENV/bin/python" -c 'import app.app_orders_api as api; api.validate_runtime_configuration(); api.validate_account_source_configuration(); import fastapi, psycopg2, uvicorn, yaml'
 
+          # One-time-per-account backfill: assigns L#/C# actor codes (used by
+          # the new order-numbering scheme) to any logist/client account that
+          # doesn't have one yet, ordered by registration date. Idempotent
+          # (get-or-assign), so safe to run on every deploy — cheap relative
+          # to deploy frequency, and acts as an ongoing safety net.
+          "$NEW_VENV/bin/python" -m app.backfill_actor_codes
+
           if [ "$OLD_VENV_KIND" = directory ]; then
             mv .venv "$BACKUP_DIR/venv-before-deploy"
           else
