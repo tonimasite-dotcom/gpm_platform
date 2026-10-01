@@ -38,6 +38,34 @@ void main() {
     });
   });
 
+  group('formatOrderPublishedAt', () {
+    test('renders the server publication timestamp in local time', () {
+      final iso = DateTime(2026, 10, 1, 17, 5).toIso8601String();
+      expect(formatOrderPublishedAt(iso), '01.10.2026 17:05');
+    });
+
+    test('hides missing or invalid publication timestamps', () {
+      expect(formatOrderPublishedAt(null), isNull);
+      expect(formatOrderPublishedAt(''), isNull);
+      expect(formatOrderPublishedAt('not-a-date'), isNull);
+    });
+  });
+
+  testWidgets('publication marker shows the formatted timestamp', (
+    tester,
+  ) async {
+    final iso = DateTime(2026, 10, 1, 17, 5).toIso8601String();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: OrderPublishedAtMarker(createdAt: iso)),
+      ),
+    );
+
+    expect(find.text('Опубликовано 01.10.2026 17:05'), findsOneWidget);
+    expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
+  });
+
   group('hoursText', () {
     test('picks the correct Russian plural form', () {
       expect(hoursText(1), '1 час');

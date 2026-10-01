@@ -190,6 +190,8 @@ class OrdersList extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 _StatusPill(text: statusText, color: color),
+                const SizedBox(height: 5),
+                OrderPublishedAtMarker(createdAt: order['created_at']),
               ],
             ),
             trailing: const Icon(Icons.chevron_right),

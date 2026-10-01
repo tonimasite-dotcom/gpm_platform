@@ -185,6 +185,10 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 5),
+                          OrderPublishedAtMarker(
+                            createdAt: order['created_at'],
+                          ),
                         ],
                       ),
                       trailing: const Icon(Icons.chevron_right),

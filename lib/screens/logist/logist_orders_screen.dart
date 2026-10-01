@@ -366,6 +366,8 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
                         : FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 5),
+                OrderPublishedAtMarker(createdAt: order['created_at']),
               ],
             ),
             trailing: const Icon(Icons.chevron_right),

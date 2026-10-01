@@ -65,6 +65,58 @@ String formatOrderSchedule(dynamic value) {
   return '$day.$month.${dateTime.year} $hour:$minute';
 }
 
+/// Formats the server-owned moment when an order was first published.
+///
+/// Returns `null` for legacy/incomplete records instead of showing a made-up
+/// timestamp. New app and CRM orders always receive `created_at` from the
+/// backend when they are first persisted.
+String? formatOrderPublishedAt(dynamic value) {
+  final raw = value?.toString().trim();
+  if (raw == null || raw.isEmpty) return null;
+
+  final dateTime = DateTime.tryParse(raw)?.toLocal();
+  if (dateTime == null) return null;
+
+  final day = dateTime.day.toString().padLeft(2, '0');
+  final month = dateTime.month.toString().padLeft(2, '0');
+  final hour = dateTime.hour.toString().padLeft(2, '0');
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  return '$day.$month.${dateTime.year} $hour:$minute';
+}
+
+/// Compact, shared publication marker for order cards in every cabinet.
+class OrderPublishedAtMarker extends StatelessWidget {
+  final dynamic createdAt;
+
+  const OrderPublishedAtMarker({super.key, required this.createdAt});
+
+  @override
+  Widget build(BuildContext context) {
+    final publishedAt = formatOrderPublishedAt(createdAt);
+    if (publishedAt == null) return const SizedBox.shrink();
+
+    final foreground = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_rounded, size: 13, color: foreground),
+          const SizedBox(width: 4),
+          Text(
+            'Опубликовано $publishedAt',
+            style: TextStyle(fontSize: 11, color: foreground),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Russian pluralisation for a whole number of hours: `1 час`, `2 часа`,
 /// `5 часов`, `21 час`.
 String hoursText(dynamic value) {
