@@ -1934,6 +1934,26 @@ def write_order_in_connection(connection: Any, order: dict[str, Any]) -> None:
     )
 
 
+def ensure_order_display_title(order: dict[str, Any]) -> dict[str, Any]:
+    """Fill a missing generated title from the server-owned order number.
+
+    Actor-created orders are normalized before their number is allocated.  A
+    short-lived production bug therefore stored ``"Заявка № "`` even though
+    ``id`` and ``external_order_id`` already contained the generated number.
+    Repair that narrow case on reads as well as fixing new writes, so affected
+    orders display correctly without a destructive database migration.
+    """
+    order_number = str(
+        order.get("external_order_id") or order.get("id") or ""
+    ).strip()
+    title = str(order.get("title") or "").strip()
+    if order_number and title in {"", "Заявка №"}:
+        repaired = dict(order)
+        repaired["title"] = f"Заявка № {order_number}"
+        return repaired
+    return order
+
+
 def list_orders() -> list[dict[str, Any]]:
     init_db()
     if is_postgres_enabled():
@@ -1944,7 +1964,9 @@ def list_orders() -> list[dict[str, Any]]:
                 )
                 rows = cursor.fetchall()
         return [
-            row[0] if isinstance(row[0], dict) else json.loads(row[0])
+            ensure_order_display_title(
+                row[0] if isinstance(row[0], dict) else json.loads(row[0])
+            )
             for row in rows
         ]
 
@@ -1952,7 +1974,7 @@ def list_orders() -> list[dict[str, Any]]:
         rows = connection.execute(
             f"SELECT data FROM {TABLE_NAME} ORDER BY updated_at DESC"
         ).fetchall()
-    return [json.loads(row[0]) for row in rows]
+    return [ensure_order_display_title(json.loads(row[0])) for row in rows]
 
 
 def get_order(order_id: str) -> dict[str, Any] | None:
@@ -1981,13 +2003,15 @@ def read_order_in_connection(
             row = cursor.fetchone()
         if row is None:
             return None
-        return row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        return ensure_order_display_title(
+            row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        )
 
     row = connection.execute(
         f"SELECT data FROM {TABLE_NAME} WHERE order_id = ? LIMIT 1",
         (order_id,),
     ).fetchone()
-    return None if row is None else json.loads(row[0])
+    return None if row is None else ensure_order_display_title(json.loads(row[0]))
 
 
 def check_database_health() -> str:
@@ -2854,7 +2878,12 @@ def persist_published_order(
             # same value under a different key (see normalize_external_order)
             # and callers key later lookups (e.g. patch_order_atomically) off
             # `id`.
-            incoming = {**incoming, "external_order_id": order_number, "id": order_number}
+            incoming = {
+                **incoming,
+                "external_order_id": order_number,
+                "id": order_number,
+                "title": f"Заявка № {order_number}",
+            }
         existing = read_order_in_connection(
             connection,
             incoming["external_order_id"],

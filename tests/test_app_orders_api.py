@@ -1098,6 +1098,9 @@ class ActiveApiTests(unittest.TestCase):
 
         for saved in (first_saved, second_saved):
             self.assertNotEqual(saved["external_order_id"], "APP-260918-113134028")
+            self.assertEqual(
+                saved["title"], f"Заявка № {saved['external_order_id']}"
+            )
         self.assertNotEqual(
             first_saved["external_order_id"], second_saved["external_order_id"]
         )
@@ -1213,6 +1216,37 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual(first_saved["external_order_id"], "C1-180926-1")
         self.assertEqual(second_saved["external_order_id"], "C1-180926-2")
+        self.assertEqual(first_saved["title"], "Заявка № C1-180926-1")
+        self.assertEqual(second_saved["title"], "Заявка № C1-180926-2")
+
+    def test_existing_actor_order_with_blank_number_title_is_repaired_on_read(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                },
+                clear=False,
+            ):
+                order = api.normalize_external_order(sample_payload(source="manual"))
+                order.update(
+                    {
+                        "id": "C1-021026-1",
+                        "external_order_id": "C1-021026-1",
+                        "title": "Заявка № ",
+                    }
+                )
+                api.save_order(order)
+
+                loaded = api.get_order("C1-021026-1")
+                listed = api.list_orders()
+
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded["title"], "Заявка № C1-021026-1")
+        self.assertEqual(listed[0]["title"], "Заявка № C1-021026-1")
 
     def test_actor_daily_order_number_resets_next_day(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
