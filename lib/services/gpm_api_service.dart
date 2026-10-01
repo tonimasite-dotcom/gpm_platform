@@ -516,6 +516,101 @@ class GpmApiService {
     return _authenticatedJsonRequest('/app-api/me/finance');
   }
 
+  Future<Map<String, dynamic>> getOrderAttendance(String orderId) async {
+    if (usesLocalPersistence) {
+      final order = await getOrderById(orderId);
+      final assigned = List<String>.from(
+        (order?['assigned_worker_ids'] as List?) ?? const [],
+      );
+      return {
+        'order_id': orderId,
+        'verifier_mode': order?['created_by_role'] == 'client'
+            ? 'authenticated_client'
+            : 'guest_code',
+        'attendance': assigned
+            .map(
+              (workerId) => {
+                'worker_account_id': workerId,
+                'worker_name': workerId == demoWorkerId
+                    ? demoWorkerName
+                    : 'Исполнитель',
+                'status': 'not_started',
+              },
+            )
+            .toList(),
+      };
+    }
+    return _authenticatedJsonRequest(
+      '/app-api/me/order-attendance/${Uri.encodeComponent(orderId)}',
+    );
+  }
+
+  Future<Map<String, dynamic>> createAttendanceChallenge(String orderId) async {
+    if (usesLocalPersistence) {
+      throw StateError('Онлайн-табель доступен при подключении к серверу');
+    }
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/order-attendance/${Uri.encodeComponent(orderId)}/challenge',
+      method: 'POST',
+    );
+    return _requiredMap(
+      response['challenge'],
+      'Сервер не вернул код подтверждения',
+    );
+  }
+
+  Future<Map<String, dynamic>> confirmAttendance({
+    String token = '',
+    String requestCode = '',
+  }) async {
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/attendance/confirm',
+      method: 'POST',
+      body: {
+        if (token.trim().isNotEmpty) 'token': token.trim(),
+        if (requestCode.trim().isNotEmpty)
+          'request_code': requestCode.trim().toUpperCase(),
+      },
+    );
+    return _requiredMap(
+      response['attendance'],
+      'Сервер не вернул отметку табеля',
+    );
+  }
+
+  Future<Map<String, dynamic>> previewAttendanceConfirmation({
+    String token = '',
+    String requestCode = '',
+  }) async {
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/attendance/preview',
+      method: 'POST',
+      body: {
+        if (token.trim().isNotEmpty) 'token': token.trim(),
+        if (requestCode.trim().isNotEmpty)
+          'request_code': requestCode.trim().toUpperCase(),
+      },
+    );
+    return _requiredMap(
+      response['preview'],
+      'Сервер не вернул данные подтверждения',
+    );
+  }
+
+  Future<Map<String, dynamic>> completeGuestAttendance(
+    String confirmationCode,
+  ) async {
+    final response = await _authenticatedJsonRequest(
+      '/app-api/me/attendance/complete',
+      method: 'POST',
+      body: {'confirmation_code': confirmationCode.trim()},
+    );
+    return _requiredMap(
+      response['attendance'],
+      'Сервер не вернул отметку табеля',
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getMyChatThreads() async {
     final response = await _authenticatedJsonRequest('/app-api/me/chats');
     final threads = response['threads'];
@@ -793,7 +888,8 @@ class GpmApiService {
       'order_data': {
         // Manual (app-created) orders send no number — the server assigns
         // one. External/CRM payloads keep the old title fallback.
-        'order_number': effectiveExternalOrderId ??
+        'order_number':
+            effectiveExternalOrderId ??
             (effectiveSource == sourceExternal ? title : null),
         'completion_date': {'date': effectiveScheduledAt},
         'timezone': timezone ?? 'Europe/Moscow',

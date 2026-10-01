@@ -1320,6 +1320,160 @@ class ActiveApiTests(unittest.TestCase):
         self.assertEqual(saved_a["external_order_id"], "C1-180926-1")
         self.assertEqual(saved_b["external_order_id"], "C2-180926-1")
 
+    def test_client_confirms_assigned_worker_attendance_from_one_minute_challenge(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                client_id = self._create_actor_account("client", username="attendance-client")
+                worker_id = self._create_actor_account("worker", username="attendance-worker")
+                client = {"sub": client_id, "role": "client", "username": "attendance-client"}
+                worker = {"sub": worker_id, "role": "worker", "username": "attendance-worker"}
+
+                payload = sample_payload(source="manual")
+                del payload["order_data"]["order_number"]
+                incoming = api.normalize_external_order(
+                    payload,
+                    created_by=client_id,
+                    created_by_role="client",
+                    require_order_number=False,
+                )
+                order = api.persist_published_order(incoming, actor=client)
+                order["status"] = "IN_PROCESS"
+                order["assigned_worker_ids"] = [worker_id]
+                api.save_order(order)
+
+                challenge = api.create_attendance_challenge(
+                    order["id"],
+                    worker,
+                    public_api_url="https://app-api.example.test",
+                )
+                created_at = api.utc_now()
+                expires_at = datetime.fromisoformat(challenge["expires_at"])
+                self.assertLessEqual(
+                    abs((expires_at - created_at).total_seconds() - 60),
+                    2,
+                )
+                self.assertEqual(challenge["action"], "check_in")
+                self.assertEqual(challenge["verifier_mode"], "authenticated_client")
+                token = challenge["confirmation_url"].rsplit("/", 1)[-1]
+
+                with patch.object(api, "utc_now", return_value=expires_at):
+                    with self.assertRaises(HTTPException) as expired:
+                        api.preview_attendance_for_client(client, token=token)
+                self.assertEqual(expired.exception.status_code, 410)
+
+                replacement = api.create_attendance_challenge(
+                    order["id"],
+                    worker,
+                    public_api_url="https://app-api.example.test",
+                )
+                self.assertNotEqual(
+                    replacement["confirmation_url"], challenge["confirmation_url"]
+                )
+                self.assertNotEqual(replacement["request_code"], challenge["request_code"])
+                with self.assertRaises(HTTPException) as superseded:
+                    api.preview_attendance_for_client(client, token=token)
+                self.assertEqual(superseded.exception.status_code, 410)
+                challenge = replacement
+                token = challenge["confirmation_url"].rsplit("/", 1)[-1]
+
+                preview = api.preview_attendance_for_client(client, token=token)
+                self.assertEqual(preview["worker_name"], "attendance-worker")
+                self.assertEqual(preview["action"], "check_in")
+
+                attendance = api.confirm_attendance_by_client(client, token=token)
+                listed = api.list_order_attendance(order["id"], client)
+
+                self.assertEqual(attendance["status"], "checked_in")
+                self.assertEqual(listed["attendance"][0]["status"], "checked_in")
+                with self.assertRaises(HTTPException) as reused:
+                    api.confirm_attendance_by_client(client, token=token)
+                self.assertEqual(reused.exception.status_code, 409)
+
+                checkout_challenge = api.create_attendance_challenge(
+                    order["id"],
+                    worker,
+                    public_api_url="https://app-api.example.test",
+                )
+                checkout_token = checkout_challenge["confirmation_url"].rsplit("/", 1)[-1]
+                completed = api.confirm_attendance_by_client(
+                    client, token=checkout_token
+                )
+                self.assertEqual(checkout_challenge["action"], "check_out")
+                self.assertEqual(completed["status"], "completed")
+                self.assertIsNotNone(completed["duration_minutes"])
+
+    def test_logist_order_requires_guest_confirmation_code_completed_by_worker(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, "orders.sqlite3")
+            with patch.dict(
+                os.environ,
+                {
+                    "GPM_APP_SQLITE_DB_FILE": db_path,
+                    "GPM_APP_DATABASE_URL": "",
+                    "DATABASE_URL": "",
+                    "GPM_APP_JWT_SECRET": "x" * 32,
+                },
+                clear=False,
+            ):
+                api.init_db()
+                logist_id = self._create_actor_account("logist", username="attendance-logist")
+                worker_id = self._create_actor_account("worker", username="guest-worker")
+                logist = {"sub": logist_id, "role": "logist", "username": "attendance-logist"}
+                worker = {"sub": worker_id, "role": "worker", "username": "guest-worker"}
+
+                payload = sample_payload(source="manual")
+                del payload["order_data"]["order_number"]
+                incoming = api.normalize_external_order(
+                    payload,
+                    created_by=logist_id,
+                    created_by_role="logist",
+                    require_order_number=False,
+                )
+                order = api.persist_published_order(incoming, actor=logist)
+                order["status"] = "IN_PROCESS"
+                order["assigned_worker_ids"] = [worker_id]
+                api.save_order(order)
+
+                challenge = api.create_attendance_challenge(
+                    order["id"],
+                    worker,
+                    public_api_url="https://app-api.example.test",
+                )
+                token = challenge["confirmation_url"].rsplit("/", 1)[-1]
+                self.assertEqual(challenge["verifier_mode"], "guest_code")
+                context = api.public_attendance_confirmation_context(token=token)
+                self.assertEqual(context["worker_name"], "guest-worker")
+
+                with self.assertRaises(HTTPException) as wrong_mode:
+                    api.confirm_attendance_by_client(
+                        {"sub": "some-client", "role": "client"}, token=token
+                    )
+                self.assertEqual(wrong_mode.exception.status_code, 409)
+
+                guest_confirmation = api.guest_confirm_attendance(token=token)
+                self.assertRegex(guest_confirmation["completion_code"], r"^\d{6}$")
+                pending = api.list_order_attendance(order["id"], logist)
+                self.assertEqual(pending["attendance"][0]["status"], "not_started")
+
+                attendance = api.complete_guest_attendance_by_worker(
+                    worker, guest_confirmation["completion_code"]
+                )
+                self.assertEqual(attendance["status"], "checked_in")
+                self.assertEqual(
+                    attendance["check_in_confirmed_by"], "guest:on-site"
+                )
+
     def test_actor_code_backfill_orders_by_created_at(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, "orders.sqlite3")

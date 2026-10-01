@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
+import '../attendance/order_attendance.dart';
 import '../client/client_create_order_screen.dart';
 import '../orders/order_draft_edit_screen.dart';
 
@@ -698,6 +699,8 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             const SizedBox(height: 8),
             const SizedBox(height: 8),
             _StatusPill(text: status, color: color),
+            const SizedBox(height: 20),
+            OrderAttendancePanel(orderId: order['id'].toString()),
             if (order['status'] == 'NEW') ...[
               const SizedBox(height: 16),
               SizedBox(

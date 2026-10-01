@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../utils/order_display.dart';
+import '../attendance/order_attendance.dart';
 import '../orders/order_draft_edit_screen.dart';
 
 enum _SortMode { dateDesc, dateAsc, byStatus, byWorkers }
@@ -409,6 +410,11 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                OrderAttendancePanel(
+                  orderId: widget.orderId,
+                  allowClientConfirmation: true,
                 ),
                 const SizedBox(height: 24),
                 const Text(

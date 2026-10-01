@@ -4,6 +4,7 @@ import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
+import '../attendance/order_attendance.dart';
 
 class WorkerOrdersScreen extends StatefulWidget {
   const WorkerOrdersScreen({super.key});
@@ -445,6 +446,10 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
                       text: _workerStatusText(order),
                       color: _workerStatusColor(order),
                     ),
+                    if (isAssigned) ...[
+                      const SizedBox(height: 20),
+                      WorkerAttendancePanel(orderId: order['id'].toString()),
+                    ],
                     const SizedBox(height: 16),
                     const Divider(),
                     const SizedBox(height: 16),

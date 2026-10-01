@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import os
 import base64
@@ -13,13 +14,14 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
+from urllib.parse import parse_qs
 from urllib.request import Request as UrlRequest, urlopen
 from uuid import UUID, uuid4
 
 import yaml
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -43,12 +45,16 @@ ORDER_NUMBER_SEQUENCE_TABLE_NAME = "gpm_app_order_number_seq"
 ACTOR_CODES_TABLE_NAME = "gpm_app_account_actor_codes"
 ACTOR_CODE_SEQUENCE_TABLE_NAME = "gpm_app_actor_code_seq"
 ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME = "gpm_app_actor_daily_order_seq"
+ATTENDANCE_TABLE_NAME = "gpm_app_order_attendance"
+ATTENDANCE_CHALLENGES_TABLE_NAME = "gpm_app_attendance_challenges"
 APP_ROLES = {"client", "worker", "logist"}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
 INVITATION_SCHEMA_VERSION = "0002_account_invitations"
 WORKSPACE_SCHEMA_VERSION = "0003_role_workspaces"
 WORKER_VERIFICATION_SCHEMA_VERSION = "0004_worker_verifications"
 ACTOR_CODE_SCHEMA_VERSION = "0005_actor_order_numbering"
+ATTENDANCE_SCHEMA_VERSION = "0006_order_attendance"
+ATTENDANCE_CHALLENGE_TTL = timedelta(minutes=1)
 MOSCOW_TZ = timezone(timedelta(hours=3))  # MSK has had no DST since 2014
 ORDER_NUMBER_ACTOR_ROLES = {"client": "C", "logist": "L"}
 ACCESS_TOKEN_TTL = timedelta(hours=12)
@@ -523,6 +529,51 @@ def create_auth_schema(connection: Any) -> None:
             )
             cursor.execute(
                 f"""
+                CREATE TABLE IF NOT EXISTS {ATTENDANCE_TABLE_NAME} (
+                    attendance_id TEXT PRIMARY KEY,
+                    order_id TEXT NOT NULL,
+                    worker_account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    check_in_at TIMESTAMPTZ,
+                    check_in_confirmed_at TIMESTAMPTZ,
+                    check_in_confirmed_by TEXT,
+                    check_out_at TIMESTAMPTZ,
+                    check_out_confirmed_at TIMESTAMPTZ,
+                    check_out_confirmed_by TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(order_id, worker_account_id)
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {ATTENDANCE_CHALLENGES_TABLE_NAME} (
+                    challenge_id TEXT PRIMARY KEY,
+                    order_id TEXT NOT NULL,
+                    worker_account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+                    action TEXT NOT NULL CHECK (action IN ('check_in', 'check_out')),
+                    token_hash TEXT NOT NULL UNIQUE,
+                    request_code_hash TEXT NOT NULL UNIQUE,
+                    completion_code_hash TEXT UNIQUE,
+                    verifier_mode TEXT NOT NULL CHECK (
+                        verifier_mode IN ('authenticated_client', 'guest_code')
+                    ),
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    verifier_confirmed_at TIMESTAMPTZ,
+                    verifier_identity TEXT,
+                    used_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                CREATE INDEX IF NOT EXISTS gpm_app_attendance_challenges_lookup_idx
+                ON {ATTENDANCE_CHALLENGES_TABLE_NAME}(order_id, worker_account_id, action)
+                """
+            )
+            cursor.execute(
+                f"""
                 INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
                 VALUES (%s)
                 ON CONFLICT (version) DO NOTHING
@@ -560,6 +611,14 @@ def create_auth_schema(connection: Any) -> None:
                 ON CONFLICT (version) DO NOTHING
                 """,
                 (ACTOR_CODE_SCHEMA_VERSION,),
+            )
+            cursor.execute(
+                f"""
+                INSERT INTO {MIGRATIONS_TABLE_NAME}(version)
+                VALUES (%s)
+                ON CONFLICT (version) DO NOTHING
+                """,
+                (ATTENDANCE_SCHEMA_VERSION,),
             )
         return
 
@@ -775,6 +834,51 @@ def create_auth_schema(connection: Any) -> None:
     )
     connection.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS {ATTENDANCE_TABLE_NAME} (
+            attendance_id TEXT PRIMARY KEY,
+            order_id TEXT NOT NULL,
+            worker_account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            check_in_at TEXT,
+            check_in_confirmed_at TEXT,
+            check_in_confirmed_by TEXT,
+            check_out_at TEXT,
+            check_out_confirmed_at TEXT,
+            check_out_confirmed_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(order_id, worker_account_id)
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {ATTENDANCE_CHALLENGES_TABLE_NAME} (
+            challenge_id TEXT PRIMARY KEY,
+            order_id TEXT NOT NULL,
+            worker_account_id TEXT NOT NULL REFERENCES {ACCOUNTS_TABLE_NAME}(account_id),
+            action TEXT NOT NULL CHECK (action IN ('check_in', 'check_out')),
+            token_hash TEXT NOT NULL UNIQUE,
+            request_code_hash TEXT NOT NULL UNIQUE,
+            completion_code_hash TEXT UNIQUE,
+            verifier_mode TEXT NOT NULL CHECK (
+                verifier_mode IN ('authenticated_client', 'guest_code')
+            ),
+            expires_at TEXT NOT NULL,
+            verifier_confirmed_at TEXT,
+            verifier_identity TEXT,
+            used_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS gpm_app_attendance_challenges_lookup_idx
+        ON {ATTENDANCE_CHALLENGES_TABLE_NAME}(order_id, worker_account_id, action)
+        """
+    )
+    connection.execute(
+        f"""
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (ACCOUNT_SCHEMA_VERSION,),
@@ -802,6 +906,12 @@ def create_auth_schema(connection: Any) -> None:
         INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
         """,
         (ACTOR_CODE_SCHEMA_VERSION,),
+    )
+    connection.execute(
+        f"""
+        INSERT OR IGNORE INTO {MIGRATIONS_TABLE_NAME}(version) VALUES (?)
+        """,
+        (ATTENDANCE_SCHEMA_VERSION,),
     )
 
 
@@ -2348,6 +2458,885 @@ def orders_for_user(
             )
         ]
     return [order_for_user(order, user) for order in orders]
+
+
+ATTENDANCE_CHALLENGE_SELECT_FIELDS = """
+    challenge_id, order_id, worker_account_id, action, token_hash,
+    request_code_hash, completion_code_hash, verifier_mode, expires_at,
+    verifier_confirmed_at, verifier_identity, used_at, created_at
+"""
+
+ATTENDANCE_SELECT_FIELDS = """
+    attendance_id, order_id, worker_account_id, check_in_at,
+    check_in_confirmed_at, check_in_confirmed_by, check_out_at,
+    check_out_confirmed_at, check_out_confirmed_by, created_at, updated_at
+"""
+
+
+def _attendance_secret_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _attendance_action_label(action: str) -> str:
+    return "приход" if action == "check_in" else "уход"
+
+
+def _attendance_verifier_mode(order: dict[str, Any]) -> str:
+    if (
+        str(order.get("created_by_role") or "") == "client"
+        and str(order.get("created_by") or "")
+    ):
+        return "authenticated_client"
+    return "guest_code"
+
+
+def _attendance_challenge_from_row(row: Any) -> dict[str, Any]:
+    return {
+        "challenge_id": str(row[0]),
+        "order_id": str(row[1]),
+        "worker_account_id": str(row[2]),
+        "action": str(row[3]),
+        "token_hash": str(row[4]),
+        "request_code_hash": str(row[5]),
+        "completion_code_hash": str(row[6] or ""),
+        "verifier_mode": str(row[7]),
+        "expires_at": parse_db_datetime(row[8]),
+        "verifier_confirmed_at": parse_db_datetime(row[9]),
+        "verifier_identity": str(row[10] or ""),
+        "used_at": parse_db_datetime(row[11]),
+        "created_at": parse_db_datetime(row[12]),
+    }
+
+
+def _attendance_from_row(row: Any) -> dict[str, Any]:
+    def timestamp(index: int) -> str | None:
+        parsed = parse_db_datetime(row[index])
+        return serialize_datetime(parsed) if parsed is not None else None
+
+    check_in_at = timestamp(3)
+    check_out_at = timestamp(6)
+    status = "completed" if check_out_at else "checked_in" if check_in_at else "not_started"
+    duration_minutes = None
+    parsed_in = parse_db_datetime(row[3])
+    parsed_out = parse_db_datetime(row[6])
+    if parsed_in is not None and parsed_out is not None:
+        duration_minutes = max(0, round((parsed_out - parsed_in).total_seconds() / 60))
+    return {
+        "attendance_id": str(row[0]),
+        "order_id": str(row[1]),
+        "worker_account_id": str(row[2]),
+        "status": status,
+        "check_in_at": check_in_at,
+        "check_in_confirmed_at": timestamp(4),
+        "check_in_confirmed_by": str(row[5] or ""),
+        "check_out_at": check_out_at,
+        "check_out_confirmed_at": timestamp(7),
+        "check_out_confirmed_by": str(row[8] or ""),
+        "duration_minutes": duration_minutes,
+        "created_at": timestamp(9),
+        "updated_at": timestamp(10),
+    }
+
+
+def _read_attendance_in_connection(
+    connection: Any,
+    order_id: str,
+    worker_account_id: str,
+    *,
+    for_update: bool = False,
+) -> dict[str, Any] | None:
+    if not _is_sqlite_connection(connection):
+        lock_clause = " FOR UPDATE" if for_update else ""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT {ATTENDANCE_SELECT_FIELDS}
+                FROM {ATTENDANCE_TABLE_NAME}
+                WHERE order_id = %s AND worker_account_id = %s{lock_clause}
+                """,
+                (order_id, worker_account_id),
+            )
+            row = cursor.fetchone()
+    else:
+        row = connection.execute(
+            f"""
+            SELECT {ATTENDANCE_SELECT_FIELDS}
+            FROM {ATTENDANCE_TABLE_NAME}
+            WHERE order_id = ? AND worker_account_id = ?
+            """,
+            (order_id, worker_account_id),
+        ).fetchone()
+    return _attendance_from_row(row) if row is not None else None
+
+
+def _read_attendance_challenge(
+    connection: Any,
+    *,
+    secret_kind: str,
+    secret_value: str,
+    for_update: bool = False,
+) -> dict[str, Any] | None:
+    columns = {
+        "token": "token_hash",
+        "request_code": "request_code_hash",
+        "completion_code": "completion_code_hash",
+    }
+    column = columns.get(secret_kind)
+    if column is None:
+        raise ValueError("unsupported attendance secret kind")
+    digest = _attendance_secret_hash(secret_value.strip())
+    if not _is_sqlite_connection(connection):
+        lock_clause = " FOR UPDATE" if for_update else ""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT {ATTENDANCE_CHALLENGE_SELECT_FIELDS}
+                FROM {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                WHERE {column} = %s
+                LIMIT 1{lock_clause}
+                """,
+                (digest,),
+            )
+            row = cursor.fetchone()
+    else:
+        row = connection.execute(
+            f"""
+            SELECT {ATTENDANCE_CHALLENGE_SELECT_FIELDS}
+            FROM {ATTENDANCE_CHALLENGES_TABLE_NAME}
+            WHERE {column} = ? LIMIT 1
+            """,
+            (digest,),
+        ).fetchone()
+    return _attendance_challenge_from_row(row) if row is not None else None
+
+
+def _unique_attendance_code(
+    connection: Any,
+    column: str,
+    *,
+    alphabet: str,
+    length: int,
+) -> str:
+    if column not in {"request_code_hash", "completion_code_hash"}:
+        raise ValueError("unsupported attendance code column")
+    for _ in range(20):
+        code = "".join(secrets.choice(alphabet) for _ in range(length))
+        digest = _attendance_secret_hash(code)
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT 1 FROM {ATTENDANCE_CHALLENGES_TABLE_NAME} WHERE {column} = %s LIMIT 1",
+                    (digest,),
+                )
+                exists = cursor.fetchone() is not None
+        else:
+            exists = (
+                connection.execute(
+                    f"SELECT 1 FROM {ATTENDANCE_CHALLENGES_TABLE_NAME} WHERE {column} = ? LIMIT 1",
+                    (digest,),
+                ).fetchone()
+                is not None
+            )
+        if not exists:
+            return code
+    raise RuntimeError("could not allocate a unique attendance code")
+
+
+def _worker_name_in_connection(connection: Any, account_id: str) -> str:
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT a.username, p.data
+                FROM {ACCOUNTS_TABLE_NAME} a
+                LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+                WHERE a.account_id = %s
+                """,
+                (account_id,),
+            )
+            row = cursor.fetchone()
+    else:
+        row = connection.execute(
+            f"""
+            SELECT a.username, p.data
+            FROM {ACCOUNTS_TABLE_NAME} a
+            LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+            WHERE a.account_id = ?
+            """,
+            (account_id,),
+        ).fetchone()
+    if row is None:
+        return "Исполнитель"
+    return str(_profile_from_row((row[1],)).get("display_name") or row[0] or "Исполнитель")
+
+
+def create_attendance_challenge(
+    order_id: str,
+    user: dict[str, Any],
+    *,
+    public_api_url: str,
+) -> dict[str, Any]:
+    require_role(user, "worker")
+    init_db()
+    worker_account_id = str(user.get("sub") or "")
+    now = utc_now()
+    expires_at = now + ATTENDANCE_CHALLENGE_TTL
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        order = read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        if worker_account_id not in assigned:
+            raise HTTPException(status_code=403, detail="worker is not assigned to this order")
+        if str(order.get("status") or "") in {"JUNK", "CONVERTED"}:
+            raise HTTPException(status_code=409, detail="order is already closed")
+        attendance = _read_attendance_in_connection(
+            connection,
+            str(order.get("id") or order_id),
+            worker_account_id,
+            for_update=True,
+        )
+        if attendance is None or attendance["check_in_at"] is None:
+            action = "check_in"
+        elif attendance["check_out_at"] is None:
+            action = "check_out"
+        else:
+            raise HTTPException(status_code=409, detail="attendance is already completed")
+
+        canonical_order_id = str(order.get("id") or order_id)
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                    SET expires_at = %s
+                    WHERE order_id = %s AND worker_account_id = %s
+                      AND action = %s AND used_at IS NULL AND expires_at > %s
+                    """,
+                    (now, canonical_order_id, worker_account_id, action, now),
+                )
+        else:
+            connection.execute(
+                f"""
+                UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                SET expires_at = ?
+                WHERE order_id = ? AND worker_account_id = ?
+                  AND action = ? AND used_at IS NULL AND expires_at > ?
+                """,
+                (
+                    serialize_datetime(now),
+                    canonical_order_id,
+                    worker_account_id,
+                    action,
+                    serialize_datetime(now),
+                ),
+            )
+
+        token = secrets.token_urlsafe(32)
+        request_code = _unique_attendance_code(
+            connection,
+            "request_code_hash",
+            alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+            length=8,
+        )
+        challenge_id = str(uuid4())
+        verifier_mode = _attendance_verifier_mode(order)
+        values = (
+            challenge_id,
+            canonical_order_id,
+            worker_account_id,
+            action,
+            _attendance_secret_hash(token),
+            _attendance_secret_hash(request_code),
+            verifier_mode,
+            expires_at,
+            now,
+        )
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {ATTENDANCE_CHALLENGES_TABLE_NAME}(
+                        challenge_id, order_id, worker_account_id, action,
+                        token_hash, request_code_hash, verifier_mode,
+                        expires_at, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    values,
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"""
+                INSERT INTO {ATTENDANCE_CHALLENGES_TABLE_NAME}(
+                    challenge_id, order_id, worker_account_id, action,
+                    token_hash, request_code_hash, verifier_mode,
+                    expires_at, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (*values[:-2], serialize_datetime(expires_at), serialize_datetime(now)),
+            )
+    confirmation_url = (
+        f"{public_api_url.rstrip('/')}/attendance/confirm/{token}"
+    )
+    return {
+        "challenge_id": challenge_id,
+        "order_id": canonical_order_id,
+        "action": action,
+        "action_label": _attendance_action_label(action),
+        "verifier_mode": verifier_mode,
+        "confirmation_url": confirmation_url,
+        "request_code": request_code,
+        "expires_at": serialize_datetime(expires_at),
+        "expires_in_seconds": int(ATTENDANCE_CHALLENGE_TTL.total_seconds()),
+    }
+
+
+def _validate_live_attendance_challenge(challenge: dict[str, Any] | None) -> dict[str, Any]:
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="attendance confirmation not found")
+    if challenge["used_at"] is not None:
+        raise HTTPException(status_code=409, detail="attendance confirmation already used")
+    expires_at = challenge["expires_at"]
+    if expires_at is None or utc_now() >= expires_at:
+        raise HTTPException(status_code=410, detail="attendance confirmation expired")
+    return challenge
+
+
+def _complete_attendance_event_in_connection(
+    connection: Any,
+    challenge: dict[str, Any],
+    *,
+    confirmer: str,
+) -> dict[str, Any]:
+    now = utc_now()
+    order_id = challenge["order_id"]
+    worker_account_id = challenge["worker_account_id"]
+    existing = _read_attendance_in_connection(
+        connection, order_id, worker_account_id, for_update=True
+    )
+    action = challenge["action"]
+    if action == "check_in":
+        if existing is not None and existing["check_in_at"] is not None:
+            raise HTTPException(status_code=409, detail="worker is already checked in")
+        attendance_id = str(uuid4())
+        values = (
+            attendance_id,
+            order_id,
+            worker_account_id,
+            now,
+            now,
+            confirmer,
+            now,
+            now,
+        )
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    INSERT INTO {ATTENDANCE_TABLE_NAME}(
+                        attendance_id, order_id, worker_account_id,
+                        check_in_at, check_in_confirmed_at, check_in_confirmed_by,
+                        created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    values,
+                )
+        else:
+            connection.execute(
+                f"""
+                INSERT INTO {ATTENDANCE_TABLE_NAME}(
+                    attendance_id, order_id, worker_account_id,
+                    check_in_at, check_in_confirmed_at, check_in_confirmed_by,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    attendance_id,
+                    order_id,
+                    worker_account_id,
+                    serialize_datetime(now),
+                    serialize_datetime(now),
+                    confirmer,
+                    serialize_datetime(now),
+                    serialize_datetime(now),
+                ),
+            )
+    else:
+        if existing is None or existing["check_in_at"] is None:
+            raise HTTPException(status_code=409, detail="worker has not checked in")
+        if existing["check_out_at"] is not None:
+            raise HTTPException(status_code=409, detail="worker is already checked out")
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE {ATTENDANCE_TABLE_NAME}
+                    SET check_out_at = %s, check_out_confirmed_at = %s,
+                        check_out_confirmed_by = %s, updated_at = %s
+                    WHERE order_id = %s AND worker_account_id = %s
+                    """,
+                    (now, now, confirmer, now, order_id, worker_account_id),
+                )
+        else:
+            connection.execute(
+                f"""
+                UPDATE {ATTENDANCE_TABLE_NAME}
+                SET check_out_at = ?, check_out_confirmed_at = ?,
+                    check_out_confirmed_by = ?, updated_at = ?
+                WHERE order_id = ? AND worker_account_id = ?
+                """,
+                (
+                    serialize_datetime(now),
+                    serialize_datetime(now),
+                    confirmer,
+                    serialize_datetime(now),
+                    order_id,
+                    worker_account_id,
+                ),
+            )
+    if not _is_sqlite_connection(connection):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                SET used_at = %s
+                WHERE challenge_id = %s
+                """,
+                (now, challenge["challenge_id"]),
+            )
+    else:
+        connection.execute(
+            f"""
+            UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+            SET used_at = ? WHERE challenge_id = ?
+            """,
+            (serialize_datetime(now), challenge["challenge_id"]),
+        )
+    confirmer_account_id = (
+        confirmer.split(":", 1)[1] if confirmer.startswith("client:") else None
+    )
+    record_audit_event_in_connection(
+        connection,
+        event_type=f"attendance_{action}",
+        outcome="success",
+        actor_account_id=confirmer_account_id,
+        actor_username=confirmer,
+        target_type="order_attendance",
+        target_id=f"{order_id}:{worker_account_id}",
+        details={
+            "order_id": order_id,
+            "worker_account_id": worker_account_id,
+            "action": action,
+            "challenge_id": challenge["challenge_id"],
+        },
+    )
+    attendance = _read_attendance_in_connection(
+        connection, order_id, worker_account_id
+    )
+    if attendance is None:
+        raise RuntimeError("attendance row was not created")
+    return attendance
+
+
+def confirm_attendance_by_client(
+    user: dict[str, Any],
+    *,
+    token: str = "",
+    request_code: str = "",
+) -> dict[str, Any]:
+    require_role(user, "client")
+    secret_kind = "token" if token.strip() else "request_code"
+    secret_value = token.strip() or request_code.strip().upper()
+    if not secret_value:
+        raise HTTPException(status_code=422, detail="attendance token or code is required")
+    init_db()
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        challenge = _validate_live_attendance_challenge(
+            _read_attendance_challenge(
+                connection,
+                secret_kind=secret_kind,
+                secret_value=secret_value,
+                for_update=True,
+            )
+        )
+        if challenge["verifier_mode"] != "authenticated_client":
+            raise HTTPException(
+                status_code=409,
+                detail="this order requires on-site guest confirmation",
+            )
+        order = read_order_in_connection(connection, challenge["order_id"])
+        if order is None or str(order.get("created_by") or "") != str(user.get("sub") or ""):
+            raise HTTPException(status_code=404, detail="attendance confirmation not found")
+        now = utc_now()
+        verifier = f"client:{user.get('sub') or ''}"
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                    SET verifier_confirmed_at = %s, verifier_identity = %s
+                    WHERE challenge_id = %s
+                    """,
+                    (now, verifier, challenge["challenge_id"]),
+                )
+        else:
+            connection.execute(
+                f"""
+                UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                SET verifier_confirmed_at = ?, verifier_identity = ?
+                WHERE challenge_id = ?
+                """,
+                (serialize_datetime(now), verifier, challenge["challenge_id"]),
+            )
+        challenge["verifier_confirmed_at"] = now
+        attendance = _complete_attendance_event_in_connection(
+            connection, challenge, confirmer=verifier
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return attendance
+
+
+def preview_attendance_for_client(
+    user: dict[str, Any],
+    *,
+    token: str = "",
+    request_code: str = "",
+) -> dict[str, Any]:
+    require_role(user, "client")
+    secret_kind = "token" if token.strip() else "request_code"
+    secret_value = token.strip() or request_code.strip().upper()
+    if not secret_value:
+        raise HTTPException(status_code=422, detail="attendance token or code is required")
+    init_db()
+    with db_connection() as connection:
+        challenge = _validate_live_attendance_challenge(
+            _read_attendance_challenge(
+                connection,
+                secret_kind=secret_kind,
+                secret_value=secret_value,
+            )
+        )
+        if challenge["verifier_mode"] != "authenticated_client":
+            raise HTTPException(
+                status_code=409,
+                detail="this order requires on-site guest confirmation",
+            )
+        order = read_order_in_connection(connection, challenge["order_id"])
+        if order is None or str(order.get("created_by") or "") != str(user.get("sub") or ""):
+            raise HTTPException(status_code=404, detail="attendance confirmation not found")
+        worker_name = _worker_name_in_connection(
+            connection, challenge["worker_account_id"]
+        )
+    return {
+        "order_id": challenge["order_id"],
+        "order_title": str(order.get("title") or challenge["order_id"]),
+        "worker_name": worker_name,
+        "action": challenge["action"],
+        "action_label": _attendance_action_label(challenge["action"]),
+        "expires_at": serialize_datetime(challenge["expires_at"]),
+    }
+
+
+def guest_confirm_attendance(
+    *,
+    token: str = "",
+    request_code: str = "",
+) -> dict[str, Any]:
+    secret_kind = "token" if token.strip() else "request_code"
+    secret_value = token.strip() or request_code.strip().upper()
+    if not secret_value:
+        raise HTTPException(status_code=422, detail="attendance token or code is required")
+    init_db()
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        challenge = _validate_live_attendance_challenge(
+            _read_attendance_challenge(
+                connection,
+                secret_kind=secret_kind,
+                secret_value=secret_value,
+                for_update=True,
+            )
+        )
+        if challenge["verifier_mode"] != "guest_code":
+            raise HTTPException(
+                status_code=403,
+                detail="open the GPM app to confirm this attendance event",
+            )
+        if challenge["verifier_confirmed_at"] is not None:
+            raise HTTPException(status_code=409, detail="presence is already confirmed")
+        completion_code = _unique_attendance_code(
+            connection,
+            "completion_code_hash",
+            alphabet="0123456789",
+            length=6,
+        )
+        now = utc_now()
+        if not _is_sqlite_connection(connection):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                    SET completion_code_hash = %s, verifier_confirmed_at = %s,
+                        verifier_identity = 'guest:on-site'
+                    WHERE challenge_id = %s
+                    """,
+                    (
+                        _attendance_secret_hash(completion_code),
+                        now,
+                        challenge["challenge_id"],
+                    ),
+                )
+            connection.commit()
+        else:
+            connection.execute(
+                f"""
+                UPDATE {ATTENDANCE_CHALLENGES_TABLE_NAME}
+                SET completion_code_hash = ?, verifier_confirmed_at = ?,
+                    verifier_identity = 'guest:on-site'
+                WHERE challenge_id = ?
+                """,
+                (
+                    _attendance_secret_hash(completion_code),
+                    serialize_datetime(now),
+                    challenge["challenge_id"],
+                ),
+            )
+        order = read_order_in_connection(connection, challenge["order_id"])
+        worker_name = _worker_name_in_connection(
+            connection, challenge["worker_account_id"]
+        )
+    return {
+        "completion_code": completion_code,
+        "action": challenge["action"],
+        "action_label": _attendance_action_label(challenge["action"]),
+        "order_title": str((order or {}).get("title") or challenge["order_id"]),
+        "worker_name": worker_name,
+        "expires_at": serialize_datetime(challenge["expires_at"]),
+    }
+
+
+def complete_guest_attendance_by_worker(
+    user: dict[str, Any], completion_code: str
+) -> dict[str, Any]:
+    require_role(user, "worker")
+    code = completion_code.strip()
+    if len(code) != 6 or not code.isdigit():
+        raise HTTPException(status_code=422, detail="confirmation code must contain 6 digits")
+    init_db()
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        challenge = _validate_live_attendance_challenge(
+            _read_attendance_challenge(
+                connection,
+                secret_kind="completion_code",
+                secret_value=code,
+                for_update=True,
+            )
+        )
+        if challenge["verifier_mode"] != "guest_code" or challenge["verifier_confirmed_at"] is None:
+            raise HTTPException(status_code=409, detail="client has not confirmed presence")
+        if challenge["worker_account_id"] != str(user.get("sub") or ""):
+            raise HTTPException(status_code=409, detail="confirmation belongs to another worker")
+        attendance = _complete_attendance_event_in_connection(
+            connection, challenge, confirmer="guest:on-site"
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return attendance
+
+
+def _user_can_view_attendance(order: dict[str, Any], user: dict[str, Any]) -> bool:
+    role = str(user.get("role") or "")
+    account_id = str(user.get("sub") or "")
+    if role == "client":
+        return str(order.get("created_by") or "") == account_id
+    if role == "worker":
+        return account_id in [str(item) for item in order.get("assigned_worker_ids") or []]
+    if role == "logist":
+        return logist_owns_order(order, user, profile=get_account_profile(user))
+    return False
+
+
+def list_order_attendance(order_id: str, user: dict[str, Any]) -> dict[str, Any]:
+    init_db()
+    with db_connection() as connection:
+        order = read_order_in_connection(connection, order_id)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        if not _user_can_view_attendance(order, user):
+            raise HTTPException(status_code=403, detail="insufficient permissions")
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        if str(user.get("role") or "") == "worker":
+            assigned = [str(user.get("sub") or "")]
+        rows = []
+        for worker_account_id in assigned:
+            attendance = _read_attendance_in_connection(
+                connection, str(order.get("id") or order_id), worker_account_id
+            ) or {
+                "attendance_id": "",
+                "order_id": str(order.get("id") or order_id),
+                "worker_account_id": worker_account_id,
+                "status": "not_started",
+                "check_in_at": None,
+                "check_in_confirmed_at": None,
+                "check_in_confirmed_by": "",
+                "check_out_at": None,
+                "check_out_confirmed_at": None,
+                "check_out_confirmed_by": "",
+                "duration_minutes": None,
+            }
+            attendance["worker_name"] = _worker_name_in_connection(
+                connection, worker_account_id
+            )
+            rows.append(attendance)
+    return {
+        "order_id": str(order.get("id") or order_id),
+        "verifier_mode": _attendance_verifier_mode(order),
+        "attendance": rows,
+    }
+
+
+def public_attendance_confirmation_context(
+    *,
+    token: str = "",
+    request_code: str = "",
+) -> dict[str, Any]:
+    secret_kind = "token" if token.strip() else "request_code"
+    secret_value = token.strip() or request_code.strip().upper()
+    if not secret_value:
+        raise HTTPException(status_code=422, detail="attendance token or code is required")
+    init_db()
+    with db_connection() as connection:
+        challenge = _validate_live_attendance_challenge(
+            _read_attendance_challenge(
+                connection,
+                secret_kind=secret_kind,
+                secret_value=secret_value,
+            )
+        )
+        order = read_order_in_connection(connection, challenge["order_id"])
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        worker_name = _worker_name_in_connection(
+            connection, challenge["worker_account_id"]
+        )
+    return {
+        "action": challenge["action"],
+        "action_label": _attendance_action_label(challenge["action"]),
+        "verifier_mode": challenge["verifier_mode"],
+        "order_title": str(order.get("title") or challenge["order_id"]),
+        "worker_name": worker_name,
+        "expires_at": serialize_datetime(challenge["expires_at"]),
+        "already_confirmed": challenge["verifier_confirmed_at"] is not None,
+    }
+
+
+def _attendance_html_page(
+    *,
+    title: str,
+    content: str,
+    status_code: int = 200,
+) -> HTMLResponse:
+    document = f"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{html.escape(title)}</title>
+  <style>
+    body {{ margin:0; background:#f5f5f5; color:#202124; font-family:Arial,sans-serif; }}
+    main {{ max-width:520px; margin:0 auto; padding:24px 16px; }}
+    .card {{ background:white; border-radius:16px; padding:24px; box-shadow:0 2px 10px #00000014; }}
+    h1 {{ margin:0 0 18px; font-size:24px; }}
+    p {{ line-height:1.45; }}
+    .meta {{ padding:12px; border-radius:10px; background:#f1f3f4; margin:12px 0; }}
+    .code {{ font-size:34px; font-weight:700; letter-spacing:7px; text-align:center; margin:22px 0; }}
+    button {{ width:100%; border:0; border-radius:10px; padding:14px; font-size:16px; font-weight:700; background:#d71920; color:white; }}
+    input {{ box-sizing:border-box; width:100%; border:1px solid #c9cdd2; border-radius:10px; padding:14px; font-size:20px; letter-spacing:3px; text-transform:uppercase; margin:10px 0 14px; }}
+    .muted {{ color:#686d73; font-size:14px; }}
+  </style>
+</head>
+<body><main><section class="card">{content}</section></main></body>
+</html>"""
+    return HTMLResponse(
+        document,
+        status_code=status_code,
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        },
+    )
+
+
+def _attendance_error_page(error: HTTPException) -> HTMLResponse:
+    messages = {
+        403: "Эту отметку необходимо подтвердить в приложении GPM.",
+        404: "Код подтверждения не найден.",
+        409: "Эта отметка уже подтверждена.",
+        410: "Срок действия истёк. Попросите грузчика создать новый код.",
+        422: "Введите корректный код.",
+    }
+    message = messages.get(error.status_code, "Не удалось подтвердить отметку.")
+    return _attendance_html_page(
+        title="Подтверждение недоступно",
+        status_code=error.status_code,
+        content=(
+            "<h1>Подтверждение недоступно</h1>"
+            f"<p>{html.escape(message)}</p>"
+            '<p class="muted">Закройте страницу и повторите попытку.</p>'
+        ),
+    )
+
+
+def _attendance_confirmation_form(context: dict[str, Any], action_url: str) -> str:
+    if context["verifier_mode"] != "guest_code":
+        return (
+            "<h1>Откройте приложение GPM</h1>"
+            "<p>Эта заявка создана клиентом GPM. Подтвердите отметку "
+            "через сканер в приложении.</p>"
+        )
+    if context["already_confirmed"]:
+        return (
+            "<h1>Присутствие подтверждено</h1>"
+            "<p>Код уже был выдан грузчику. Повторное подтверждение невозможно.</p>"
+        )
+    return f"""
+      <h1>Подтвердить {html.escape(context['action_label'])}</h1>
+      <div class="meta"><strong>{html.escape(context['order_title'])}</strong><br>
+      Исполнитель: {html.escape(context['worker_name'])}</div>
+      <p>Убедитесь, что этот исполнитель действительно находится рядом с вами.</p>
+      <form method="post" action="{html.escape(action_url, quote=True)}">
+        <button type="submit">Подтвердить присутствие</button>
+      </form>
+      <p class="muted">После подтверждения появится одноразовый шестизначный код. Сообщите его исполнителю. Запрос действует 1 минуту.</p>
+    """
+
+
+def _attendance_completion_code_page(result: dict[str, Any]) -> HTMLResponse:
+    return _attendance_html_page(
+        title="Присутствие подтверждено",
+        content=f"""
+          <h1>Присутствие подтверждено</h1>
+          <div class="meta"><strong>{html.escape(result['order_title'])}</strong><br>
+          Исполнитель: {html.escape(result['worker_name'])}<br>
+          Действие: {html.escape(result['action_label'])}</div>
+          <p>Сообщите этот код исполнителю:</p>
+          <div class="code">{html.escape(result['completion_code'])}</div>
+          <p class="muted">Код одноразовый и действует в пределах одной минуты с момента создания запроса.</p>
+        """,
+    )
 
 
 def normalized_phone_identity(value: Any) -> str:
@@ -4675,6 +5664,104 @@ def request_chat_support(thread_id: str, user: dict[str, Any]) -> str:
     return thread_id
 
 
+@app.get("/attendance", response_class=HTMLResponse)
+async def guest_attendance_code_form() -> HTMLResponse:
+    return _attendance_html_page(
+        title="Подтверждение присутствия",
+        content="""
+          <h1>Подтверждение присутствия</h1>
+          <p>Введите восьмизначный код, который показывает исполнитель.</p>
+          <form method="post" action="/attendance/confirm-code">
+            <input name="request_code" minlength="8" maxlength="8" required autocomplete="one-time-code" inputmode="text">
+            <button type="submit">Продолжить</button>
+          </form>
+          <p class="muted">Код действует 1 минуту.</p>
+        """,
+    )
+
+
+@app.get("/attendance/confirm/{token}", response_class=HTMLResponse)
+async def guest_attendance_confirmation(token: str) -> HTMLResponse:
+    try:
+        context = await asyncio.to_thread(
+            public_attendance_confirmation_context, token=token
+        )
+    except HTTPException as error:
+        return _attendance_error_page(error)
+    return _attendance_html_page(
+        title="Подтверждение присутствия",
+        content=_attendance_confirmation_form(
+            context, f"/attendance/confirm/{token}"
+        ),
+    )
+
+
+@app.post("/attendance/confirm/{token}", response_class=HTMLResponse)
+async def post_guest_attendance_confirmation(token: str) -> HTMLResponse:
+    try:
+        result = await asyncio.to_thread(guest_confirm_attendance, token=token)
+    except HTTPException as error:
+        return _attendance_error_page(error)
+    return _attendance_completion_code_page(result)
+
+
+@app.post("/attendance/confirm-code", response_class=HTMLResponse)
+async def post_guest_attendance_request_code(request: Request) -> HTMLResponse:
+    body = await request.body()
+    if len(body) > 1024:
+        return _attendance_error_page(
+            HTTPException(status_code=413, detail="request is too large")
+        )
+    try:
+        fields = parse_qs(body.decode("utf-8"), keep_blank_values=False)
+        request_code = str(fields.get("request_code", [""])[0]).strip().upper()
+        context = await asyncio.to_thread(
+            public_attendance_confirmation_context,
+            request_code=request_code,
+        )
+    except (UnicodeDecodeError, IndexError, HTTPException) as error:
+        if isinstance(error, HTTPException):
+            return _attendance_error_page(error)
+        return _attendance_error_page(
+            HTTPException(status_code=422, detail="invalid code")
+        )
+    escaped_code = html.escape(request_code, quote=True)
+    confirmation_form = _attendance_confirmation_form(
+        context, "/attendance/confirm-request-code"
+    ).replace(
+        "<button type=\"submit\">",
+        f'<input type="hidden" name="request_code" value="{escaped_code}"><button type="submit">',
+        1,
+    )
+    return _attendance_html_page(
+        title="Подтверждение присутствия",
+        content=confirmation_form,
+    )
+
+
+@app.post("/attendance/confirm-request-code", response_class=HTMLResponse)
+async def confirm_guest_attendance_request_code(request: Request) -> HTMLResponse:
+    body = await request.body()
+    if len(body) > 1024:
+        return _attendance_error_page(
+            HTTPException(status_code=413, detail="request is too large")
+        )
+    try:
+        fields = parse_qs(body.decode("utf-8"), keep_blank_values=False)
+        request_code = str(fields.get("request_code", [""])[0]).strip().upper()
+        result = await asyncio.to_thread(
+            guest_confirm_attendance,
+            request_code=request_code,
+        )
+    except (UnicodeDecodeError, IndexError, HTTPException) as error:
+        if isinstance(error, HTTPException):
+            return _attendance_error_page(error)
+        return _attendance_error_page(
+            HTTPException(status_code=422, detail="invalid code")
+        )
+    return _attendance_completion_code_page(result)
+
+
 @app.on_event("startup")
 async def startup() -> None:
     validate_runtime_configuration()
@@ -5045,6 +6132,94 @@ async def get_my_orders(
     if user.get("role") in {"logist", "worker"}:
         profile = await asyncio.to_thread(get_account_profile, user)
     return {"orders": orders_for_user(orders, user, profile=profile)}
+
+
+@app.get("/app-api/me/order-attendance/{order_id:path}")
+async def get_my_order_attendance(
+    order_id: str,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    return await asyncio.to_thread(list_order_attendance, order_id, user)
+
+
+@app.post("/app-api/me/order-attendance/{order_id:path}/challenge")
+async def create_my_attendance_challenge(
+    order_id: str,
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    if is_production_environment():
+        public_api_url = get_setting(
+            "GPM_APP_PUBLIC_API_URL", "https://app-api.gpmbot.ru"
+        ) or "https://app-api.gpmbot.ru"
+    else:
+        public_api_url = str(request.base_url).rstrip("/")
+    challenge = await asyncio.to_thread(
+        create_attendance_challenge,
+        order_id,
+        user,
+        public_api_url=public_api_url,
+    )
+    return {"success": True, "challenge": challenge}
+
+
+@app.post("/app-api/me/attendance/preview")
+async def preview_my_attendance_scan(
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    payload = await bounded_json_payload(request, max_bytes=2048)
+    preview = await asyncio.to_thread(
+        preview_attendance_for_client,
+        user,
+        token=str(payload.get("token") or ""),
+        request_code=str(payload.get("request_code") or ""),
+    )
+    return {"preview": preview}
+
+
+@app.post("/app-api/me/attendance/confirm")
+async def confirm_my_attendance_scan(
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    payload = await bounded_json_payload(request, max_bytes=2048)
+    attendance = await asyncio.to_thread(
+        confirm_attendance_by_client,
+        user,
+        token=str(payload.get("token") or ""),
+        request_code=str(payload.get("request_code") or ""),
+    )
+    return {"success": True, "attendance": attendance}
+
+
+@app.post("/app-api/me/attendance/complete")
+async def complete_my_guest_attendance(
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    user = await authenticated_user(authorization)
+    payload = await bounded_json_payload(request, max_bytes=1024)
+    attendance = await asyncio.to_thread(
+        complete_guest_attendance_by_worker,
+        user,
+        str(payload.get("confirmation_code") or ""),
+    )
+    return {"success": True, "attendance": attendance}
 
 
 @app.post("/app-api/me/orders/{order_id:path}/applications")

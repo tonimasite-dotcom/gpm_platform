@@ -25,7 +25,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Камера используется для съёмки фотографии документа для модерации.</string>
+	<string>Камера используется для сканирования QR-кодов учета рабочего времени и съёмки документов для модерации.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Галерея используется для выбора фотографии документа для модерации.</string>
 	<key>UILaunchStoryboardName</key>
