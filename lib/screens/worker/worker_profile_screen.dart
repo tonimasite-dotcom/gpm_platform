@@ -35,7 +35,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   bool _nationality = false;
   bool _hasStraps = false;
   bool _hasTools = false;
-  String _employmentType = 'contract';
   String _payoutMethod = '';
 
   @override
@@ -87,9 +86,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       _hasStraps = tools['straps'] == true;
       _hasTools = tools['tools'] == true;
       _nationality = raw['nationality'] == true;
-      _employmentType = _text(raw['employment_type']).isEmpty
-          ? 'contract'
-          : _text(raw['employment_type']);
       _payoutMethod = _text(raw['payout_method']);
     } catch (_) {
       if (mounted) _showError('Не удалось загрузить профиль');
@@ -111,7 +107,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toList(),
-      'employment_type': _employmentType,
       'tools': {'straps': _hasStraps, 'tools': _hasTools},
       'address_city': _addressCity.text.trim(),
       'address_street': _addressStreet.text.trim(),
@@ -310,27 +305,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                                 ),
                                 validator: _required,
                               ),
-                              DropdownButtonFormField<String>(
-                                initialValue: _employmentType,
-                                decoration: const InputDecoration(
-                                  labelText: 'Тип занятости',
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'contract',
-                                    child: Text('Подрядчик'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'state',
-                                    child: Text('Штатный исполнитель'),
-                                  ),
-                                ],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() => _employmentType = value);
-                                  }
-                                },
-                              ),
                             ],
                           ),
                           const SizedBox(height: 14),
@@ -377,7 +351,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               TextFormField(
                                 controller: _addressApartment,
                                 decoration: const InputDecoration(
-                                  labelText: 'Кв./офис',
+                                  labelText: 'Квартира',
                                 ),
                               ),
                             ],
