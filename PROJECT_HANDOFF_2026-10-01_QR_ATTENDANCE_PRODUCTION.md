@@ -1,6 +1,6 @@
 # GPM Platform: полный снапшот и точка продолжения
 
-Дата: 01.10.2026. Часовой пояс: Europe/Moscow.
+Дата актуализации: 02.10.2026. Часовой пояс: Europe/Moscow.
 
 Это новый главный источник истины для следующей сессии. Он дополняет и
 заменяет как стартовый документ
@@ -21,11 +21,12 @@ CONTINUE_PROJECT_PROMPT_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 
 ```text
 branch:              main
-product release:     71db271 Add one-minute QR attendance tracking
-origin/main:         71db271 (до документационного коммита этого снапшота)
+frontend release:    d55d891 Add worker referral bonus promotion
+origin/main:         d55d891 (до документационного коммита этой актуализации)
 production backend:  71db271
-production frontend: 71db271
-deploy run:           36920664797, target=all, success
+production frontend: d55d891
+backend/all run:      36920664797, target=all, success
+frontend run:         36992623441, target=frontend, success
 backend health:       {"status":"ok","storage":"postgres"}, HTTP 200
 guest attendance:    https://app-api.gpmbot.ru/attendance, HTTP 200
 frontend:             https://app.gpmbot.ru/, HTTP 200
@@ -35,20 +36,8 @@ frontend:             https://app.gpmbot.ru/, HTTP 200
 документационным и отдельно на production не деплоится. Его фактический hash
 нужно получить через `git log -1 --oneline` в новом чате.
 
-После продуктового коммита в рабочем дереве оставались четыре старых
-line-ending-only изменения:
-
-```text
-linux/flutter/generated_plugin_registrant.cc
-linux/flutter/generated_plugins.cmake
-windows/flutter/generated_plugin_registrant.cc
-windows/flutter/generated_plugins.cmake
-```
-
-`git diff --ignore-space-at-eol --exit-code -- <эти файлы>` возвращал `0`.
-Это не содержательные изменения онлайн-табеля. Они намеренно не вошли в
-`71db271`; не сбрасывать и не коммитить их автоматически, пока не выяснено,
-нужны ли они пользователю.
+После frontend-релиза и push `d55d891` рабочее дерево было чистым, локальный
+`main` совпадал с `origin/main`.
 
 ---
 
@@ -128,6 +117,26 @@ production frontend run 36901538422, success
 71db271 Add one-minute QR attendance tracking
 production run 36920664797, target=all, success
 ```
+
+### 2.4. Добавлена акция «Приведи друга» в кабинете исполнителя
+
+Коммит и production:
+
+```text
+d55d891 Add worker referral bonus promotion
+production run 36992623441, target=frontend, success
+```
+
+- компактная карточка после показателей кабинета с иконкой подарка;
+- 3 500 ₽ за 5 смен и 5 000 ₽ за 10 смен приглашённого друга;
+- вся карточка и кнопка «Подробнее и пригласить» открывают детали;
+- на мобильном используется bottom sheet, на широком экране — dialog;
+- контакты открываются в Telegram: `@GPMHRDaria`, `@GpmHREkaterina`;
+- добавлен `url_launcher` и платформенные регистрации;
+- успешно прошли 61 backend test (1 skipped), 44 Flutter tests,
+  `flutter analyze` и release web build;
+- после deploy production frontend вернул HTTP 200, оба Telegram username
+  найдены в опубликованном `main.dart.js`.
 
 ---
 
@@ -363,13 +372,14 @@ backend deploy.
 только в GitHub Actions secret `PROD_SSH_PRIVATE_KEY`. Разовые production
 операции делать через безопасный шаг workflow, а не попытками прямого SSH.
 
-В текущем PowerShell `gh` CLI не найден. Run `36920664797` был запущен через
-GitHub REST API с credential, полученным через `git credential fill`; token не
-печатался и не сохранялся в файлы. В новой сессии сначала проверить, доступен
-ли `gh`; если нет, можно повторить безопасный REST dispatch только после
-подтверждения пользователя.
+В текущем PowerShell `gh` CLI доступен и авторизован через системный keyring.
+Run `36992623441` был запущен командой `gh workflow run` после явного
+подтверждения пользователя. Если `gh` недоступен в новой сессии, допустим
+безопасный REST dispatch через `git credential fill`, без вывода и сохранения
+token, также только после явного подтверждения пользователя.
 
-Не деплоить повторно `71db271` без новых изменений или факта дефекта.
+Не деплоить повторно backend `71db271` или frontend `d55d891` без новых
+изменений либо подтверждённого дефекта.
 
 ---
 
@@ -473,11 +483,10 @@ Backend — единственный источник истины. Старые
 ## 11. Как продолжать в новом чате
 
 1. Полностью прочитать этот файл и continuation prompt.
-2. Сделать только read-only audit: `git status --short --branch`,
-   `git log -8 --oneline`, проверить четыре line-ending-only файла. Не
-   сбрасывать их.
-3. Назвать текущий документационный HEAD и подтвердить product release
-   `71db271` + green run `36920664797`.
+2. Сделать только read-only audit: `git status --short --branch` и
+   `git log -8 --oneline`.
+3. Назвать текущий документационный HEAD и подтвердить production: backend
+   `71db271` / run `36920664797`, frontend `d55d891` / run `36992623441`.
 4. Первым практическим следующим шагом предложить ручную приёмку онлайн-табеля
    из раздела 8 либо, если пользователь сразу выбирает разработку, идти по
    согласованному backlog с P1-11.
@@ -491,5 +500,5 @@ Backend — единственный источник истины. Старые
 8. Если нужна работа в установленном APK, сначала согласовать установку
    Android SDK/сборку; существующий APK не содержит онлайн-табель.
 
-Не повторять уже завершённые деплои `1c9b26f`, `f5218eb`, `71db271` без
-нового изменения или подтверждённого дефекта.
+Не повторять уже завершённые деплои `1c9b26f`, `f5218eb`, `71db271`,
+`d55d891` без нового изменения или подтверждённого дефекта.

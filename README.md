@@ -7,14 +7,21 @@
 > Публичный пилот допустим только после закрытия P0 из
 > `PROJECT_AUDIT_2026-08-25.md` и `LEGAL_READINESS_RU.md`.
 >
-> Текущий production на 01.10.2026: backend и frontend `71db271`, общий
-> deploy run `36920664797`, success. Реализован онлайн-табель: назначенный
+> Текущий production на 02.10.2026: backend `71db271`, frontend `d55d891`.
+> Онлайн-табель задеплоен общим run `36920664797`, а frontend с акцией
+> «Приведи друга» — run `36992623441`, target `frontend`, success. Назначенный
 > исполнитель показывает уникальный минутный QR прихода/ухода; client-created
 > заявку подтверждает client-владелец, а для logist/CRM представитель на
 > объекте получает одноразовый шестизначный код для исполнителя. Добавлены
 > server-side права, audit, PostgreSQL-таблицы, публичный guest flow,
 > QR scanner/generator и табель во всех кабинетах. Перед release прошли
 > 61 backend test, 42 Flutter tests, analyze и web release build.
+>
+> В кабинете исполнителя добавлена компактная карточка акции с подарком:
+> 3 500 ₽ за 5 смен приглашённого друга и 5 000 ₽ за 10 смен. Карточка открывает
+> mobile bottom sheet или desktop dialog с Telegram-контактами `@GPMHRDaria`
+> и `@GpmHREkaterina`. Перед frontend release прошли 61 backend test,
+> 44 Flutter tests, analyze и web release build.
 >
 > В той же сессии исправлены пустые заголовки `Заявка №` (`1c9b26f`, backend
 > run `36896273264`) и добавлен маркер server-времени публикации на карточках

@@ -13,23 +13,22 @@ PostgreSQL + импорт заказов из CRM.
 PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 ```
 
-Это главный источник истины на 01.10.2026. Старые handoff-файлы нужны только
+Это главный источник истины, актуализированный 02.10.2026. Старые handoff-файлы нужны только
 как история.
 
 ## Где остановились
 
-- Product release: `71db271 Add one-minute QR attendance tracking`.
-- Backend и frontend production задеплоены из `71db271` общим workflow run
-  `36920664797`, `success`.
+- Production backend: `71db271`, общий workflow run `36920664797`, `success`.
+- Production frontend: `d55d891 Add worker referral bonus promotion`, frontend
+  workflow run `36992623441`, `success`.
 - Проверено после deploy:
   `https://app-api.gpmbot.ru/health` → PostgreSQL/HTTP 200,
   `https://app-api.gpmbot.ru/attendance` → 200,
   `https://app.gpmbot.ru/` → 200.
-- Документационный HEAD может быть новее `71db271`: это коммит снапшота, его
+- Документационный HEAD может быть новее `d55d891`: это коммит снапшота, его
   нужно назвать после `git log -1` и не деплоить отдельно.
-- В рабочем дереве могут оставаться четыре старых line-ending-only изменения
-  Linux/Windows generated plugin files. Не сбрасывай и не коммить их
-  автоматически; `git diff --ignore-space-at-eol` для них был пуст.
+- После push `d55d891` рабочее дерево было чистым, локальный `main` совпадал с
+  `origin/main`.
 
 ## Что уже сделано
 
@@ -40,6 +39,10 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
    `Опубликовано ДД.ММ.ГГГГ ЧЧ:ММ` из server `created_at`. Frontend deploy run
    `36901538422`, green.
 3. `71db271`: production MVP онлайн-табеля.
+4. `d55d891`: в кабинете исполнителя добавлена акция «Приведи друга» — карточка
+   с подарком, 3 500 ₽ за 5 смен и 5 000 ₽ за 10 смен, адаптивное окно и
+   Telegram-контакты `@GPMHRDaria` / `@GpmHREkaterina`. Frontend deploy run
+   `36992623441`, green.
 
 Онлайн-табель:
 
@@ -57,7 +60,7 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 - API/backend: `app/app_orders_api.py`, client methods в
   `lib/services/gpm_api_service.dart`.
 
-Перед релизом прошли: 61 backend test (1 skipped), 42 Flutter tests,
+Перед последним релизом прошли: 61 backend test (1 skipped), 44 Flutter tests,
 `flutter analyze`, web release build и Wasm dry run.
 
 Android SDK на текущей машине отсутствовал, поэтому новый APK не собирался.
@@ -84,10 +87,10 @@ Android SDK на текущей машине отсутствовал, поэт�
 ## Первый ответ и дальнейшие действия
 
 1. Сделай read-only audit:
-   `git status --short --branch`, `git log -8 --oneline` и проверку
-   line-ending-only generated files. Назови фактический HEAD.
-2. Подтверди, что product production release остаётся `71db271`, run
-   `36920664797` green. Не запускай повторный deploy.
+   `git status --short --branch` и `git log -8 --oneline`. Назови фактический
+   HEAD.
+2. Подтверди production: backend `71db271`, run `36920664797`; frontend
+   `d55d891`, run `36992623441`; оба green. Не запускай повторный deploy.
 3. Предложи начать с ручной приёмки табеля:
    - client-created check-in/check-out;
    - logist/CRM guest QR → 6 digits → worker;
