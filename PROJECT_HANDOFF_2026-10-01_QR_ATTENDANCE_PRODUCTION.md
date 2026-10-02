@@ -245,6 +245,11 @@ worker: gpm-worker-spb-021026-01
 - maintenance run `37015800911`, success;
 - перед изменением создан и проверен backup
   `/opt/gpm/backups/account-create-20261002_135143/gpm-app-before-account-create.dump`;
+- первоначальные пароли из-за дефекта генератора не передавались владельцу и до
+  handoff были немедленно заменены на новые криптографически случайные значения;
+  все сессии этих двух аккаунтов отозваны, вход с новыми паролями и роли проверены;
+- password rotation run `37016909493`, success; перед ротацией создан и проверен
+  backup `/opt/gpm/backups/password-rotation-20261002_140110/gpm-app-before-password-rotation.dump`;
 - пароли переданы только владельцу, не записаны в Git, документацию или Actions
   logs;
 - временные GitHub Secrets удалены, одноразовый workflow удалён из `main`;

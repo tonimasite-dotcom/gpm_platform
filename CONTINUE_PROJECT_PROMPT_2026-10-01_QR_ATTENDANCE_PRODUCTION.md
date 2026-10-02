@@ -64,6 +64,10 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
    У worker `cities: ["Санкт-Петербург"]`; серверная проверка входа и профиля
    успешна. Maintenance run `37015800911`, backup:
    `/opt/gpm/backups/account-create-20261002_135143/gpm-app-before-account-create.dump`.
+   Из-за дефекта первоначального генератора оба пароля до передачи владельцу
+   немедленно ротированы, сессии отозваны, новые данные входа проверены. Rotation
+   run `37016909493`, backup:
+   `/opt/gpm/backups/password-rotation-20261002_140110/gpm-app-before-password-rotation.dump`.
    Пароли не хранятся в Git/документации/logs; временные secrets и workflow
    удалены. Основная CRM не затрагивалась.
 
