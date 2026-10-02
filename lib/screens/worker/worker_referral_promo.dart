@@ -4,6 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../theme/gpm_theme.dart';
 
 const _dialogBreakpoint = 600.0;
+const _promoBackground = Color(0xFFFFFCF2);
+const _promoSurface = Color(0xFFFFF4CC);
+const _promoBorder = Color(0xFFD6A000);
 
 Future<void> showWorkerReferralPromo(BuildContext context) async {
   Future<void> openTelegram(String username) async {
@@ -26,8 +29,10 @@ Future<void> showWorkerReferralPromo(BuildContext context) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => Dialog(
+        backgroundColor: _promoBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
+          constraints: const BoxConstraints(maxWidth: 440),
           child: SingleChildScrollView(
             child: _ReferralDetails(
               onClose: () => Navigator.of(dialogContext).pop(),
@@ -45,6 +50,10 @@ Future<void> showWorkerReferralPromo(BuildContext context) async {
     isScrollControlled: true,
     showDragHandle: true,
     useSafeArea: true,
+    backgroundColor: _promoBackground,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     builder: (sheetContext) => ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.9,
@@ -70,18 +79,16 @@ class WorkerReferralPromoCard extends StatelessWidget {
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [GpmColors.surface, GpmColors.red.withValues(alpha: 0.055)],
-          ),
+          gradient: LinearGradient(colors: [GpmColors.surface, _promoSurface]),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: GpmColors.red.withValues(alpha: 0.28)),
+          border: Border.all(color: _promoBorder, width: 2),
         ),
         child: InkWell(
           key: const Key('worker_referral_promo_card'),
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -89,19 +96,19 @@ class WorkerReferralPromoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        color: GpmColors.red.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        color: GpmColors.yellow.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(7),
                       ),
                       child: const Icon(
-                        Icons.card_giftcard_rounded,
-                        color: GpmColors.red,
-                        size: 24,
+                        Icons.card_giftcard,
+                        color: GpmColors.graphite,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +117,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                             'Приведи друга — получи бонус',
                             style: TextStyle(
                               color: GpmColors.black,
-                              fontSize: 17,
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -119,8 +126,8 @@ class WorkerReferralPromoCard extends StatelessWidget {
                             'Чем больше смен отработает друг, тем больше бонус.',
                             style: TextStyle(
                               color: GpmColors.graphite,
-                              fontSize: 13,
-                              height: 1.3,
+                              fontSize: 12,
+                              height: 1.25,
                             ),
                           ),
                         ],
@@ -128,25 +135,33 @@ class WorkerReferralPromoCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 const Row(
                   children: [
                     Expanded(
                       child: _RewardBadge(shifts: '5 смен', amount: '3 500 ₽'),
                     ),
-                    SizedBox(width: 10),
+                    SizedBox(width: 8),
                     Expanded(
                       child: _RewardBadge(shifts: '10 смен', amount: '5 000 ₽'),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
+                  child: ElevatedButton(
                     onPressed: onTap,
-                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 19),
-                    label: const Text('Подробнее и пригласить'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GpmColors.yellow,
+                      foregroundColor: GpmColors.black,
+                      minimumSize: const Size(48, 44),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                    child: const Text('Подробнее и пригласить'),
                   ),
                 ),
               ],
@@ -167,7 +182,7 @@ class _RewardBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: GpmColors.surface.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(8),
@@ -192,7 +207,7 @@ class _RewardBadge extends StatelessWidget {
               amount,
               style: const TextStyle(
                 color: GpmColors.black,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -212,7 +227,7 @@ class _ReferralDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,61 +236,73 @@ class _ReferralDetails extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: GpmColors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: GpmColors.yellow.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: const Icon(
-                  Icons.card_giftcard_rounded,
-                  color: GpmColors.red,
+                  Icons.card_giftcard,
+                  color: GpmColors.graphite,
+                  size: 21,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Text(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: const Text(
                     'Пригласить друга',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: TextStyle(
+                      color: GpmColors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
               IconButton(
                 tooltip: 'Закрыть',
                 onPressed: onClose,
-                icon: const Icon(Icons.close_rounded),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: const EdgeInsets.all(6),
+                icon: const Icon(Icons.close, size: 20),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           const Text(
-            'Можно привести друга на работу в GPM и получить бонус после того, '
-            'как он отработает нужное количество смен.',
-            style: TextStyle(color: GpmColors.graphite, height: 1.4),
+            'Можно привести друга на работу в Джи Пи Эм и получить бонус после '
+            'того, как он отработает нужное количество смен.',
+            style: TextStyle(
+              color: GpmColors.graphite,
+              fontSize: 13,
+              height: 1.35,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           const _DetailRewardRow(shifts: '5 смен', amount: '3 500 ₽'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           const _DetailRewardRow(shifts: '10 смен', amount: '5 000 ₽'),
-          const SizedBox(height: 18),
-          const Divider(height: 1),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+          Divider(height: 1, color: _promoBorder.withValues(alpha: 0.45)),
+          const SizedBox(height: 14),
           const Text(
             'Свяжитесь с одним из специалистов в Telegram:',
             style: TextStyle(
               color: GpmColors.black,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _TelegramContactButton(
             name: 'Дарья',
             username: 'GPMHRDaria',
             onPressed: () => onContact('GPMHRDaria'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _TelegramContactButton(
             name: 'Екатерина',
             username: 'GpmHREkaterina',
@@ -296,9 +323,9 @@ class _DetailRewardRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: GpmColors.page,
+        color: GpmColors.surface.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: GpmColors.line),
       ),
@@ -306,25 +333,26 @@ class _DetailRewardRow extends StatelessWidget {
         children: [
           const Icon(
             Icons.calendar_today_outlined,
-            color: GpmColors.red,
-            size: 20,
+            color: _promoBorder,
+            size: 18,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Друг отработал $shifts',
               style: const TextStyle(
                 color: GpmColors.graphite,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(
             amount,
             style: const TextStyle(
               color: GpmColors.black,
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -351,7 +379,14 @@ class _TelegramContactButton extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: const Icon(Icons.send_rounded, size: 20),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: GpmColors.black,
+          backgroundColor: GpmColors.surface.withValues(alpha: 0.82),
+          side: const BorderSide(color: _promoBorder, width: 1.4),
+          minimumSize: const Size(48, 46),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        icon: const Icon(Icons.send, size: 18),
         label: Align(
           alignment: Alignment.centerLeft,
           child: Column(

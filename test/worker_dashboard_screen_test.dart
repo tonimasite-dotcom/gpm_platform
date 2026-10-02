@@ -22,7 +22,7 @@ void main() {
     expect(find.text('Рейтинг'), findsOneWidget);
     expect(find.text('Выплаты'), findsOneWidget);
     expect(find.text('Приведи друга — получи бонус'), findsOneWidget);
-    expect(find.byIcon(Icons.card_giftcard_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.card_giftcard), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -49,6 +49,8 @@ void main() {
 
     expect(find.byType(BottomSheet), findsOneWidget);
     expect(find.text('Пригласить друга'), findsOneWidget);
+    expect(find.textContaining('Джи Пи Эм'), findsOneWidget);
+    expect(find.byIcon(Icons.card_giftcard), findsNWidgets(2));
     expect(find.text('@GPMHRDaria'), findsOneWidget);
     expect(find.text('@GpmHREkaterina'), findsOneWidget);
     expect(tester.takeException(), isNull);
