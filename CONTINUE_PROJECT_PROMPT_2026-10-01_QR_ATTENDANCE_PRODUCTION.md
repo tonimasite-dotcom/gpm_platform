@@ -19,15 +19,15 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 ## Где остановились
 
 - Production backend: `71db271`, общий workflow run `36920664797`, `success`.
-- Production frontend: `d55d891 Add worker referral bonus promotion`, frontend
-  workflow run `36992623441`, `success`.
+- Production frontend: `de19182 Refine worker referral promotion styling`,
+  frontend workflow run `36997334740`, `success`.
 - Проверено после deploy:
   `https://app-api.gpmbot.ru/health` → PostgreSQL/HTTP 200,
   `https://app-api.gpmbot.ru/attendance` → 200,
   `https://app.gpmbot.ru/` → 200.
-- Документационный HEAD может быть новее `d55d891`: это коммит снапшота, его
+- Документационный HEAD может быть новее `de19182`: это коммит снапшота, его
   нужно назвать после `git log -1` и не деплоить отдельно.
-- После push `d55d891` рабочее дерево было чистым, локальный `main` совпадал с
+- После push `de19182` рабочее дерево было чистым, локальный `main` совпадал с
   `origin/main`.
 
 ## Что уже сделано
@@ -43,6 +43,9 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
    с подарком, 3 500 ₽ за 5 смен и 5 000 ₽ за 10 смен, адаптивное окно и
    Telegram-контакты `@GPMHRDaria` / `@GpmHREkaterina`. Frontend deploy run
    `36992623441`, green.
+5. `de19182`: карточка и окно уменьшены, переведены в жёлтую гамму с обводкой
+   2 px, исправлены web-иконки и текстовое `GPM` заменено на «Джи Пи Эм».
+   Frontend deploy run `36997334740`, green; production bundle проверен.
 
 Онлайн-табель:
 
@@ -90,7 +93,7 @@ Android SDK на текущей машине отсутствовал, поэт�
    `git status --short --branch` и `git log -8 --oneline`. Назови фактический
    HEAD.
 2. Подтверди production: backend `71db271`, run `36920664797`; frontend
-   `d55d891`, run `36992623441`; оба green. Не запускай повторный deploy.
+   `de19182`, run `36997334740`; оба green. Не запускай повторный deploy.
 3. Предложи начать с ручной приёмки табеля:
    - client-created check-in/check-out;
    - logist/CRM guest QR → 6 digits → worker;

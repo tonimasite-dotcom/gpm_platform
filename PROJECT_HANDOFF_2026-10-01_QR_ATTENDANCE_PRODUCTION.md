@@ -21,12 +21,12 @@ CONTINUE_PROJECT_PROMPT_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 
 ```text
 branch:              main
-frontend release:    d55d891 Add worker referral bonus promotion
-origin/main:         d55d891 (до документационного коммита этой актуализации)
+frontend release:    de19182 Refine worker referral promotion styling
+origin/main:         de19182 (до документационного коммита этой актуализации)
 production backend:  71db271
-production frontend: d55d891
+production frontend: de19182
 backend/all run:      36920664797, target=all, success
-frontend run:         36992623441, target=frontend, success
+frontend run:         36997334740, target=frontend, success
 backend health:       {"status":"ok","storage":"postgres"}, HTTP 200
 guest attendance:    https://app-api.gpmbot.ru/attendance, HTTP 200
 frontend:             https://app.gpmbot.ru/, HTTP 200
@@ -36,7 +36,7 @@ frontend:             https://app.gpmbot.ru/, HTTP 200
 документационным и отдельно на production не деплоится. Его фактический hash
 нужно получить через `git log -1 --oneline` в новом чате.
 
-После frontend-релиза и push `d55d891` рабочее дерево было чистым, локальный
+После frontend-релиза и push `de19182` рабочее дерево было чистым, локальный
 `main` совпадал с `origin/main`.
 
 ---
@@ -125,6 +125,8 @@ production run 36920664797, target=all, success
 ```text
 d55d891 Add worker referral bonus promotion
 production run 36992623441, target=frontend, success
+de19182 Refine worker referral promotion styling
+production run 36997334740, target=frontend, success
 ```
 
 - компактная карточка после показателей кабинета с иконкой подарка;
@@ -137,6 +139,12 @@ production run 36992623441, target=frontend, success
   `flutter analyze` и release web build;
 - после deploy production frontend вернул HTTP 200, оба Telegram username
   найдены в опубликованном `main.dart.js`.
+- в `de19182` карточка и окно стали компактнее, красно-розовая гамма заменена
+  на мягкую жёлтую, внешняя обводка увеличена до 2 px, rounded-иконки заменены
+  на корректно отображаемые web-глифы, `GPM` без логотипа написано как
+  «Джи Пи Эм»;
+- после второго deploy production bundle вернул HTTP 200 и содержит новую
+  русскую формулировку и оба Telegram username.
 
 ---
 
@@ -373,12 +381,12 @@ backend deploy.
 операции делать через безопасный шаг workflow, а не попытками прямого SSH.
 
 В текущем PowerShell `gh` CLI доступен и авторизован через системный keyring.
-Run `36992623441` был запущен командой `gh workflow run` после явного
+Run `36997334740` был запущен командой `gh workflow run` после явного
 подтверждения пользователя. Если `gh` недоступен в новой сессии, допустим
 безопасный REST dispatch через `git credential fill`, без вывода и сохранения
 token, также только после явного подтверждения пользователя.
 
-Не деплоить повторно backend `71db271` или frontend `d55d891` без новых
+Не деплоить повторно backend `71db271` или frontend `de19182` без новых
 изменений либо подтверждённого дефекта.
 
 ---
@@ -486,7 +494,7 @@ Backend — единственный источник истины. Старые
 2. Сделать только read-only audit: `git status --short --branch` и
    `git log -8 --oneline`.
 3. Назвать текущий документационный HEAD и подтвердить production: backend
-   `71db271` / run `36920664797`, frontend `d55d891` / run `36992623441`.
+   `71db271` / run `36920664797`, frontend `de19182` / run `36997334740`.
 4. Первым практическим следующим шагом предложить ручную приёмку онлайн-табеля
    из раздела 8 либо, если пользователь сразу выбирает разработку, идти по
    согласованному backlog с P1-11.
@@ -501,4 +509,4 @@ Backend — единственный источник истины. Старые
    Android SDK/сборку; существующий APK не содержит онлайн-табель.
 
 Не повторять уже завершённые деплои `1c9b26f`, `f5218eb`, `71db271`,
-`d55d891` без нового изменения или подтверждённого дефекта.
+`d55d891`, `de19182` без нового изменения или подтверждённого дефекта.
