@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
+import 'worker_referral_promo.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   const WorkerDashboardScreen({super.key});
@@ -135,6 +136,10 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 12),
+              WorkerReferralPromoCard(
+                onTap: () => showWorkerReferralPromo(context),
               ),
             ],
           ),
