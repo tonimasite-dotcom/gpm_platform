@@ -1,0 +1,193 @@
+name: Create two GPM test accounts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-account-maintenance
+  cancel-in-progress: false
+
+env:
+  BACKEND_HOST: 46.149.71.147
+  SSH_USER: root
+
+jobs:
+  create-accounts:
+    name: Create logist and Saint Petersburg worker
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+
+    steps:
+      - name: Require a main-branch dispatch
+        if: github.ref != 'refs/heads/main'
+        shell: bash
+        run: exit 1
+
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Create protected credential payload
+        shell: bash
+        env:
+          LOGIST_PASSWORD: ${{ secrets.GPM_TEMP_LOGIST_PASSWORD }}
+          WORKER_PASSWORD: ${{ secrets.GPM_TEMP_WORKER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$LOGIST_PASSWORD"
+          test -n "$WORKER_PASSWORD"
+          umask 077
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "accounts": [
+                  {
+                      "username": "gpm-logist-021026-01",
+                      "password": os.environ["LOGIST_PASSWORD"],
+                      "role": "logist",
+                      "profile": {"display_name": "Логист GPM"},
+                  },
+                  {
+                      "username": "gpm-worker-spb-021026-01",
+                      "password": os.environ["WORKER_PASSWORD"],
+                      "role": "worker",
+                      "profile": {
+                          "display_name": "Грузчик Санкт-Петербург",
+                          "city": "Санкт-Петербург",
+                          "cities": ["Санкт-Петербург"],
+                          "address_city": "Санкт-Петербург",
+                          "nationality": True,
+                      },
+                  },
+              ]
+          }
+          target = Path("/tmp/gpm-create-two-accounts.json")
+          target.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+          target.chmod(0o600)
+          PY
+
+      - name: Configure verified SSH access
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+          test -s "$HOME/.ssh/known_hosts"
+
+      - name: Create accounts with backup and verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_PAYLOAD=/root/.gpm-create-two-accounts-${GITHUB_RUN_ID}.json
+          scp -o BatchMode=yes -o ConnectTimeout=15 \
+            /tmp/gpm-create-two-accounts.json \
+            "${SSH_USER}@${BACKEND_HOST}:${REMOTE_PAYLOAD}"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "${SSH_USER}@${BACKEND_HOST}" \
+            "CREDENTIAL_FILE='${REMOTE_PAYLOAD}' bash -se" <<'REMOTE'
+          set -euo pipefail
+          trap 'rm -f "$CREDENTIAL_FILE"' EXIT
+          chmod 600 "$CREDENTIAL_FILE"
+          cd /opt/gpm/gpm_platform
+          test -x .venv/bin/python
+          set -a
+          . /root/gpm-app-env
+          set +a
+
+          STAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_DIR="/opt/gpm/backups/account-create-${STAMP}"
+          mkdir -p "$BACKUP_DIR"
+          chmod 700 "$BACKUP_DIR"
+          pg_dump --format=custom --file="$BACKUP_DIR/gpm-app-before-account-create.dump" \
+            "$GPM_APP_DATABASE_URL"
+          pg_restore --list "$BACKUP_DIR/gpm-app-before-account-create.dump" >/dev/null
+
+          CREDENTIAL_FILE="$CREDENTIAL_FILE" .venv/bin/python - <<'PY'
+          import json
+          import os
+
+          from fastapi import HTTPException
+          from app import app_orders_api as api
+
+          with open(os.environ["CREDENTIAL_FILE"], encoding="utf-8") as source:
+              requested = json.load(source)["accounts"]
+
+          api.validate_runtime_configuration()
+          api.init_db()
+          results = []
+          for item in requested:
+              username = item["username"]
+              password = item["password"]
+              role = item["role"]
+              account = None
+              try:
+                  session = api.check_app_credentials(username, password)
+                  user = api.current_user("Bearer " + session["access_token"])
+                  if user["role"] != role:
+                      raise RuntimeError(f"existing account {username} has another role")
+                  account = {
+                      "account_id": user["sub"],
+                      "username": username,
+                      "role": role,
+                  }
+              except HTTPException:
+                  invitation = api.create_account_invitation(
+                      username,
+                      role,
+                      created_by="project-owner-account-maintenance",
+                  )
+                  account = api.redeem_account_invitation(
+                      invitation["token"],
+                      password,
+                      expected_role=role,
+                      audit_details={"source": "approved_account_maintenance"},
+                  )
+
+              user = {
+                  "sub": account["account_id"],
+                  "username": username,
+                  "role": role,
+              }
+              profile = api.update_account_profile(user, item["profile"])
+              verified = api.check_app_credentials(username, password)
+              if verified["role"] != role:
+                  raise RuntimeError(f"credential verification failed for {username}")
+              if role == "worker" and profile.get("cities") != ["Санкт-Петербург"]:
+                  raise RuntimeError("worker city verification failed")
+              results.append(
+                  {
+                      "username": username,
+                      "role": role,
+                      "cities": profile.get("cities", []),
+                  }
+              )
+
+          for result in results:
+              print(
+                  f"created_or_verified role={result['role']} "
+                  f"username={result['username']} cities={result['cities']}"
+              )
+          PY
+          echo "Verified backup: $BACKUP_DIR/gpm-app-before-account-create.dump"
+          REMOTE
+
+      - name: Remove runner credential payload
+        if: always()
+        shell: bash
+        run: rm -f /tmp/gpm-create-two-accounts.json
