@@ -21,12 +21,12 @@ CONTINUE_PROJECT_PROMPT_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 
 ```text
 branch:              main
-frontend release:    e363230 Remove worker employment type field
-origin/main:         e363230 (до документационного коммита этой актуализации)
-production backend:  71db271
-production frontend: e363230
-backend/all run:      36920664797, target=all, success
-frontend run:         37001467439, target=frontend, success
+product release:     909f97d Fix minimum worker payout calculation
+origin/main:         909f97d (до документационного коммита этой актуализации)
+production backend:  909f97d
+production frontend: 909f97d
+backend/all run:      37008565297, target=all, success
+frontend run:         37008565297, target=all, success
 backend health:       {"status":"ok","storage":"postgres"}, HTTP 200
 guest attendance:    https://app-api.gpmbot.ru/attendance, HTTP 200
 frontend:             https://app.gpmbot.ru/, HTTP 200
@@ -36,7 +36,7 @@ frontend:             https://app.gpmbot.ru/, HTTP 200
 документационным и отдельно на production не деплоится. Его фактический hash
 нужно получить через `git log -1 --oneline` в новом чате.
 
-После frontend-релиза и push `e363230` рабочее дерево было чистым, локальный
+После product-релиза и push `909f97d` рабочее дерево было чистым, локальный
 `main` совпадал с `origin/main`.
 
 ---
@@ -198,6 +198,34 @@ production run 37001467439, target=frontend, success
   release web build и Wasm dry run;
 - production bundle вернул HTTP 200: «Тип занятости» и «Кв./офис» отсутствуют,
   «Квартира» присутствует.
+
+### 2.7. Исправлено минимальное начисление исполнителю
+
+Коммит и production:
+
+```text
+909f97d Fix minimum worker payout calculation
+production run 37008565297, target=all, success
+```
+
+Причина нулевого начисления: client-created заявка хранила введённые 4 400 ₽
+в `individual_price`, но отдельные поля ставки исполнителя были пустыми, а
+финансы считали только `ставка × hours`.
+
+Новое правило:
+
+- при наличии ставки начисляется `ставка × max(hours, min_time)`;
+- минимальное оплачиваемое время гарантируется независимо от более быстрого
+  фактического выполнения;
+- если отдельной ставки нет, общий `individual_price` или `legal_price`
+  делится на `workers_count`;
+- для заявки 4 400 ₽ с одним исполнителем начисление равно 4 400 ₽;
+- расчёт выполняется при чтении финансов, поэтому существующие завершённые
+  заявки исправляются без миграции и изменения строк БД.
+
+Прошли 64 backend test (1 skipped), 44 Flutter tests, `flutter analyze`,
+release web build и Wasm dry run. После deploy backend health и frontend
+вернули HTTP 200. Основная CRM, схемы и данные БД не изменялись.
 
 ---
 
@@ -434,12 +462,11 @@ backend deploy.
 операции делать через безопасный шаг workflow, а не попытками прямого SSH.
 
 В текущем PowerShell `gh` CLI доступен и авторизован через системный keyring.
-Run `37001467439` был запущен командой `gh workflow run` после явного
-подтверждения пользователя. Если `gh` недоступен в новой сессии, допустим
-безопасный REST dispatch через `git credential fill`, без вывода и сохранения
-token, также только после явного подтверждения пользователя.
+Run `37008565297` был запущен после явного подтверждения пользователя через
+безопасный REST dispatch с `git credential fill`, без вывода и сохранения
+token: локальная авторизация `gh` была просрочена.
 
-Не деплоить повторно backend `71db271` или frontend `e363230` без новых
+Не деплоить повторно backend или frontend `909f97d` без новых
 изменений либо подтверждённого дефекта.
 
 ---
@@ -560,7 +587,7 @@ Backend — единственный источник истины. Старые
 2. Сделать только read-only audit: `git status --short --branch` и
    `git log -8 --oneline`.
 3. Назвать текущий документационный HEAD и подтвердить production: backend
-   `71db271` / run `36920664797`, frontend `e363230` / run `37001467439`.
+   и frontend `909f97d` / run `37008565297`, target `all`, success.
 4. Первым практическим следующим шагом предложить ручную приёмку онлайн-табеля
    из раздела 8 либо, если пользователь сразу выбирает разработку, идти по
    согласованному backlog с P1-11.
@@ -579,5 +606,5 @@ Backend — единственный источник истины. Старые
    Android SDK/сборку; существующий APK не содержит онлайн-табель.
 
 Не повторять уже завершённые деплои `1c9b26f`, `f5218eb`, `71db271`,
-`d55d891`, `de19182`, `e363230` без нового изменения или подтверждённого
-дефекта.
+`d55d891`, `de19182`, `e363230`, `909f97d` без нового изменения или
+подтверждённого дефекта.

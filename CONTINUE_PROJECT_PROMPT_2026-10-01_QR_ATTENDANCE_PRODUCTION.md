@@ -18,16 +18,15 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 
 ## Где остановились
 
-- Production backend: `71db271`, общий workflow run `36920664797`, `success`.
-- Production frontend: `e363230 Remove worker employment type field`,
-  frontend workflow run `37001467439`, `success`.
+- Production backend и frontend: `909f97d Fix minimum worker payout
+  calculation`, общий workflow run `37008565297`, target `all`, `success`.
 - Проверено после deploy:
   `https://app-api.gpmbot.ru/health` → PostgreSQL/HTTP 200,
   `https://app-api.gpmbot.ru/attendance` → 200,
   `https://app.gpmbot.ru/` → 200.
-- Документационный HEAD может быть новее `e363230`: это коммит снапшота, его
+- Документационный HEAD может быть новее `909f97d`: это коммит снапшота, его
   нужно назвать после `git log -1` и не деплоить отдельно.
-- После push `e363230` рабочее дерево было чистым, локальный `main` совпадал с
+- После push `909f97d` рабочее дерево было чистым, локальный `main` совпадал с
   `origin/main`.
 - 02.10.2026 production очищен для нового цикла тестирования: все заявочные
   таблицы содержат 0 строк, пользователи сохранены. Удалены 17 заявок и
@@ -55,6 +54,11 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
    его отправка при сохранении, а «Кв./офис» переименовано в «Квартира».
    Backend-схема и данные не менялись. Frontend deploy run `37001467439`,
    green; production bundle проверен.
+7. `909f97d`: исправлено начисление по завершённой заявке. Ставка умножается
+   минимум на `min_time`; при отсутствии ставки общий бюджет заявки делится на
+   число исполнителей. Для 4 400 ₽ и одного исполнителя начисляется 4 400 ₽.
+   Расчёт динамический, миграция не нужна. Deploy run `37008565297`, target
+   `all`, green; backend health и frontend вернули HTTP 200.
 
 Онлайн-табель:
 
@@ -72,7 +76,7 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
 - API/backend: `app/app_orders_api.py`, client methods в
   `lib/services/gpm_api_service.dart`.
 
-Перед последним релизом прошли: 61 backend test (1 skipped), 44 Flutter tests,
+Перед последним релизом прошли: 64 backend test (1 skipped), 44 Flutter tests,
 `flutter analyze`, web release build и Wasm dry run.
 
 Android SDK на текущей машине отсутствовал, поэтому новый APK не собирался.
@@ -101,8 +105,8 @@ Android SDK на текущей машине отсутствовал, поэт�
 1. Сделай read-only audit:
    `git status --short --branch` и `git log -8 --oneline`. Назови фактический
    HEAD.
-2. Подтверди production: backend `71db271`, run `36920664797`; frontend
-   `e363230`, run `37001467439`; оба green. Не запускай повторный deploy.
+2. Подтверди production: backend и frontend `909f97d`, run `37008565297`,
+   target `all`, green. Не запускай повторный deploy.
 3. Предложи начать с ручной приёмки табеля:
    - client-created check-in/check-out;
    - logist/CRM guest QR → 6 digits → worker;
