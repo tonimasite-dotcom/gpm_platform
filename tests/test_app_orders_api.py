@@ -1851,6 +1851,32 @@ class OrderAmountTests(unittest.TestCase):
         # never be reported as the worker's accrual.
         self.assertEqual(api._order_amount(order), 2000)
 
+    def test_guarantees_minimum_payable_time(self):
+        order = {
+            "hours": 1,
+            "min_time": 4,
+            "price_per_hour": 1100,
+        }
+        self.assertEqual(api._order_amount(order), 4400)
+
+    def test_uses_client_order_budget_when_performer_rate_is_missing(self):
+        order = {
+            "hours": 4,
+            "min_time": 4,
+            "workers_count": 1,
+            "individual_price": 4400,
+        }
+        self.assertEqual(api._order_amount(order), 4400)
+
+    def test_shares_total_order_budget_between_worker_slots(self):
+        order = {
+            "hours": 4,
+            "min_time": 4,
+            "workers_count": 2,
+            "legal_price": 8800,
+        }
+        self.assertEqual(api._order_amount(order), 4400)
+
     def test_falls_back_through_rate_fields(self):
         self.assertEqual(
             api._order_amount({"hours": 3, "price_state": 400}), 1200

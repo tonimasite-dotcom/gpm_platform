@@ -5009,22 +5009,30 @@ def decide_order_application_atomically(
 
 
 def _order_amount(order: dict[str, Any]) -> int:
-    # Worker accrual is based on the performer rate, never on the client-facing
-    # price (individual_price / legal_price) — that is what the client pays GPM
-    # and would overstate the worker's earnings.
+    # A worker is guaranteed at least the order's minimum payable time. Prefer
+    # an explicit performer rate when one exists. App-created client orders do
+    # not currently collect a separate performer rate, so their stated total
+    # budget is the only payable amount and is shared between worker slots.
     def _int(value: Any) -> int:
         try:
             return int(value or 0)
         except (TypeError, ValueError):
             return 0
 
-    hours = _int(order.get("hours"))
+    hours = max(_int(order.get("hours")), _int(order.get("min_time")))
     rate = (
         _int(order.get("price_per_hour"))
         or _int(order.get("price_state"))
         or _int(order.get("price_regular"))
     )
-    return max(0, rate * hours)
+    if rate > 0:
+        return max(0, rate * hours)
+
+    total_budget = _int(order.get("individual_price")) or _int(
+        order.get("legal_price")
+    )
+    workers_count = max(1, _int(order.get("workers_count")))
+    return max(0, total_budget // workers_count)
 
 
 def account_finance(user: dict[str, Any]) -> dict[str, Any]:

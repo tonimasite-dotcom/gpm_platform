@@ -245,16 +245,26 @@ class _TransactionTile extends StatelessWidget {
 }
 
 int _orderAmount(Map<String, dynamic> order) {
-  // Worker payout is derived from the performer rate, not the client-facing
-  // price (individual_price / legal_price) — that would show GPM's margin as
-  // the worker's earnings.
-  final hours = _asInt(order['hours']);
-  final rate = _asInt(order['price_per_hour']) != 0
-      ? _asInt(order['price_per_hour'])
-      : _asInt(order['price_state']) != 0
-      ? _asInt(order['price_state'])
-      : _asInt(order['price_regular']);
-  return rate * hours;
+  // Guarantee the minimum payable time. Client-created orders currently have
+  // no separate performer rate, so their stated total budget is shared between
+  // the requested worker slots.
+  final statedHours = _asInt(order['hours']);
+  final minimumHours = _asInt(order['min_time']);
+  final hours = statedHours > minimumHours ? statedHours : minimumHours;
+  final hourlyRate = _asInt(order['price_per_hour']);
+  final stateRate = _asInt(order['price_state']);
+  var rate = hourlyRate;
+  if (rate == 0) rate = stateRate;
+  if (rate == 0) rate = _asInt(order['price_regular']);
+  if (rate > 0) return rate * hours;
+
+  final totalBudget = _asInt(order['individual_price']) != 0
+      ? _asInt(order['individual_price'])
+      : _asInt(order['legal_price']);
+  final workersCount = _asInt(order['workers_count']) > 0
+      ? _asInt(order['workers_count'])
+      : 1;
+  return totalBudget ~/ workersCount;
 }
 
 int _asInt(dynamic value) {
