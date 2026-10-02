@@ -146,6 +146,40 @@ production run 36997334740, target=frontend, success
 - после второго deploy production bundle вернул HTTP 200 и содержит новую
   русскую формулировку и оба Telegram username.
 
+### 2.5. Production очищен от тестовых заявок
+
+По явному подтверждению пользователя выполнена очистка только строк заявочного
+домена GPM. Таблицы, схема, код, пользователи и основная CRM не удалялись и не
+изменялись.
+
+```text
+maintenance run: 36998384783, success
+backup: /opt/gpm/backups/order-reset-20261002_105806/gpm-app-before-order-reset.dump
+```
+
+Перед транзакцией создан полный custom-format `pg_dump`, архив проверен через
+`pg_restore --list`. Затем удалены:
+
+- 17 строк `gpm_app_orders`;
+- 8 chat threads, 34 сообщения и 9 read markers;
+- 0 attendance rows и 0 активных attendance challenges;
+- 2 actor daily sequence rows и 1 legacy/global order sequence row.
+
+После commit все восемь заявочных таблиц повторно проверены: в каждой 0 строк.
+Счётчики заявок сброшены, поэтому новый цикл тестирования начинается с первой
+заявки. Сохранены и проверены без изменений:
+
+- 5 аккаунтов;
+- 4 профиля;
+- 130 сессий;
+- 6 приглашений;
+- 3 actor-кода и 2 строки actor-code sequence;
+- таблицы и логика worker verification;
+- audit log; добавлена запись `production_order_data_reset`.
+
+После очистки backend health: `{"status":"ok","storage":"postgres"}`.
+Временный destructive workflow после успешной операции удалён из `main`.
+
 ---
 
 ## 3. Онлайн-табель: серверная реализация

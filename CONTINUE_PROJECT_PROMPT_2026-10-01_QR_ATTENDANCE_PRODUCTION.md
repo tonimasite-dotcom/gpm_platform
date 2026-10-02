@@ -29,6 +29,11 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
   нужно назвать после `git log -1` и не деплоить отдельно.
 - После push `de19182` рабочее дерево было чистым, локальный `main` совпадал с
   `origin/main`.
+- 02.10.2026 production очищен для нового цикла тестирования: все заявочные
+  таблицы содержат 0 строк, пользователи сохранены. Удалены 17 заявок и
+  связанные chat/attendance данные, счётчики заявок сброшены. Backup:
+  `/opt/gpm/backups/order-reset-20261002_105806/gpm-app-before-order-reset.dump`.
+  Maintenance run `36998384783`, success. Основная CRM не затрагивалась.
 
 ## Что уже сделано
 
