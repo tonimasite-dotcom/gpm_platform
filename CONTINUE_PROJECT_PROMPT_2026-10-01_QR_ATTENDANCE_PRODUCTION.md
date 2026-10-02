@@ -59,6 +59,13 @@ PROJECT_HANDOFF_2026-10-01_QR_ATTENDANCE_PRODUCTION.md
    число исполнителей. Для 4 400 ₽ и одного исполнителя начисляется 4 400 ₽.
    Расчёт динамический, миграция не нужна. Deploy run `37008565297`, target
    `all`, green; backend health и frontend вернули HTTP 200.
+8. Созданы дополнительные синтетические аккаунты
+   `gpm-logist-021026-01` (logist) и `gpm-worker-spb-021026-01` (worker).
+   У worker `cities: ["Санкт-Петербург"]`; серверная проверка входа и профиля
+   успешна. Maintenance run `37015800911`, backup:
+   `/opt/gpm/backups/account-create-20261002_135143/gpm-app-before-account-create.dump`.
+   Пароли не хранятся в Git/документации/logs; временные secrets и workflow
+   удалены. Основная CRM не затрагивалась.
 
 Онлайн-табель:
 
