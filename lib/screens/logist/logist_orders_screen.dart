@@ -4,6 +4,7 @@ import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
 import '../attendance/order_attendance.dart';
+import 'worker_profile_review_screen.dart';
 import '../client/client_create_order_screen.dart';
 import '../orders/order_draft_edit_screen.dart';
 
@@ -506,6 +507,16 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     }
   }
 
+  Future<void> _openWorkerProfile(String workerId) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkerProfileReviewScreen(workerId: workerId),
+      ),
+    );
+    if (changed == true) await _refreshDetails();
+  }
+
   Future<void> _approve(String applicationId) async {
     await _runAction(
       () => gpmApi.approveApplication(
@@ -563,32 +574,45 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     );
   }
 
-  Future<void> _confirmCompletion(String result) async {
-    final workerId = _assignedWorkerId();
-    if (workerId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('В заказе нет назначенного исполнителя'),
-          backgroundColor: Colors.red,
+  Future<void> _cancelOrder() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Отменить заявку?'),
+        content: const Text(
+          'Исполнители потеряют доступ к отметкам прихода и ухода. Начисление по отменённой заявке не создаётся.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Назад'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Отменить заявку'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _runAction(() async {
+      final success = await gpmApi.updateOrderStatus(
+        order['id'].toString(),
+        'JUNK',
       );
-      return;
-    }
+      return {'success': success};
+    }, 'Заявка отменена');
+  }
 
+  Future<void> _confirmCompletion(String workerId, String result) async {
     await _runAction(
       () => gpmApi.completeOrderWithResult(
         orderId: order['id'].toString(),
         workerId: workerId,
         result: result,
       ),
-      'Заказ завершен',
+      'Оценка сохранена',
     );
-  }
-
-  String? _assignedWorkerId() {
-    final ids = order['assigned_worker_ids'];
-    if (ids is List && ids.isNotEmpty) return ids.first.toString();
-    return null;
   }
 
   Future<void> _runAction(
@@ -701,15 +725,26 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             _StatusPill(text: status, color: color),
             const SizedBox(height: 20),
             OrderAttendancePanel(orderId: order['id'].toString()),
-            if (order['status'] == 'NEW') ...[
+            if (const {
+              'NEW',
+              'PROCESSED',
+              'IN_PROCESS',
+              'DONE_PENDING',
+            }.contains(order['status'])) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: _isUpdating ? null : _editDraft,
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Редактировать перед публикацией'),
+                  label: const Text('Редактировать заявку'),
                 ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _isUpdating ? null : _cancelOrder,
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Отменить заявку'),
               ),
             ],
             if (order['status'] == 'PROCESSED' &&
@@ -763,6 +798,9 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                       .map(
                         (application) => _ApplicationCard(
                           application: application,
+                          onProfile: () => _openWorkerProfile(
+                            application['worker_id'].toString(),
+                          ),
                           isUpdating: _isUpdating,
                           onApprove: () =>
                               _approve(application['id'].toString()),
@@ -773,46 +811,59 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                 );
               },
             ),
-            if (order['status'] == 'DONE_PENDING') ...[
+            if (order['status'] == 'DONE_PENDING' ||
+                (order['worker_reviews'] is Map &&
+                    (order['worker_reviews'] as Map).isNotEmpty)) ...[
               const SizedBox(height: 24),
               const Text(
-                'Оценка исполнителя',
+                'Оценка исполнителей',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: _isUpdating
-                        ? null
-                        : () => _confirmCompletion('success'),
-                    icon: const Icon(Icons.thumb_up_alt_outlined),
-                    label: const Text('Справился'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _isUpdating
-                        ? null
-                        : () => _confirmCompletion('fail'),
-                    icon: const Icon(Icons.thumb_down_alt_outlined),
-                    label: const Text('Не справился'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _isUpdating
-                        ? null
-                        : () => _confirmCompletion('neutral'),
-                    icon: const Icon(Icons.remove_circle_outline),
-                    label: const Text('Нейтрально'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _isUpdating
-                        ? null
-                        : () => _confirmCompletion('good'),
-                    icon: const Icon(Icons.report_gmailerrorred_outlined),
-                    label: const Text('С нареканиями'),
-                  ),
-                ],
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: _applicationsFuture,
+                builder: (context, snapshot) {
+                  final applications = snapshot.data ?? [];
+                  final assigned = List<String>.from(
+                    order['assigned_worker_ids'] ?? [],
+                  );
+                  final reviews = order['worker_reviews'] is Map
+                      ? Map<String, dynamic>.from(order['worker_reviews'])
+                      : <String, dynamic>{};
+                  final names = <String, String>{
+                    for (final application in applications)
+                      if (application['worker'] is Map)
+                        application['worker_id'].toString():
+                            (application['worker']['display_name'] ??
+                                    application['worker']['full_name'] ??
+                                    '')
+                                .toString(),
+                  };
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var index = 0; index < assigned.length; index++) ...[
+                        Text(
+                          names[assigned[index]]?.isNotEmpty == true
+                              ? names[assigned[index]]!
+                              : 'Исполнитель ${index + 1}',
+                        ),
+                        const SizedBox(height: 8),
+                        if (reviews[assigned[index]] is Map)
+                          Text(
+                            'Оценка: ${_workerResultLabels[reviews[assigned[index]]['result']] ?? 'Сохранена'}',
+                          )
+                        else if (order['status'] == 'DONE_PENDING')
+                          _WorkerResultButtons(
+                            enabled: !_isUpdating,
+                            onResult: (result) =>
+                                _confirmCompletion(assigned[index], result),
+                          ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
+                  );
+                },
               ),
             ],
           ],
@@ -822,13 +873,57 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
   }
 }
 
+const _workerResultLabels = {
+  'success': 'Справился',
+  'fail': 'Не справился',
+  'excellent': 'Справился хорошо',
+  'good': 'С нареканиями',
+};
+
+class _WorkerResultButtons extends StatelessWidget {
+  final bool enabled;
+  final ValueChanged<String> onResult;
+
+  const _WorkerResultButtons({required this.enabled, required this.onResult});
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      FilledButton.icon(
+        onPressed: enabled ? () => onResult('success') : null,
+        icon: const Icon(Icons.thumb_up_alt_outlined),
+        label: const Text('Справился'),
+      ),
+      OutlinedButton.icon(
+        onPressed: enabled ? () => onResult('fail') : null,
+        icon: const Icon(Icons.thumb_down_alt_outlined),
+        label: const Text('Не справился'),
+      ),
+      OutlinedButton.icon(
+        onPressed: enabled ? () => onResult('excellent') : null,
+        icon: const Icon(Icons.thumb_up_alt_outlined),
+        label: const Text('Справился хорошо'),
+      ),
+      OutlinedButton.icon(
+        onPressed: enabled ? () => onResult('good') : null,
+        icon: const Icon(Icons.report_gmailerrorred_outlined),
+        label: const Text('С нареканиями'),
+      ),
+    ],
+  );
+}
+
 class _ApplicationCard extends StatelessWidget {
+  final VoidCallback onProfile;
   final Map<String, dynamic> application;
   final bool isUpdating;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
   const _ApplicationCard({
+    required this.onProfile,
     required this.application,
     required this.isUpdating,
     required this.onApprove,
@@ -845,8 +940,8 @@ class _ApplicationCard extends StatelessWidget {
     final priorityGroup = worker['priority_group'] is int
         ? worker['priority_group'] as int
         : 0;
-    final hasPassport = worker['passport']?.toString().isNotEmpty == true;
-    final hasInn = worker['inn']?.toString().isNotEmpty == true;
+    final hasPassport = worker['identity_status'] == 'verified';
+    final hasInn = worker['npd_status'] == 'verified';
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -858,6 +953,11 @@ class _ApplicationCard extends StatelessWidget {
             Row(
               children: [
                 const CircleAvatar(child: Icon(Icons.person)),
+                IconButton(
+                  tooltip: 'Профиль исполнителя',
+                  onPressed: onProfile,
+                  icon: const Icon(Icons.manage_accounts_outlined),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -891,13 +991,19 @@ class _ApplicationCard extends StatelessWidget {
                       : Colors.blue,
                 ),
                 _StatusPill(
-                  text: worker['nationality'] == true ? 'РФ' : 'Не РФ',
+                  text: worker['nationality'] == null
+                      ? 'Гражданство не указано'
+                      : worker['nationality'] == true
+                      ? 'РФ'
+                      : 'Не РФ',
                   color: worker['nationality'] == true
                       ? Colors.green
                       : Colors.orange,
                 ),
                 _StatusPill(
-                  text: hasPassport ? 'Паспорт OK' : 'Паспорт нет',
+                  text: hasPassport
+                      ? 'Паспорт подтвержден'
+                      : 'Паспорт не подтвержден',
                   color: hasPassport ? Colors.green : Colors.orange,
                 ),
                 _StatusPill(

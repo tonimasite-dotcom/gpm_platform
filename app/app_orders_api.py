@@ -1,6 +1,7 @@
 import asyncio
 import html
 import json
+import math
 import os
 import base64
 import hashlib
@@ -48,6 +49,7 @@ ACTOR_DAILY_ORDER_SEQUENCE_TABLE_NAME = "gpm_app_actor_daily_order_seq"
 ATTENDANCE_TABLE_NAME = "gpm_app_order_attendance"
 ATTENDANCE_CHALLENGES_TABLE_NAME = "gpm_app_attendance_challenges"
 APP_ROLES = {"client", "worker", "logist"}
+WORKER_RESULT_DELTAS = {"success": 1, "fail": -2, "good": -1, "excellent": 2}
 ACCOUNT_SCHEMA_VERSION = "0001_db_accounts"
 INVITATION_SCHEMA_VERSION = "0002_account_invitations"
 WORKSPACE_SCHEMA_VERSION = "0003_role_workspaces"
@@ -102,6 +104,8 @@ WORKFLOW_FIELDS = {
     "applications",
     "recruitment_closed_at",
     "recruitment_closed_by",
+    "worker_reviews",
+    "worker_hours",
 }
 ORDER_DRAFT_EDITABLE_FIELDS = {
     "title",
@@ -125,6 +129,10 @@ ORDER_DRAFT_EDITABLE_FIELDS = {
     "additional_info",
 }
 LOGIST_RESTRICTED_DRAFT_FIELDS = {"individual_price", "legal_price"}
+CRM_SYNC_INSTANCE = "https://ts.workstaffcrm.ru"
+CRM_SYNC_PROTOCOL = "gpm-crm-sync-v1"
+CRM_SYNC_GEO_FIELDS = {"address_street", "address_number", "address_lat", "address_lon"}
+CRM_SYNC_FIELDS = ORDER_DRAFT_EDITABLE_FIELDS | CRM_SYNC_GEO_FIELDS
 ALLOWED_STATUS_TRANSITIONS = {
     "NEW": {"PROCESSED", "JUNK"},
     "PROCESSED": {"IN_PROCESS", "JUNK"},
@@ -2321,15 +2329,34 @@ def normalize_external_order(
             max_length=80,
             required=True,
         ),
+        "source_instance": (
+            bounded_text(payload.get("source_instance"), "source_instance", max_length=200)
+            if created_by is None else ""
+        ),
         "external_order_id": order_number,
         "metro": info.get("metro_station"),
         "national": national,
         "min_time": min_time,
-        "price_per_hour": order_data.get("price_per_hour"),
-        "price_regular": order_data.get("price_regular"),
-        "price_state": order_data.get("price_state"),
-        "individual_price": order_data.get("individual_price"),
-        "legal_price": order_data.get("legal_price"),
+        "price_per_hour": (
+            bounded_integer(order_data["price_per_hour"], "order_data.price_per_hour", minimum=0, maximum=1_000_000_000)
+            if order_data.get("price_per_hour") not in (None, "") else None
+        ),
+        "price_regular": (
+            bounded_integer(order_data["price_regular"], "order_data.price_regular", minimum=0, maximum=1_000_000_000)
+            if order_data.get("price_regular") not in (None, "") else None
+        ),
+        "price_state": (
+            bounded_integer(order_data["price_state"], "order_data.price_state", minimum=0, maximum=1_000_000_000)
+            if order_data.get("price_state") not in (None, "") else None
+        ),
+        "individual_price": (
+            bounded_integer(order_data["individual_price"], "order_data.individual_price", minimum=0, maximum=1_000_000_000)
+            if order_data.get("individual_price") not in (None, "") else None
+        ),
+        "legal_price": (
+            bounded_integer(order_data["legal_price"], "order_data.legal_price", minimum=0, maximum=1_000_000_000)
+            if order_data.get("legal_price") not in (None, "") else None
+        ),
         "nationality": (
             "ru" if national == "yes" else "non_ru" if national == "no" else "any"
         ),
@@ -2365,18 +2392,24 @@ def merge_existing_workflow_state(
     if not existing:
         return incoming
 
+    existing_instance = str(existing.get("source_instance") or "")
+    incoming_instance = str(incoming.get("source_instance") or "")
+    if existing_instance and incoming_instance != existing_instance:
+        raise HTTPException(status_code=409, detail="CRM source instance mismatch")
+
     merged = dict(incoming)
     for field in WORKFLOW_FIELDS:
         if field in existing:
             merged[field] = existing[field]
-    # Once an order has left the draft stage, its content is owned by the
-    # app (edited through the draft editor while it was still NEW). A later
-    # re-sync of the same external order number must not silently revert
-    # those edits back to the CRM's original values.
-    if str(existing.get("status") or "").strip().upper() != "NEW":
+    # The latest accepted CRM content updates active orders, while assignment,
+    # attendance and review workflow remains owned by GPM.
+    if str(existing.get("status") or "").upper() in {"CONVERTED", "JUNK"}:
         for field in ORDER_DRAFT_EDITABLE_FIELDS:
             if field in existing:
                 merged[field] = existing[field]
+    if len(existing.get("assigned_worker_ids") or []) > int(merged.get("workers_count") or 1):
+        raise HTTPException(status_code=409, detail="worker count cannot be lower than assigned workers")
+    merged["logist_account_id"] = existing.get("logist_account_id") or incoming.get("logist_account_id", "")
     for field in ("created_at", "created_by", "created_by_role"):
         if existing.get(field) not in (None, ""):
             merged[field] = existing[field]
@@ -2458,6 +2491,17 @@ def orders_for_user(
             )
         ]
     return [order_for_user(order, user) for order in orders]
+
+
+def enrich_order_worker_profiles(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summaries: dict[str, dict[str, Any] | None] = {}
+    for order in orders:
+        for application in order.get("applications") or []:
+            worker_id = str(application.get("worker_id") or "")
+            if worker_id not in summaries:
+                summaries[worker_id] = worker_summary(worker_id)
+            application["worker"] = summaries[worker_id] or {}
+    return orders
 
 
 ATTENDANCE_CHALLENGE_SELECT_FIELDS = """
@@ -2805,6 +2849,18 @@ def _validate_live_attendance_challenge(challenge: dict[str, Any] | None) -> dic
     return challenge
 
 
+def _locked_live_attendance_challenge(connection: Any, *, secret_kind: str, secret_value: str) -> dict[str, Any]:
+    found = _validate_live_attendance_challenge(
+        _read_attendance_challenge(connection, secret_kind=secret_kind, secret_value=secret_value)
+    )
+    order = read_order_in_connection(connection, found["order_id"], for_update=True)
+    if order is None or order.get("status") not in {"PROCESSED", "IN_PROCESS"}:
+        raise HTTPException(status_code=409, detail="order is not accepting attendance")
+    return _validate_live_attendance_challenge(
+        _read_attendance_challenge(connection, secret_kind=secret_kind, secret_value=secret_value, for_update=True)
+    )
+
+
 def _complete_attendance_event_in_connection(
     connection: Any,
     challenge: dict[str, Any],
@@ -2814,6 +2870,12 @@ def _complete_attendance_event_in_connection(
     now = utc_now()
     order_id = challenge["order_id"]
     worker_account_id = challenge["worker_account_id"]
+    order = read_order_in_connection(connection, order_id, for_update=True)
+    if order is None or order.get("status") not in {"PROCESSED", "IN_PROCESS"}:
+        raise HTTPException(status_code=409, detail="order is not accepting attendance")
+    assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+    if worker_account_id not in assigned:
+        raise HTTPException(status_code=403, detail="worker is not assigned to this order")
     existing = _read_attendance_in_connection(
         connection, order_id, worker_account_id, for_update=True
     )
@@ -2938,6 +3000,24 @@ def _complete_attendance_event_in_connection(
     )
     if attendance is None:
         raise RuntimeError("attendance row was not created")
+    if action == "check_out":
+        started = parse_db_datetime(attendance["check_in_at"])
+        ended = parse_db_datetime(attendance["check_out_at"])
+        actual_hours = math.ceil(max(0, (ended - started).total_seconds()) / 3600)
+        order["worker_hours"] = {**(order.get("worker_hours") or {}), worker_account_id: actual_hours}
+        all_finished = all(
+            (_read_attendance_in_connection(connection, order_id, worker_id) or {}).get("check_out_at")
+            for worker_id in assigned
+        )
+        if all_finished:
+            order["status"] = "DONE_PENDING"
+        write_order_in_connection(connection, order)
+        record_audit_event_in_connection(
+            connection, event_type="order_attendance_completed", outcome="success",
+            actor_account_id=worker_account_id, actor_username=confirmer,
+            target_type="order", target_id=order_id,
+            details={"worker_id": worker_account_id, "billable_hours": actual_hours, "all_finished": all_finished},
+        )
     return attendance
 
 
@@ -2956,14 +3036,7 @@ def confirm_attendance_by_client(
     with db_connection() as connection:
         if _is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
-        challenge = _validate_live_attendance_challenge(
-            _read_attendance_challenge(
-                connection,
-                secret_kind=secret_kind,
-                secret_value=secret_value,
-                for_update=True,
-            )
-        )
+        challenge = _locked_live_attendance_challenge(connection, secret_kind=secret_kind, secret_value=secret_value)
         if challenge["verifier_mode"] != "authenticated_client":
             raise HTTPException(
                 status_code=409,
@@ -3056,14 +3129,7 @@ def guest_confirm_attendance(
     with db_connection() as connection:
         if _is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
-        challenge = _validate_live_attendance_challenge(
-            _read_attendance_challenge(
-                connection,
-                secret_kind=secret_kind,
-                secret_value=secret_value,
-                for_update=True,
-            )
-        )
+        challenge = _locked_live_attendance_challenge(connection, secret_kind=secret_kind, secret_value=secret_value)
         if challenge["verifier_mode"] != "guest_code":
             raise HTTPException(
                 status_code=403,
@@ -3133,14 +3199,7 @@ def complete_guest_attendance_by_worker(
     with db_connection() as connection:
         if _is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
-        challenge = _validate_live_attendance_challenge(
-            _read_attendance_challenge(
-                connection,
-                secret_kind="completion_code",
-                secret_value=code,
-                for_update=True,
-            )
-        )
+        challenge = _locked_live_attendance_challenge(connection, secret_kind="completion_code", secret_value=code)
         if challenge["verifier_mode"] != "guest_code" or challenge["verifier_confirmed_at"] is None:
             raise HTTPException(status_code=409, detail="client has not confirmed presence")
         if challenge["worker_account_id"] != str(user.get("sub") or ""):
@@ -3393,14 +3452,22 @@ def worker_matches_nationality_requirement(
     requirement = order.get("national", order.get("nationality"))
     normalized = str(requirement or "").strip().lower()
     if requirement is True or normalized in {"yes", "ru", "rf", "russian"}:
-        return profile is not None and profile.get("nationality") is True
+        return (
+            profile is not None
+            and profile.get("nationality_recorded") is not False
+            and profile.get("nationality") is True
+        )
     if requirement is False or normalized in {
         "no",
         "non_ru",
         "non-rf",
         "foreign",
     }:
-        return profile is not None and profile.get("nationality") is False
+        return (
+            profile is not None
+            and profile.get("nationality_recorded") is not False
+            and profile.get("nationality") is False
+        )
     return True
 
 
@@ -3492,7 +3559,7 @@ def validate_order_patch(
     actor_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     allowed_fields = (
-        WORKFLOW_FIELDS
+        WORKFLOW_FIELDS | ORDER_DRAFT_EDITABLE_FIELDS
         if integration
         else {"status"} | ORDER_DRAFT_EDITABLE_FIELDS
     )
@@ -3506,10 +3573,10 @@ def validate_order_patch(
     normalized: dict[str, Any] = {}
     draft_fields = set(patch) & ORDER_DRAFT_EDITABLE_FIELDS
     current_status = str(order.get("status") or "").strip().upper()
-    if draft_fields and current_status != "NEW":
+    if draft_fields and current_status in {"CONVERTED", "JUNK"}:
         raise HTTPException(
             status_code=409,
-            detail="published order cannot be edited",
+            detail="closed order cannot be edited",
         )
 
     text_fields = {
@@ -3551,6 +3618,9 @@ def validate_order_patch(
             except ValueError as error:
                 raise HTTPException(status_code=422, detail=str(error)) from error
 
+    if "workers_count" in normalized and normalized["workers_count"] < len(order.get("assigned_worker_ids") or []):
+        raise HTTPException(status_code=409, detail="worker count cannot be lower than assigned workers")
+
     for field in (
         "price_per_hour",
         "price_regular",
@@ -3589,7 +3659,7 @@ def validate_order_patch(
                 parsed_schedule.astimezone(timezone.utc)
                 - datetime.now(timezone.utc)
             ).total_seconds()
-            if seconds_until_start < 30 * 60:
+            if current_status == "NEW" and seconds_until_start < 30 * 60:
                 raise ValueError("scheduled_at must be at least 30 minutes ahead")
             if seconds_until_start > 366 * 24 * 60 * 60:
                 raise ValueError("scheduled_at must be within one year")
@@ -3667,16 +3737,12 @@ def validate_order_patch(
                 current_status == "DONE_PENDING"
                 and target_status in {"CONVERTED", "IN_PROCESS"}
             )
+            if draft_fields and current_status != "NEW":
+                raise HTTPException(status_code=403, detail="insufficient permissions")
             if not owns_order or not allowed_transition:
                 raise HTTPException(status_code=403, detail="insufficient permissions")
         elif role == "worker":
-            assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
-            if (
-                username not in assigned
-                or str(order.get("status") or "").upper() != "IN_PROCESS"
-                or target_status != "DONE_PENDING"
-            ):
-                raise HTTPException(status_code=403, detail="insufficient permissions")
+            raise HTTPException(status_code=403, detail="worker completion requires confirmed attendance")
         else:
             raise HTTPException(status_code=403, detail="insufficient permissions")
 
@@ -3851,6 +3917,7 @@ def persist_published_order(
     incoming: dict[str, Any],
     *,
     actor: dict[str, Any] | None,
+    preserve_existing_content: bool = False,
 ) -> dict[str, Any]:
     init_db()
     with db_connection() as connection:
@@ -3880,6 +3947,23 @@ def persist_published_order(
         )
         if actor is not None and existing is not None:
             raise HTTPException(status_code=409, detail="order number already exists")
+        if preserve_existing_content and existing is not None:
+            if (
+                existing.get("source") not in {"external", "crm"}
+                or existing.get("source_system") != "workstaff"
+                or incoming.get("source_instance") != CRM_SYNC_INSTANCE
+                or existing.get("logist_account_id") != incoming.get("logist_account_id")
+            ):
+                raise HTTPException(status_code=409, detail="cannot link an unrelated CRM order")
+            # Explicit test-CRM republication can link a legacy order, but must
+            # not erase edits already made in the app before its first sync.
+            incoming = {**incoming, **{
+                key: existing[key] for key in CRM_SYNC_FIELDS if key in existing
+            }}
+            incoming["nationality"] = (
+                "ru" if incoming.get("national") == "yes"
+                else "non_ru" if incoming.get("national") == "no" else "any"
+            )
         order = merge_existing_workflow_state(incoming, existing)
         write_order_in_connection(connection, order)
         if is_postgres_enabled():
@@ -3967,6 +4051,89 @@ def patch_order_atomically(
         if is_postgres_enabled():
             connection.commit()
     return order
+
+
+def crm_sync_snapshot(order: dict[str, Any]) -> dict[str, Any]:
+    if order.get("source") not in {"external", "crm"} or order.get("source_system") != "workstaff":
+        raise HTTPException(status_code=409, detail="order is not from Workstaff CRM")
+    if order.get("source_instance") != CRM_SYNC_INSTANCE:
+        raise HTTPException(status_code=409, detail="order is not linked to test CRM")
+    fields = {field: order.get(field) for field in sorted(CRM_SYNC_FIELDS)}
+    # Compare content rather than lifecycle: attendance must not create false
+    # editing conflicts. The revision is opaque to the CRM client.
+    revision = hashlib.sha256(json.dumps(
+        fields, sort_keys=True, ensure_ascii=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    return {
+        "protocol": CRM_SYNC_PROTOCOL,
+        "source_instance": CRM_SYNC_INSTANCE,
+        "order_id": str(order["external_order_id"]),
+        "status": order.get("status"),
+        "fields": fields,
+        "revision": revision,
+    }
+
+
+def read_crm_sync_snapshot(order_id: str) -> dict[str, Any]:
+    order = get_order(order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="order not found")
+    return crm_sync_snapshot(order)
+
+
+def sync_crm_order_atomically(order_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if set(payload) != {"source_instance", "revision", "fields"}:
+        raise HTTPException(status_code=422, detail="invalid CRM sync envelope")
+    if payload["source_instance"] != CRM_SYNC_INSTANCE:
+        raise HTTPException(status_code=403, detail="only test CRM is supported")
+    patch = payload["fields"]
+    if not isinstance(patch, dict) or not patch or set(patch) - CRM_SYNC_FIELDS:
+        raise HTTPException(status_code=422, detail="invalid CRM sync fields")
+    revision = payload["revision"]
+    if not isinstance(revision, str) or len(revision) != 64:
+        raise HTTPException(status_code=422, detail="invalid CRM sync revision")
+    init_db()
+    with db_connection() as connection:
+        if not is_postgres_enabled():
+            connection.execute("BEGIN IMMEDIATE")
+        order = read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        snapshot = crm_sync_snapshot(order)
+        if not hmac.compare_digest(snapshot["revision"], revision):
+            raise HTTPException(status_code=409, detail="CRM sync revision changed; retry")
+        normalized = validate_order_patch(
+            order, {key: value for key, value in patch.items() if key not in CRM_SYNC_GEO_FIELDS},
+            actor=None, integration=True,
+        )
+        if snapshot["status"] in {"CONVERTED", "JUNK"}:
+            raise HTTPException(status_code=409, detail="closed order cannot be edited")
+        for field in ("address_street", "address_number"):
+            if field in patch:
+                try:
+                    normalized[field] = bounded_text(patch[field], field, max_length=500)
+                except ValueError as error:
+                    raise HTTPException(status_code=422, detail=str(error)) from error
+        for field, limit in (("address_lat", 90), ("address_lon", 180)):
+            if field in patch:
+                try:
+                    value = float(patch[field])
+                    if not math.isfinite(value) or not -limit <= value <= limit:
+                        raise ValueError()
+                except (ValueError, TypeError):
+                    raise HTTPException(status_code=422, detail=f"invalid {field}")
+                normalized[field] = value
+        order.update(normalized)
+        write_order_in_connection(connection, order)
+        record_audit_event_in_connection(
+            connection, event_type="order_crm_synced", outcome="success",
+            actor_account_id="", actor_username="workstaff-test-crm",
+            target_type="order", target_id=str(order["id"]),
+            details={"fields": sorted(normalized)},
+        )
+        if is_postgres_enabled():
+            connection.commit()
+    return crm_sync_snapshot(order)
 
 
 COMMON_PROFILE_FIELDS = {
@@ -4670,6 +4837,7 @@ def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
             )
     result = {**default_profile(user), **profile}
     if role == "worker":
+        result["nationality_recorded"] = "nationality" in profile
         latest = latest_worker_verifications(account_id)
         for verification_type, status_field in {
             "identity": "identity_status",
@@ -4738,92 +4906,143 @@ def _clean_profile_value(field: str, value: Any) -> Any:
     return text
 
 
-def update_account_profile(
-    user: dict[str, Any], patch: dict[str, Any]
-) -> dict[str, Any]:
-    role = str(user.get("role") or "")
-    allowed = ROLE_PROFILE_FIELDS.get(role, set())
-    unknown = set(patch) - allowed
-    if unknown:
-        raise HTTPException(
-            status_code=422,
-            detail=f"unsupported profile fields: {', '.join(sorted(unknown))}",
-        )
-    if not patch:
-        raise HTTPException(status_code=422, detail="empty profile patch")
-    try:
-        cleaned = {
-            field: _clean_profile_value(field, value)
-            for field, value in patch.items()
-        }
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
+def _read_profile_in_connection(connection: Any, account_id: str) -> dict[str, Any]:
+    if _is_sqlite_connection(connection):
+        row = connection.execute(
+            f"SELECT data FROM {PROFILES_TABLE_NAME} WHERE account_id = ?", (account_id,),
+        ).fetchone()
+    else:
+        with connection.cursor() as cursor:
+            # A first profile may not have a row yet; serialize against its account.
+            cursor.execute(
+                f"SELECT account_id FROM {ACCOUNTS_TABLE_NAME} WHERE account_id = %s FOR UPDATE",
+                (account_id,),
+            )
+            cursor.execute(
+                f"SELECT data FROM {PROFILES_TABLE_NAME} WHERE account_id = %s", (account_id,),
+            )
+            row = cursor.fetchone()
+    return _profile_from_row(row)
 
-    current = get_account_profile(user)
-    invalidates_identity = role == "worker" and any(
-        field in cleaned and cleaned[field] != current.get(field)
-        for field in {"display_name", "date_birth", "nationality"}
-    )
-    stored_fields = ROLE_PROFILE_FIELDS.get(role, set())
-    updated = {
-        field: value
-        for field, value in {**current, **cleaned}.items()
-        if field in stored_fields
-    }
-    account_id = str(user.get("sub") or "")
-    serialized = json.dumps(updated, ensure_ascii=False)
-    with db_connection() as connection:
-        if not _is_sqlite_connection(connection):
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"""
-                    INSERT INTO {PROFILES_TABLE_NAME}(account_id, data, updated_at)
-                    VALUES (%s, %s::jsonb, NOW())
-                    ON CONFLICT(account_id) DO UPDATE SET
-                        data = excluded.data,
-                        updated_at = NOW()
-                    """,
-                    (account_id, serialized),
-                )
-                if invalidates_identity:
-                    _invalidate_identity_verification_in_connection(
-                        connection, account_id
-                    )
-                record_audit_event_in_connection(
-                    connection,
-                    event_type="profile_updated",
-                    outcome="success",
-                    actor_account_id=account_id,
-                    actor_username=str(user.get("username") or ""),
-                    target_type="profile",
-                    target_id=account_id,
-                    details={"fields": sorted(cleaned)},
-                )
-            connection.commit()
-        else:
-            connection.execute(
-                f"""
-                INSERT INTO {PROFILES_TABLE_NAME}(account_id, data, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(account_id) DO UPDATE SET
-                    data = excluded.data,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
+
+def _write_profile_in_connection(connection: Any, account_id: str, data: dict[str, Any]) -> None:
+    serialized = json.dumps(data, ensure_ascii=False)
+    if _is_sqlite_connection(connection):
+        connection.execute(
+            f"""INSERT INTO {PROFILES_TABLE_NAME}(account_id, data, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(account_id) DO UPDATE SET data = excluded.data,
+                updated_at = CURRENT_TIMESTAMP""",
+            (account_id, serialized),
+        )
+    else:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""INSERT INTO {PROFILES_TABLE_NAME}(account_id, data, updated_at)
+                VALUES (%s, %s::jsonb, NOW())
+                ON CONFLICT(account_id) DO UPDATE SET data = excluded.data,
+                    updated_at = NOW()""",
                 (account_id, serialized),
             )
-            if invalidates_identity:
-                _invalidate_identity_verification_in_connection(connection, account_id)
-            record_audit_event_in_connection(
-                connection,
-                event_type="profile_updated",
-                outcome="success",
-                actor_account_id=account_id,
-                actor_username=str(user.get("username") or ""),
-                target_type="profile",
-                target_id=account_id,
-                details={"fields": sorted(cleaned)},
-            )
+
+
+def update_account_profile(user: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    role = str(user.get("role") or "")
+    allowed = ROLE_PROFILE_FIELDS.get(role, set())
+    if not patch or set(patch) - allowed:
+        raise HTTPException(status_code=422, detail="unsupported or empty profile patch")
+    try:
+        cleaned = {field: _clean_profile_value(field, value) for field, value in patch.items()}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if role == "worker" and "employment_type" in cleaned:
+        raise HTTPException(status_code=403, detail="employment type is managed by a logist")
+    account_id = str(user.get("sub") or "")
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        stored = _read_profile_in_connection(connection, account_id)
+        if role == "worker" and "nationality" in stored and "nationality" in cleaned:
+            if cleaned["nationality"] != stored["nationality"]:
+                raise HTTPException(status_code=403, detail="citizenship can only be changed by a logist")
+        invalidates_identity = role == "worker" and any(
+            field in cleaned and cleaned[field] != stored.get(field)
+            for field in {"display_name", "date_birth", "nationality"}
+        )
+        _write_profile_in_connection(connection, account_id, {**stored, **cleaned})
+        if invalidates_identity:
+            _invalidate_identity_verification_in_connection(connection, account_id)
+        record_audit_event_in_connection(
+            connection, event_type="profile_updated", outcome="success",
+            actor_account_id=account_id, actor_username=str(user.get("username") or ""),
+            target_type="profile", target_id=account_id, details={"fields": sorted(cleaned)},
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
     return get_account_profile(user)
+
+
+def _worker_account(worker_id: str) -> dict[str, Any]:
+    with db_connection() as connection:
+        query = f"SELECT username FROM {ACCOUNTS_TABLE_NAME} WHERE account_id = {{}} AND role = 'worker'"
+        if _is_sqlite_connection(connection):
+            row = connection.execute(query.format("?"), (worker_id,)).fetchone()
+        else:
+            with connection.cursor() as cursor:
+                cursor.execute(query.format("%s"), (worker_id,))
+                row = cursor.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="worker not found")
+    return {"sub": worker_id, "username": str(row[0]), "role": "worker"}
+
+
+def worker_summary(worker_id: str) -> dict[str, Any] | None:
+    try:
+        profile = get_account_profile(_worker_account(worker_id))
+    except HTTPException as error:
+        if error.status_code == 404:
+            return None
+        raise
+    return {
+        "id": worker_id,
+        "display_name": profile.get("display_name"),
+        "full_name": profile.get("display_name"),
+        "phone_number": profile.get("phone"),
+        "nationality": profile.get("nationality") if profile.get("nationality_recorded") else None,
+        "cities": profile.get("cities", []),
+        "identity_status": profile.get("identity_status"),
+        "npd_status": profile.get("npd_status"),
+        "employment_type": profile.get("employment_type"),
+        "rating": profile.get("rating", 0),
+        "success_requests": profile.get("success_requests", 0),
+        "fail_requests": profile.get("fail_requests", 0),
+    }
+
+
+def staff_update_worker_profile(worker_id: str, patch: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
+    require_role(user, "logist")
+    _worker_account(worker_id)
+    if not patch or set(patch) - {"employment_type", "nationality"}:
+        raise HTTPException(status_code=422, detail="only employment type and citizenship can be edited")
+    try:
+        cleaned = {field: _clean_profile_value(field, value) for field, value in patch.items()}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        stored = _read_profile_in_connection(connection, worker_id)
+        if "nationality" in cleaned and stored.get("nationality") != cleaned["nationality"]:
+            _invalidate_identity_verification_in_connection(connection, worker_id)
+        _write_profile_in_connection(connection, worker_id, {**stored, **cleaned})
+        record_audit_event_in_connection(
+            connection, event_type="worker_profile_updated", outcome="success",
+            actor_account_id=str(user["sub"]), actor_username=str(user.get("username") or ""),
+            target_type="profile", target_id=worker_id, details={"fields": sorted(cleaned)},
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return worker_summary(worker_id) or {}
 
 
 def _worker_application(order: dict[str, Any], account_id: str) -> dict[str, Any] | None:
@@ -5008,18 +5227,80 @@ def decide_order_application_atomically(
     return application
 
 
-def _order_amount(order: dict[str, Any]) -> int:
+def review_order_worker_atomically(
+    order_id: str, worker_id: str, result: str, user: dict[str, Any]
+) -> dict[str, Any]:
+    require_role(user, "logist")
+    if result not in WORKER_RESULT_DELTAS:
+        raise HTTPException(status_code=422, detail="unknown worker result")
+    profile = get_account_profile(user)
+    with db_connection() as connection:
+        if _is_sqlite_connection(connection):
+            connection.execute("BEGIN IMMEDIATE")
+        order = read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(status_code=404, detail="order not found")
+        if not logist_owns_order(order, user, profile=profile):
+            raise HTTPException(status_code=403, detail="insufficient permissions")
+        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
+        if worker_id not in assigned:
+            raise HTTPException(status_code=403, detail="worker is not assigned to this order")
+        reviews = dict(order.get("worker_reviews") or {})
+        existing = reviews.get(worker_id)
+        if existing is not None:
+            if existing.get("result") != result:
+                raise HTTPException(status_code=409, detail="worker has already been reviewed")
+            return {"order": order, "review": existing, "already_recorded": True}
+        if order.get("status") != "DONE_PENDING":
+            raise HTTPException(status_code=409, detail="order is not awaiting completion")
+        stored = _read_profile_in_connection(connection, worker_id)
+        stored["rating"] = int(stored.get("rating") or 0) + WORKER_RESULT_DELTAS[result]
+        if result in {"success", "excellent"}:
+            stored["success_requests"] = int(stored.get("success_requests") or 0) + 1
+        elif result == "fail":
+            stored["fail_requests"] = int(stored.get("fail_requests") or 0) + 1
+        _write_profile_in_connection(connection, worker_id, stored)
+        review = {
+            "result": result,
+            "rating_delta": WORKER_RESULT_DELTAS[result],
+            "reviewed_at": serialize_datetime(utc_now()),
+            "reviewed_by": str(user["sub"]),
+        }
+        reviews[worker_id] = review
+        order["worker_reviews"] = reviews
+        if all(assigned_id in reviews for assigned_id in assigned):
+            order["status"] = "CONVERTED"
+        write_order_in_connection(connection, order)
+        record_audit_event_in_connection(
+            connection,
+            event_type="order_worker_reviewed",
+            outcome="success",
+            actor_account_id=str(user["sub"]),
+            actor_username=str(user.get("username") or ""),
+            target_type="order",
+            target_id=order_id,
+            details={"worker_id": worker_id, "result": result, "rating_delta": review["rating_delta"]},
+        )
+        if not _is_sqlite_connection(connection):
+            connection.commit()
+    return {"order": order, "review": review, "already_recorded": False}
+
+
+def _order_amount(order: dict[str, Any], worker_id: str | None = None) -> int:
     # A worker is guaranteed at least the order's minimum payable time. Prefer
-    # an explicit performer rate when one exists. App-created client orders do
-    # not currently collect a separate performer rate, so their stated total
-    # budget is the only payable amount and is shared between worker slots.
+    # an explicit performer rate when one exists. A legacy order's stated total
+    # budget is the fallback and is shared between worker slots.
     def _int(value: Any) -> int:
         try:
             return int(value or 0)
         except (TypeError, ValueError):
             return 0
 
-    hours = max(_int(order.get("hours")), _int(order.get("min_time")))
+    recorded_hours = (order.get("worker_hours") or {}).get(worker_id) if worker_id else None
+    hours = max(
+        _int(recorded_hours if recorded_hours is not None else order.get("hours")),
+        _int(order.get("min_time")),
+    )
     rate = (
         _int(order.get("price_per_hour"))
         or _int(order.get("price_state"))
@@ -5048,7 +5329,7 @@ def account_finance(user: dict[str, Any]) -> dict[str, Any]:
         status = str(order.get("status") or "")
         if status not in {"DONE_PENDING", "CONVERTED"}:
             continue
-        amount = _order_amount(order)
+        amount = _order_amount(order, account_id)
         transactions.append(
             {
                 "id": f"accrual-{order.get('id') or order.get('external_order_id')}",
@@ -5891,6 +6172,25 @@ async def me(
     }
 
 
+@app.get("/app-api/logist/workers/{worker_id}")
+async def get_worker_profile_for_staff(worker_id: str, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    require_role(user, "logist")
+    summary = await asyncio.to_thread(worker_summary, worker_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="worker not found")
+    return {"profile": summary}
+
+
+@app.patch("/app-api/logist/workers/{worker_id}")
+async def patch_worker_profile_for_staff(worker_id: str, request: Request, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    require_role(user, "logist")
+    patch = await bounded_json_payload(request, max_bytes=4096)
+    profile = await asyncio.to_thread(staff_update_worker_profile, worker_id, patch, user)
+    return {"profile": profile}
+
+
 @app.get("/app-api/me/profile")
 async def my_profile(
     authorization: str | None = Header(default=None),
@@ -6139,7 +6439,31 @@ async def get_my_orders(
     profile = None
     if user.get("role") in {"logist", "worker"}:
         profile = await asyncio.to_thread(get_account_profile, user)
-    return {"orders": orders_for_user(orders, user, profile=profile)}
+    visible = orders_for_user(orders, user, profile=profile)
+    if user.get("role") in {"logist", "client"}:
+        visible = await asyncio.to_thread(enrich_order_worker_profiles, visible)
+    return {"orders": visible}
+
+
+@app.post("/app-api/me/order-reviews/{order_id:path}")
+async def review_my_order_worker(
+    order_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    require_role(user, "logist")
+    payload = await bounded_json_payload(request, max_bytes=2048)
+    if set(payload) != {"worker_id", "result"}:
+        raise HTTPException(status_code=422, detail="worker_id and result are required")
+    try:
+        worker_id = bounded_text(payload["worker_id"], "worker_id", max_length=120, required=True)
+        result = bounded_text(payload["result"], "result", max_length=30, required=True)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    reviewed = await asyncio.to_thread(review_order_worker_atomically, order_id, worker_id, result, user)
+    reviewed["order"] = order_for_user(reviewed["order"], user)
+    return {"success": True, **reviewed}
 
 
 @app.get("/app-api/me/order-attendance/{order_id:path}")
@@ -6295,6 +6619,7 @@ async def publish_order_payload(
         if not isinstance(payload, dict):
             raise ValueError("payload must be an object")
         payload = dict(payload)
+        preserve_existing_content = integration and payload.get("preserve_existing_content") is True
         if actor is not None:
             payload["source"] = "manual"
             payload["source_system"] = "gpm-app"
@@ -6320,6 +6645,7 @@ async def publish_order_payload(
         persist_published_order,
         order,
         actor=actor,
+        preserve_existing_content=preserve_existing_content,
     )
 
     response_order = order_for_user(order, actor) if actor else order
@@ -6336,6 +6662,30 @@ async def get_orders(
 ) -> dict[str, list[dict[str, Any]]]:
     check_token(x_gpm_app_token)
     return {"orders": await asyncio.to_thread(list_orders)}
+
+
+@app.get("/app-api/integration/order-sync/{order_id:path}")
+async def get_crm_sync_order(
+    order_id: str,
+    response: Response,
+    x_gpm_app_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    check_token(x_gpm_app_token)
+    response.headers["Cache-Control"] = "no-store"
+    return await asyncio.to_thread(read_crm_sync_snapshot, order_id)
+
+
+@app.patch("/app-api/integration/order-sync/{order_id:path}")
+async def update_crm_sync_order(
+    order_id: str,
+    request: Request,
+    response: Response,
+    x_gpm_app_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    check_token(x_gpm_app_token)
+    response.headers["Cache-Control"] = "no-store"
+    payload = await bounded_json_payload(request, max_bytes=16384)
+    return await asyncio.to_thread(sync_crm_order_atomically, order_id, payload)
 
 
 @app.patch("/app-api/orders/{order_id:path}")

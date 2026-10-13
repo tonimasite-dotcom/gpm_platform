@@ -1,5 +1,33 @@
 import 'package:flutter/material.dart';
 
+/// Payment per performer. Legacy orders with only a total budget are split
+/// across the requested worker slots, just as the backend accrual does.
+List<String> workerPaymentLines(Map<String, dynamic> order) {
+  int number(dynamic value) => int.tryParse(value?.toString() ?? '') ?? 0;
+  final rates = [
+    number(order['price_per_hour']),
+    number(order['price_state']),
+    number(order['price_regular']),
+  ];
+  final rate = rates.firstWhere((value) => value > 0, orElse: () => 0);
+  final minimum = number(order['min_time']);
+  final planned = number(order['hours']);
+  final hours = planned > minimum ? planned : minimum;
+  if (rate > 0) {
+    return [
+      'Ставка: $rate ₽/ч',
+      if (hours > 0) 'Предполагаемый заработок: ${rate * hours} ₽',
+      if (minimum > 0) 'Минимальное оплачиваемое время: ${hoursText(minimum)}',
+    ];
+  }
+  final individual = number(order['individual_price']);
+  final budget = individual > 0 ? individual : number(order['legal_price']);
+  final slots = number(order['workers_count']);
+  return budget > 0
+      ? ['Предполагаемый заработок: ${budget ~/ (slots > 0 ? slots : 1)} ₽']
+      : ['Оплата уточняется у логиста'];
+}
+
 /// Shared order presentation helpers.
 ///
 /// Order status is stored as a raw backend code (`NEW`, `PROCESSED`,

@@ -274,8 +274,13 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
 
 class WorkerAttendancePanel extends StatefulWidget {
   final String orderId;
+  final VoidCallback? onChanged;
 
-  const WorkerAttendancePanel({super.key, required this.orderId});
+  const WorkerAttendancePanel({
+    super.key,
+    required this.orderId,
+    this.onChanged,
+  });
 
   @override
   State<WorkerAttendancePanel> createState() => _WorkerAttendancePanelState();
@@ -311,6 +316,7 @@ class _WorkerAttendancePanelState extends State<WorkerAttendancePanel> {
       );
       if (!mounted) return;
       setState(_reload);
+      widget.onChanged?.call();
       if (completed == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

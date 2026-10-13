@@ -44,12 +44,12 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   final _unitWeightController = TextEditingController();
   final _floorController = TextEditingController();
   final _priceController = TextEditingController();
+  final _hourlyRateController = TextEditingController();
   Timer? _addressLookupTimer;
   int _hours = 4;
   int _workersCount = 2;
   bool _hasElevator = true;
   String _national = 'yes';
-  String _workerCategory = 'loader';
   String _clientType = 'individual';
   String _clientEmail = '';
   String _clientPhone = '';
@@ -81,6 +81,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     _unitWeightController.dispose();
     _floorController.dispose();
     _priceController.dispose();
+    _hourlyRateController.dispose();
     super.dispose();
   }
 
@@ -459,10 +460,10 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         metro: _metroController.text.trim(),
         national: _national,
         minTime: _hours,
+        pricePerHour: int.parse(_hourlyRateController.text.trim()),
         individualPrice: _clientType == 'individual' ? price : null,
         legalPrice: _clientType == 'legal' ? price : null,
         nationality: _national == 'yes' ? 'ru' : null,
-        workerCategory: _workerCategory,
         workMode: 'rate',
         timezone: 'Europe/Moscow',
         addressStreet:
@@ -519,12 +520,12 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       _unitWeightController.clear();
       _floorController.clear();
       _priceController.clear();
+      _hourlyRateController.clear();
       setState(() {
         _hours = 4;
         _workersCount = 2;
         _hasElevator = true;
         _national = 'yes';
-        _workerCategory = 'loader';
         _selectedAddress = null;
         _addressCandidates = const [];
         _addressLookupError = null;
@@ -784,28 +785,18 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     setState(() => _national = selection.first),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _workerCategory,
+              TextFormField(
+                controller: _hourlyRateController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Категория рабочих',
+                  labelText: 'Ставка исполнителя в час, ₽',
                   border: OutlineInputBorder(),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'loader', child: Text('Грузчики')),
-                  DropdownMenuItem(value: 'rigger', child: Text('Такелажники')),
-                  DropdownMenuItem(
-                    value: 'assembler',
-                    child: Text('Сборщики / разборщики'),
-                  ),
-                  DropdownMenuItem(value: 'mover', child: Text('Разнорабочие')),
-                  DropdownMenuItem(
-                    value: 'packer',
-                    child: Text('Упаковщики / комплектовщики'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _workerCategory = value);
+                validator: (value) {
+                  final rate = int.tryParse(value?.trim() ?? '');
+                  return rate == null || rate <= 0 || rate > 1000000000
+                      ? 'Укажите положительную ставку в час'
+                      : null;
                 },
               ),
               const SizedBox(height: 12),

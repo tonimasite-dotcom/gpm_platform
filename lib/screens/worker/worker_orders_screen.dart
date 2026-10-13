@@ -58,6 +58,8 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
   }
 
   bool _matchesNationalityRequirement(Map<String, dynamic> order) {
+    // The authenticated API already applies the current server profile.
+    if (gpmApi.isApiMode) return true;
     final national = order['national'] ?? order['nationality'];
     final worker = gpmApi.getWorkerProfileSync(GpmApiService.demoWorkerId);
     if (national == true || national == 'yes' || national == 'ru') {
@@ -191,6 +193,10 @@ class OrdersList extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 _StatusPill(text: statusText, color: color),
+                for (final line in workerPaymentLines(order)) ...[
+                  const SizedBox(height: 4),
+                  Text(line),
+                ],
                 const SizedBox(height: 5),
                 OrderPublishedAtMarker(createdAt: order['created_at']),
               ],
@@ -274,7 +280,6 @@ class WorkerOrderDetailsScreen extends StatefulWidget {
 class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
   late Map<String, dynamic> order;
   bool isApplying = false;
-  bool isCompleting = false;
 
   @override
   void initState() {
@@ -320,40 +325,10 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
     }
   }
 
-  Future<void> completeOrder() async {
-    setState(() => isCompleting = true);
-
-    try {
-      final success = await gpmApi.updateOrderStatus(
-        order['id'].toString(),
-        'DONE_PENDING',
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        setState(() => order['status'] = 'DONE_PENDING');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Заказ отправлен логисту на подтверждение'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось завершить заказ'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => isCompleting = false);
+  Future<void> _refreshOrder() async {
+    final fresh = await gpmApi.getOrderById(order['id'].toString());
+    if (mounted && fresh != null) {
+      setState(() => order = Map<String, dynamic>.from(fresh));
     }
   }
 
@@ -365,9 +340,6 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
     final canApply =
         applicationStatus == null && order['status'] == 'PROCESSED';
     final isAssigned = order['is_assigned_to_worker'] == true;
-    final canComplete =
-        isAssigned &&
-        (order['status'] == 'PROCESSED' || order['status'] == 'IN_PROCESS');
 
     return Scaffold(
       appBar: AppBar(title: Text('Заявка № $orderNumber')),
@@ -418,29 +390,12 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
                     ),
                     _OrderFact(label: 'Метро', value: order['metro']),
                     _OrderFact(label: 'Адрес', value: order['address']),
+                    for (final line in workerPaymentLines(order)) Text(line),
                     if (order['work_mode'] == 'shift')
                       _OrderFact(
                         label: 'Описание смены',
                         value: order['shift_description'],
-                      )
-                    else ...[
-                      _OrderFact(
-                        label: 'Ставка (штатный постоянного графика)',
-                        value: order['price_regular'],
                       ),
-                      _OrderFact(
-                        label: 'Ставка (штатный свободного графика)',
-                        value: order['price_state'],
-                      ),
-                      _OrderFact(
-                        label: 'Ставка (наемник)',
-                        value: order['price_per_hour'],
-                      ),
-                      _OrderFact(
-                        label: 'Минимальная оплата',
-                        value: _minPayText(order),
-                      ),
-                    ],
                     const SizedBox(height: 8),
                     _StatusPill(
                       text: _workerStatusText(order),
@@ -448,7 +403,10 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
                     ),
                     if (isAssigned) ...[
                       const SizedBox(height: 20),
-                      WorkerAttendancePanel(orderId: order['id'].toString()),
+                      WorkerAttendancePanel(
+                        orderId: order['id'].toString(),
+                        onChanged: _refreshOrder,
+                      ),
                     ],
                     const SizedBox(height: 16),
                     const Divider(),
@@ -470,13 +428,13 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _primaryAction(canApply, canComplete),
+                onPressed: _primaryAction(canApply),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GpmColors.yellow,
                   foregroundColor: GpmColors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: isApplying || isCompleting
+                child: isApplying
                     ? const SizedBox(
                         height: 20,
                         width: 20,
@@ -485,7 +443,7 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : Text(_primaryActionText(canApply, canComplete)),
+                    : Text(_primaryActionText(canApply)),
               ),
             ),
           ],
@@ -494,15 +452,17 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
     );
   }
 
-  VoidCallback? _primaryAction(bool canApply, bool canComplete) {
+  VoidCallback? _primaryAction(bool canApply) {
     if (canApply && !isApplying) return applyToOrder;
-    if (canComplete && !isCompleting) return completeOrder;
     return null;
   }
 
-  String _primaryActionText(bool canApply, bool canComplete) {
+  String _primaryActionText(bool canApply) {
     if (canApply) return 'Откликнуться на заказ';
-    if (canComplete) return 'Завершить заказ';
+    if (order['is_assigned_to_worker'] == true &&
+        const {'PROCESSED', 'IN_PROCESS'}.contains(order['status'])) {
+      return 'Завершение через отметку ухода';
+    }
     if (order['status'] == 'DONE_PENDING') {
       return 'Ждет подтверждения логиста';
     }
@@ -560,10 +520,6 @@ String _nationalText(Map<String, dynamic> order) {
 bool _isRecruitmentClosedForWorker(Map<String, dynamic> order) {
   return order['worker_application_status'] != null ||
       order['is_assigned_to_worker'] == true;
-}
-
-String _minPayText(Map<String, dynamic> order) {
-  return hoursText(order['min_time'] ?? order['hours']);
 }
 
 String _workModeText(Map<String, dynamic> order) {

@@ -262,6 +262,8 @@ class _GpmLogo extends StatelessWidget {
           width: 48,
           height: 48,
           fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          isAntiAlias: true,
         ),
         const SizedBox(width: 8),
         const Text(
