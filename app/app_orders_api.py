@@ -20,7 +20,7 @@ from urllib.request import Request as UrlRequest, urlopen
 from uuid import UUID, uuid4
 
 import yaml
-from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 
@@ -5034,6 +5034,74 @@ def worker_summary(worker_id: str) -> dict[str, Any] | None:
     }
 
 
+def list_worker_profiles(
+    user: dict[str, Any], *, query: str = "", offset: int = 0, limit: int = 20,
+) -> dict[str, Any]:
+    require_role(user, "logist")
+    query = query.strip()
+    if len(query) > 100 or offset < 0 or not 1 <= limit <= 100:
+        raise HTTPException(status_code=422, detail="invalid worker search or page")
+    with db_connection() as connection:
+        sqlite = _is_sqlite_connection(connection)
+        placeholder = "?" if sqlite else "%s"
+        if sqlite:
+            connection.create_function("gpm_casefold", 1, lambda value: str(value or "").casefold())
+            connection.create_function("gpm_digits", 1, lambda value: "".join(c for c in str(value or "") if c.isdigit()))
+            data = "CASE WHEN json_valid(p.data) THEN p.data ELSE '{}' END"
+            name = f"COALESCE(json_extract({data}, '$.display_name'), '')"
+            phone = f"COALESCE(json_extract({data}, '$.phone'), '')"
+            lower = "gpm_casefold"
+            digits = f"gpm_digits({phone})"
+            normalized = query.casefold()
+        else:
+            name = "COALESCE(p.data->>'display_name', '')"
+            phone = "COALESCE(p.data->>'phone', '')"
+            lower = "LOWER"
+            digits = f"regexp_replace({phone}, '[^0-9]', '', 'g')"
+            normalized = query.lower()
+        where = "a.role = 'worker'"
+        parameters: list[Any] = []
+        if query:
+            pattern = "%" + normalized.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            conditions = [
+                f"{lower}({field}) LIKE {placeholder} ESCAPE '\\'"
+                for field in ("a.username", name, phone)
+            ]
+            parameters.extend([pattern] * len(conditions))
+            if all(c.isdigit() or c.isspace() or c in "+().-" for c in query):
+                phone_query = "".join(c for c in query if c.isdigit())
+                if phone_query:
+                    conditions.append(f"{digits} LIKE {placeholder}")
+                    parameters.append("%" + phone_query[-10:] + "%")
+            where += " AND (" + " OR ".join(conditions) + ")"
+        sql = f"""SELECT a.account_id, a.username, a.is_active, p.data
+            FROM {ACCOUNTS_TABLE_NAME} a
+            LEFT JOIN {PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
+            WHERE {where}
+            ORDER BY a.created_at DESC, a.account_id DESC
+            LIMIT {placeholder} OFFSET {placeholder}"""
+        parameters.extend([limit + 1, offset])
+        if sqlite:
+            rows = connection.execute(sql, parameters).fetchall()
+        else:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, parameters)
+                rows = cursor.fetchall()
+    workers = []
+    for account_id, username, active, data in rows[:limit]:
+        profile = _profile_from_row((data,))
+        workers.append({
+            "id": str(account_id),
+            "display_name": str(profile.get("display_name") or username),
+            "username": str(username),
+            "phone_number": str(profile.get("phone") or ""),
+            "nationality": profile.get("nationality"),
+            "employment_type": profile.get("employment_type", "contract"),
+            "is_active": bool(active),
+        })
+    return {"workers": workers, "has_more": len(rows) > limit, "next_offset": offset + len(workers)}
+
+
 def staff_update_worker_profile(worker_id: str, patch: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
     require_role(user, "logist")
     _worker_account(worker_id)
@@ -6185,6 +6253,17 @@ async def me(
         "username": str(user.get("username") or ""),
         "role": str(user.get("role") or ""),
     }
+
+
+@app.get("/app-api/logist/workers")
+async def get_workers_for_staff(
+    authorization: str | None = Header(default=None),
+    q: str = Query(default="", max_length=100),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict[str, Any]:
+    user = await authenticated_user(authorization)
+    return await asyncio.to_thread(list_worker_profiles, user, query=q, offset=offset, limit=limit)
 
 
 @app.get("/app-api/logist/workers/{worker_id}")

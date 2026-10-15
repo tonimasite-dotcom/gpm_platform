@@ -107,6 +107,8 @@ void main() {
     addTearDown(() => server.close(force: true));
     Map<String, dynamic>? patchBody;
     String? patchPath;
+    Map<String, String>? directoryQuery;
+    String? directoryAuthorization;
     server.listen((request) async {
       request.response.headers.contentType = ContentType.json;
       if (request.uri.path == '/app-api/auth/login') {
@@ -115,6 +117,18 @@ void main() {
             'access_token': 'test-token',
             'username': 'logist',
             'role': 'logist',
+          }),
+        );
+      } else if (request.uri.path == '/app-api/logist/workers') {
+        directoryQuery = request.uri.queryParameters;
+        directoryAuthorization = request.headers.value('Authorization');
+        request.response.write(
+          jsonEncode({
+            'workers': [
+              {'id': 'server-worker', 'display_name': 'Серверный исполнитель'},
+            ],
+            'has_more': false,
+            'next_offset': 21,
           }),
         );
       } else if (request.uri.path.startsWith('/app-api/logist/workers/')) {
@@ -156,6 +170,13 @@ void main() {
     );
     await api.getOrders();
     expect(await api.getApplicationsForOrder('1001'), isEmpty);
+    final directory = await api.getWorkerDirectory(
+      query: ' Ёлкин +7 ',
+      offset: 20,
+    );
+    expect(directoryQuery, {'q': 'Ёлкин +7', 'offset': '20', 'limit': '20'});
+    expect(directoryAuthorization, 'Bearer test-token');
+    expect((directory['workers'] as List).single['id'], 'server-worker');
     final worker = await api.getWorkerProfile('server-worker');
     expect(worker?['display_name'], 'Серверный исполнитель');
     expect(worker?['nationality'], isTrue);

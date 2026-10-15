@@ -82,6 +82,7 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                 Text(profile['phone_number']?.toString() ?? ''),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool>(
+                  isExpanded: true,
                   initialValue: _nationality,
                   decoration: const InputDecoration(labelText: 'Гражданство'),
                   hint: const Text('Не указано'),
@@ -108,6 +109,7 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                 ],
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _employment,
                   decoration: const InputDecoration(labelText: 'Тип занятости'),
                   items: const [

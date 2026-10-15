@@ -1455,6 +1455,64 @@ class GpmApiService {
     return copy;
   }
 
+  Future<Map<String, dynamic>> getWorkerDirectory({
+    String query = '',
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    if (isApiMode) {
+      return _authenticatedJsonRequest(
+        Uri(
+          path: '/app-api/logist/workers',
+          queryParameters: {
+            'q': query.trim(),
+            'offset': '$offset',
+            'limit': '$limit',
+          },
+        ).toString(),
+      );
+    }
+    final search = query.trim().toLowerCase();
+    final digits = search.replaceAll(RegExp(r'[^0-9]'), '');
+    final phoneSearch = RegExp(r'^[0-9\s+().-]+$').hasMatch(search);
+    final workers = _demoWorkers.entries
+        .where((entry) {
+          final worker = entry.value;
+          return search.isEmpty ||
+              [
+                entry.key,
+                worker['full_name'] ?? '',
+                worker['phone_number'] ?? '',
+              ].any(
+                (value) => value.toString().toLowerCase().contains(search),
+              ) ||
+              (phoneSearch &&
+                  digits.isNotEmpty &&
+                  (worker['phone_number'] ?? '')
+                      .toString()
+                      .replaceAll(RegExp(r'[^0-9]'), '')
+                      .contains(digits));
+        })
+        .map(
+          (entry) => <String, dynamic>{
+            'id': entry.key,
+            'display_name': entry.value['full_name'] ?? entry.key,
+            'username': entry.key,
+            'phone_number': entry.value['phone_number'] ?? '',
+            'nationality': entry.value['nationality'],
+            'employment_type': entry.value['employment_type'] ?? 'contract',
+            'is_active': true,
+          },
+        )
+        .toList();
+    final page = workers.skip(offset).take(limit).toList();
+    return {
+      'workers': page,
+      'has_more': offset + page.length < workers.length,
+      'next_offset': offset + page.length,
+    };
+  }
+
   Future<Map<String, dynamic>?> getWorkerProfile(String workerId) async {
     if (isApiMode) {
       final response = await _authenticatedJsonRequest(
