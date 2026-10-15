@@ -2,6 +2,11 @@
 
 Прототип платформы GPM: Flutter web/Android-клиент, FastAPI API и PostgreSQL.
 
+Полный актуальный снимок и точка остановки на 15 октября:
+[состав, данные и статус](PROJECT_SNAPSHOT_2026-10-15_FULL.md),
+[промпт для нового чата](CONTINUE_PROJECT_PROMPT_2026-10-15_FULL_SNAPSHOT.md).
+Приватный архив с настройками и БД хранится локально, в GitHub только документы.
+
 15.10.2026 исправления тестировщика выпущены в `app.gpmbot.ru`:
 backend и frontend `16b8fde`;
 [последний общий deployment](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/38741599111).
