@@ -101,6 +101,11 @@ operation; never restore over the live production database merely to test a copy
 
 ## Monitoring
 
+On 15 October 2026 the owner explicitly postponed Telegram setup. Intended
+recipient: `@Yuriy_GPM`. No alert bot, chat ID or token has been configured or
+tested. Resume later with beginner-friendly instructions one step at a time;
+do not treat this username as a deliverable private-chat destination.
+
 Check **Actions → Backup production** for the latest successful run and artifact.
 Workflow failures use GitHub's configured notification settings. A missed run
 cannot be detected by the same workflow; an independent alert channel and its

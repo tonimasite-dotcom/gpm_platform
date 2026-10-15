@@ -1,9 +1,11 @@
 # GPM на новом компьютере без приватного архива
 
-Актуальная ветка сохранённой работы: `work/tester-feedback-2026-10-13`.
+Актуальная ветка: `main` (исправления уже объединены и выпущены 15 октября).
 GitHub содержит исходники, тесты и документацию. Архив, действующие локальные
 настройки, SSH-ключи, базы, логи и сборки остались на прежнем компьютере.
-Подробная точка продолжения — `PROJECT_HANDOFF_2026-10-13_GITHUB_TRANSFER.md`.
+Подробная точка продолжения — `PROJECT_HANDOFF_2026-10-15_PRODUCTION_TESTER_RELEASE.md`.
+Документы 13 октября ниже исторические; их указания о невыпущенном приложении
+и выключенном обмене заменены текущим handoff.
 
 Дополнение 15.10: создан отдельный encrypted production backup с проверенным
 восстановлением БД. Он не добавлялся в старый полный ZIP. См.
@@ -18,7 +20,7 @@ GitHub содержит исходники, тесты и документаци
 на прежнем Windows-компьютере не собирались в каталоге с кириллицей.
 
 ```powershell
-git clone --branch work/tester-feedback-2026-10-13 https://github.com/tonimasite-dotcom/gpm_platform.git C:\src\gpm_platform
+git clone --branch main https://github.com/tonimasite-dotcom/gpm_platform.git C:\src\gpm_platform
 Set-Location C:\src\gpm_platform
 git status --short
 git branch --show-current
