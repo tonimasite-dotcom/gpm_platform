@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../worker-rate/app/Services/Order/GpmWorkerRateRules.php';
+require __DIR__ . '/../worker-rate/app/Services/Order/GpmLogistOrderGuard.php';
 use App\Services\Order\GpmWorkerRateRules as Rules;
+use App\Services\Order\GpmLogistOrderGuard as Guard;
 
 $count = 0;
 function accepted($payload, $current, $status, $expected) {
@@ -33,4 +35,16 @@ foreach ([0, -1, 100000001, true, '650.5', 'wrong'] as $rate) {
 }
 rejected(['workers_cost' => 650], 600, 0, 422);
 rejected(['workers_cost' => 650, 'expected_workers_cost' => false], 600, 0, 422);
+foreach (['address', 'city', 'street', 'house', 'flat', 'coords', 'metro_id', 'customer_cost', 'min_cost'] as $field) {
+    if (Guard::forbiddenFields([$field], ['logist']) !== [$field]) { throw new RuntimeException('Logist field bypass'); }
+    $count++;
+}
+foreach ([[], ['manager'], ['admin'], ['head'], ['logist', 'manager']] as $roles) {
+    if (Guard::forbiddenFields(['address', 'customer_cost'], $roles)) { throw new RuntimeException('Manager/sync blocked'); }
+    $count++;
+}
+if (Guard::forbiddenFields(['workers_cost', 'status_id', 'logist_id', 'updated_at'], ['logist'])) {
+    throw new RuntimeException('Logist operational actions blocked');
+}
+$count++;
 echo "GPM worker rate: $count scenarios passed\n";

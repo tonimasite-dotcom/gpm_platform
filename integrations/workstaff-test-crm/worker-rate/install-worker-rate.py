@@ -17,13 +17,16 @@ ROOT = Path('/var/www/gruzpiter/data/www/ts.workstaffcrm.ru')
 BUILD = ROOT / 'storage/app/gpm-worker-rate-build-20261015'
 BACKUP = Path('/root/gpm-snapshots/20261015-worker-rate-ui')
 BUNDLE = Path(__file__).resolve().parent
+MANIFEST_SHA = '10b4a84c3e64bdce844157071aca53fb56782d144837ac83ba801761284ef8a9'
 FORM = 'resources/js/pages/app/orders/logist_orders/LogistOrderForm.vue'
 EXPECTED = {
     'routes/api.php': '4a9402713e826b7f8884433b7154e12336bef882f4e88bbd3361de92282261b4',
     FORM: 'd05ded31f48c05e6bad41450e924d39dcef2f98c95122e82b213eca04fa4c103',
+    'app/Providers/AppServiceProvider.php': 'd0d371f424b205fab2d99267bfd50dcb92628b476be501a206703fd90b4d6a01',
 }
 NEW = [
     'app/Services/Order/GpmWorkerRateRules.php',
+    'app/Services/Order/GpmLogistOrderGuard.php',
     'app/Http/Controllers/Order/GpmWorkerRateController.php',
     'resources/js/pages/app/orders/logist_orders/GpmWorkerRateEditor.vue',
 ]
@@ -78,7 +81,32 @@ def patches():
     form = form.replace('  components: {', '  components: {\n    GpmWorkerRateEditor,', 1)
     if ':readonly="!readonly"' not in form:
         raise RuntimeError('Existing readonly form changed')
-    return {'routes/api.php': route.encode(), FORM: form.encode()}
+    provider = (ROOT / 'app/Providers/AppServiceProvider.php').read_text()
+    anchor = '        Relation::morphMap(['
+    if provider.count(anchor) != 1:
+        raise RuntimeError('Unexpected ts service provider structure')
+    guard = '''        // GPM ts-only: CRM logists cannot edit address/client pricing.
+        if (realpath(base_path()) === '/var/www/gruzpiter/data/www/ts.workstaffcrm.ru'
+            && rtrim(config('app.url'), '/') === 'https://ts.workstaffcrm.ru') {
+            \\App\\Models\\Order::updating(function ($order) {
+                $actor = auth()->user();
+                $roles = $actor ? $actor->roles->pluck('name')->all() : [];
+                $forbidden = \\App\\Services\\Order\\GpmLogistOrderGuard::forbiddenFields(
+                    array_keys($order->getDirty()), $roles
+                );
+                abort_if(count($forbidden) > 0, 403, 'Only a manager can change the address or client price');
+            });
+        }
+
+'''
+    provider = provider.replace(anchor, guard + anchor, 1)
+    with tempfile.TemporaryDirectory(prefix='gpm-ts-rate-lint-') as temporary:
+        for name, text in [('routes.php', route), ('provider.php', provider)]:
+            candidate = Path(temporary) / name
+            candidate.write_text(text)
+            run(['php', '-l', str(candidate)])
+    return {'routes/api.php': route.encode(), FORM: form.encode(),
+            'app/Providers/AppServiceProvider.php': provider.encode()}
 
 
 def preflight():
@@ -90,6 +118,8 @@ def preflight():
     for name in NEW:
         if checked(ROOT / name).exists():
             raise RuntimeError('Worker-rate editor already exists; do not overwrite')
+    if digest(checked(ROOT / 'public/mix-manifest.json')) != MANIFEST_SHA:
+        raise RuntimeError('Live ts frontend changed during preparation; review first')
     php = ('require "' + str(ROOT) + '/vendor/autoload.php"; '
            '$app=require "' + str(ROOT) + '/bootstrap/app.php"; '
            '$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); '
@@ -189,6 +219,20 @@ def apply(changes):
     recorded = json.loads((BACKUP / 'encrypted-manifest.json').read_text())
     if digest(BACKUP / 'before-ui.tar.gz.age') != recorded['sha256']:
         raise RuntimeError('Backup no longer matches')
+    # The provider guard was added after the UI backup was prepared. Preserve
+    # its exact original separately before changing it; never rewrite old backups.
+    provider_backup = BACKUP / 'app-provider-before-guard.php.age'
+    if not provider_backup.exists():
+        seal = Path('/root/gpm-snapshots/20261015-before-sync')
+        run([str(seal / 'age'), '--encrypt', '--recipient', (seal / 'age-recipient.txt').read_text().strip(),
+             '--output', str(provider_backup), str(ROOT / 'app/Providers/AppServiceProvider.php')])
+        (BACKUP / 'provider-backup.json').write_text(json.dumps({
+            'sha256': digest(provider_backup), 'bytes': provider_backup.stat().st_size,
+            'source_sha256': EXPECTED['app/Providers/AppServiceProvider.php'],
+        }, indent=2) + '\n')
+    provider_manifest = json.loads((BACKUP / 'provider-backup.json').read_text())
+    if digest(provider_backup) != provider_manifest['sha256']:
+        raise RuntimeError('Provider backup no longer matches')
     manifest = checked(BUILD / 'public/mix-manifest.json')
     json.loads(manifest.read_text())
     assets = []
@@ -205,7 +249,10 @@ def apply(changes):
     new = {**changes, **{name: (BUNDLE / name).read_bytes() for name in NEW}}
     written = []
     try:
-        for name, data in new.items():
+        # Install classes before the provider starts referencing the new guard.
+        names = NEW + list(changes)
+        for name in names:
+            data = new[name]
             info = old[name][1] if name in old else None
             replacement(ROOT / name, data, info.st_uid if info else user.pw_uid,
                         info.st_gid if info else user.pw_gid, stat.S_IMODE(info.st_mode) if info else 0o644)
@@ -225,9 +272,12 @@ def apply(changes):
                     os.chmod(parent, 0o755)
                 replacement(target, source.read_bytes(), user.pw_uid, user.pw_gid, 0o644)
         info = old['public/mix-manifest.json'][1]
+        if digest(ROOT / 'public/mix-manifest.json') != MANIFEST_SHA:
+            raise RuntimeError('Concurrent ts frontend update; refusing manifest replacement')
         replacement(ROOT / 'public/mix-manifest.json', manifest.read_bytes(), info.st_uid, info.st_gid, stat.S_IMODE(info.st_mode))
         written.append('public/mix-manifest.json')
         print(json.dumps({'applied': True, 'only_worker_rate_editable': True, 'old_assets_retained': True,
+                          'crm_logist_address_client_price_guard': True,
                           'orders_changed': 0, 'other_crm_touched': False}))
     except BaseException:
         for name in reversed(written):
