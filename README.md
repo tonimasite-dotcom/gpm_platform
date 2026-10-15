@@ -3,11 +3,14 @@
 Прототип платформы GPM: Flutter web/Android-клиент, FastAPI API и PostgreSQL.
 
 15.10.2026 исправления тестировщика выпущены в `app.gpmbot.ru`:
-backend/frontend `763f9d0`, [deployment](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/38710916221).
+backend `9e96fff`, frontend `728c612`;
+[последний frontend deployment](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/38730551221).
 Двусторонний обмен включён **только для ts.workstaffcrm.ru**, раз в минуту.
-Заявка 005/26 явно привязана с подтверждения владельца; другие старые заявки
-требуют отдельной привязки. Telegram-уведомления отложены владельцем.
-[Текущий статус и точка продолжения](PROJECT_HANDOFF_2026-10-15_PRODUCTION_TESTER_RELEASE.md).
+Заявка 005/26 привязана и уже завершена. В ts добавлен отдельный редактор ставки
+для рабочих; логисту запрещены адрес и клиентская цена. Это CRM-ограничение:
+в GPM логист сохраняет возможность менять адрес. Создан тестовый рабочий не РФ.
+Telegram-уведомления отложены владельцем.
+[Текущий статус и точка продолжения](PROJECT_HANDOFF_2026-10-15_TESTER_FOLLOWUP.md).
 Настроено [ежедневное шифрованное копирование](PRODUCTION_BACKUPS.md);
 [первый проверенный production backup](PRODUCTION_BACKUP_STATUS_2026-10-15.md)
 существует отдельно от ZIP от 13 октября.
