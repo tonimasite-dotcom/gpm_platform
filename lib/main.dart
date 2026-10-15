@@ -12,6 +12,7 @@ import 'services/gpm_api_service.dart';
 import 'services/chat_service.dart';
 import 'services/supabase_compat.dart';
 import 'theme/gpm_theme.dart';
+import 'widgets/gpm_logo.dart';
 
 late GpmApiService gpmApi;
 // Backward compatibility for older screens and examples.
@@ -257,14 +258,7 @@ class _GpmLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/images/gpm_logo_refined.png',
-          width: 48,
-          height: 48,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
-          isAntiAlias: true,
-        ),
+        const GpmLogoImage(width: 48, height: 48),
         const SizedBox(width: 8),
         const Text(
           'GPM',

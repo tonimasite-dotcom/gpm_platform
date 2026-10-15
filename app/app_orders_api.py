@@ -3366,6 +3366,8 @@ def _attendance_error_page(error: HTTPException) -> HTMLResponse:
 
 
 def _attendance_confirmation_form(context: dict[str, Any], action_url: str) -> str:
+    action_label = _attendance_action_label(context["action"])
+    confirmed_label = "Уход подтвержден" if context["action"] == "check_out" else "Приход подтвержден"
     if context["verifier_mode"] != "guest_code":
         return (
             "<h1>Откройте приложение GPM</h1>"
@@ -3374,26 +3376,27 @@ def _attendance_confirmation_form(context: dict[str, Any], action_url: str) -> s
         )
     if context["already_confirmed"]:
         return (
-            "<h1>Присутствие подтверждено</h1>"
+            f"<h1>{confirmed_label}</h1>"
             "<p>Код уже был выдан грузчику. Повторное подтверждение невозможно.</p>"
         )
     return f"""
-      <h1>Подтвердить {html.escape(context['action_label'])}</h1>
+      <h1>Подтвердить {action_label}</h1>
       <div class="meta"><strong>{html.escape(context['order_title'])}</strong><br>
       Исполнитель: {html.escape(context['worker_name'])}</div>
       <p>Убедитесь, что этот исполнитель действительно находится рядом с вами.</p>
       <form method="post" action="{html.escape(action_url, quote=True)}">
-        <button type="submit">Подтвердить присутствие</button>
+        <button type="submit">Подтвердить {action_label}</button>
       </form>
       <p class="muted">После подтверждения появится одноразовый шестизначный код. Сообщите его исполнителю. Запрос действует 1 минуту.</p>
     """
 
 
 def _attendance_completion_code_page(result: dict[str, Any]) -> HTMLResponse:
+    confirmed_label = "Уход подтвержден" if result["action"] == "check_out" else "Приход подтвержден"
     return _attendance_html_page(
-        title="Присутствие подтверждено",
+        title=confirmed_label,
         content=f"""
-          <h1>Присутствие подтверждено</h1>
+          <h1>{confirmed_label}</h1>
           <div class="meta"><strong>{html.escape(result['order_title'])}</strong><br>
           Исполнитель: {html.escape(result['worker_name'])}<br>
           Действие: {html.escape(result['action_label'])}</div>

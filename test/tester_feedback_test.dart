@@ -64,7 +64,9 @@ class _ProfileApi extends GpmApiService {
   }
 }
 
-class _ReviewApi extends GpmApiService {
+class _ReviewApi extends _ProfileApi {
+  _ReviewApi() : super(recorded: true);
+
   final order = <String, dynamic>{
     'id': 'review-order',
     'status': 'DONE_PENDING',
@@ -155,16 +157,23 @@ void main() {
     });
   }
 
-  testWidgets('logist saves citizenship and employment together', (
+  testWidgets('logist opens profile from an application and saves staff data', (
     tester,
   ) async {
     dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
-    final api = _ProfileApi(recorded: true);
+    final api = _ReviewApi();
     app.gpmApi = api;
     await tester.pumpWidget(
-      const MaterialApp(home: WorkerProfileReviewScreen(workerId: 'worker-id')),
+      MaterialApp(
+        home: LogistOrderDetailsScreen(order: api.order, onUpdate: () {}),
+      ),
     );
     await tester.pumpAndSettle();
+    final profileButton = find.text('Профиль и данные').first;
+    await tester.ensureVisible(profileButton);
+    await tester.tap(profileButton);
+    await tester.pumpAndSettle();
+    expect(find.byType(WorkerProfileReviewScreen), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<bool>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Не РФ').last);
@@ -176,6 +185,7 @@ void main() {
     await tester.tap(find.text('Сохранить'));
     await tester.pumpAndSettle();
     expect(api.saved, {'nationality': false, 'employment_type': 'state'});
+    expect(find.byType(WorkerProfileReviewScreen), findsNothing);
   });
 
   testWidgets(

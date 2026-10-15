@@ -953,11 +953,6 @@ class _ApplicationCard extends StatelessWidget {
             Row(
               children: [
                 const CircleAvatar(child: Icon(Icons.person)),
-                IconButton(
-                  tooltip: 'Профиль исполнителя',
-                  onPressed: onProfile,
-                  icon: const Icon(Icons.manage_accounts_outlined),
-                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1021,6 +1016,20 @@ class _ApplicationCard extends StatelessWidget {
             Text(
               'Рейтинг: ${worker['rating'] ?? 0} · Успешно: ${worker['success_requests'] ?? 0} · Срывы: ${worker['fail_requests'] ?? 0}',
               style: TextStyle(color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: isUpdating ? null : onProfile,
+                icon: const Icon(Icons.manage_accounts_outlined),
+                label: const Text('Профиль и данные'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Гражданство и тип занятости',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             if (isPending) ...[
               const SizedBox(height: 12),

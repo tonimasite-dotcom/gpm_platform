@@ -77,6 +77,7 @@ jobs:
           test -f build/web/main.dart.js
           test -f build/web/assets/.env
           test -f build/web/assets/assets/images/gpm_logo.png
+          test -f build/web/assets/assets/images/gpm_logo_refined.png
           tar -C build/web -czf "/tmp/gpm-web-${GITHUB_SHA}.tar.gz" .
 
       - name: Validate backend
@@ -276,6 +277,7 @@ jobs:
           test -f "$STAGE/main.dart.js"
           test -f "$STAGE/assets/.env"
           test -f "$STAGE/assets/assets/images/gpm_logo.png"
+          test -f "$STAGE/assets/assets/images/gpm_logo_refined.png"
           grep -Fxq 'GPM_APP_MODE=production' "$STAGE/assets/.env"
           grep -Fxq 'GPM_APP_API_URL=https://app-api.gpmbot.ru' "$STAGE/assets/.env"
 
