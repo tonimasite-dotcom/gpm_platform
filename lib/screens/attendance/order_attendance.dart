@@ -164,7 +164,11 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Подтвердить'),
+              child: Text(
+                preview['action'] == 'check_out'
+                    ? 'Подтвердить уход'
+                    : 'Подтвердить приход',
+              ),
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
+import '../../widgets/gpm_logo.dart';
 
 class GpmLoginScreen extends StatefulWidget {
   final VoidCallback onSignedIn;
@@ -673,15 +674,7 @@ class _GpmAuthHero extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Image.asset(
-                    'assets/images/gpm_logo.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.engineering,
-                      color: GpmColors.red,
-                      size: 54,
-                    ),
-                  ),
+                  child: const GpmLogoImage(),
                 ),
                 const SizedBox(height: 10),
                 const Text(

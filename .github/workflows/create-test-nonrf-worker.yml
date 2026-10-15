@@ -1,0 +1,102 @@
+name: Create requested non-RF test worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: Successful fresh Backup production run before creating this account
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  create:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify a recent successful backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$BACKUP_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BACKUP_RUN_ID" > "$RUNNER_TEMP/backup-run.json"
+          python3 - <<'PY'
+          import datetime, json, os
+          from pathlib import Path
+          data = json.loads((Path(os.environ['RUNNER_TEMP'])/'backup-run.json').read_text())
+          assert data['name'] == 'Backup production' and data['conclusion'] == 'success'
+          assert data['head_branch'] == 'main' and data['path'] == '.github/workflows/backup-production.yml'
+          elapsed = datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(data['updated_at'].replace('Z','+00:00'))
+          assert datetime.timedelta() <= elapsed <= datetime.timedelta(hours=6)
+          PY
+      - name: Configure verified production access and encryption
+        id: configure
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+          curl --fail --silent --show-error --location https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz --output "$RUNNER_TEMP/age.tar.gz"
+          printf '%s  %s\n' cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10 "$RUNNER_TEMP/age.tar.gz" | sha256sum --check --status
+          tar -xzf "$RUNNER_TEMP/age.tar.gz" -C "$RUNNER_TEMP"
+      - name: Create only the requested synthetic worker
+        id: create
+        env:
+          AGE_RECIPIENT: ${{ vars.GPM_BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          [[ "$AGE_RECIPIENT" =~ ^age1[0-9a-z]+$ ]]
+          SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes)
+          SCP=(scp -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes)
+          REMOTE="/root/gpm-create-nonrf-${GITHUB_RUN_ID}"
+          "${SSH[@]}" root@46.149.71.147 "install -m 700 -d '$REMOTE'"
+          cleanup() {
+            "${SSH[@]}" root@46.149.71.147 "rm -f -- '$REMOTE/create-worker.py' '$REMOTE/age' && rmdir -- '$REMOTE'" || true
+          }
+          trap cleanup EXIT
+          "${SCP[@]}" scripts/create_test_nonrf_worker.py "root@46.149.71.147:$REMOTE/create-worker.py"
+          "${SCP[@]}" "$RUNNER_TEMP/age/age" "root@46.149.71.147:$REMOTE/age"
+          "${SSH[@]}" root@46.149.71.147 "HELPER='$REMOTE/create-worker.py' AGE='$REMOTE/age' RECIPIENT='$AGE_RECIPIENT' bash -se" <<'REMOTE'
+          set -euo pipefail
+          chmod 700 "$AGE"
+          chmod 600 "$HELPER"
+          cd /opt/gpm/gpm_platform
+          set -a
+          . /root/gpm-app-env
+          set +a
+          .venv/bin/python "$HELPER" --age "$AGE" --recipient "$RECIPIENT" --apply
+          REMOTE
+      - name: Collect encrypted credentials even after partial creation
+        if: always() && steps.configure.outcome == 'success' && steps.create.outcome != 'skipped'
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$RUNNER_TEMP/gpm-test-worker-sealed"
+          scp -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes root@46.149.71.147:/root/gpm-test-accounts/gpm-worker-nonrf-151026-01/credentials.json.age "$RUNNER_TEMP/gpm-test-worker-sealed/credentials.json.age"
+      - name: Save only encrypted credentials
+        if: always() && steps.configure.outcome == 'success' && steps.create.outcome != 'skipped'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gpm-nonrf-worker-encrypted-${{ github.run_id }}
+          path: ${{ runner.temp }}/gpm-test-worker-sealed/credentials.json.age
+          if-no-files-found: error
+          retention-days: 7
