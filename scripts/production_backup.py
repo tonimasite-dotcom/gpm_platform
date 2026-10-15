@@ -258,5 +258,5 @@ if __name__ == '__main__':
         if args.operation == 'inspect':inspect()
         else:create_backup(args.component,args.run_id,args.recipient,args.age_binary)
     except Exception as error:
-        print('Production backup inspection failed ('+type(error).__name__+'); no credentials printed.',file=sys.stderr)
+        print('Production backup operation failed ('+type(error).__name__+'); no credentials printed.',file=sys.stderr)
         raise SystemExit(1)

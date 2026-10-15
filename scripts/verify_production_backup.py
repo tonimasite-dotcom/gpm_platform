@@ -137,7 +137,8 @@ def main():
             if dump:dump.unlink()
     summary={'ok':True,'decryption_verified':True,'isolated_database_restore':not args.skip_database_restore,
              'restore_image':POSTGRES_IMAGE if not args.skip_database_restore else None,'components':results}
-    (args.artifacts/'verification.json').write_text(json.dumps(summary,indent=2)+'\n')
+    report='local-verification.json' if args.skip_database_restore else 'verification.json'
+    (args.artifacts/report).write_text(json.dumps(summary,indent=2)+'\n')
     print(json.dumps(summary),flush=True)
 
 if __name__=='__main__':
