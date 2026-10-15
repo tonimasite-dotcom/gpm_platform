@@ -38,6 +38,13 @@ The workflow does not create a PostgreSQL dump. Before any schema or data
 change, create a separate encrypted/permission-restricted dump, verify it with
 `pg_restore --list`, record its path, and keep it through the rollback window.
 
+Production backups are handled separately by `Backup production`, daily at
+06:00 Moscow and on manual dispatch. It encrypts the DB/config/uploads and
+frontend on their hosts, verifies an isolated PostgreSQL restore and stores
+only encrypted off-server artifacts for 30 days. See `PRODUCTION_BACKUPS.md`.
+Check the successful run and artifact immediately before a release; scheduled
+backup success does not automatically authorize a deployment or DB restore.
+
 For the first DB-backed account migration, production must retain the three
 server-assigned bootstrap accounts (`client`, `worker`, `logist`). Startup
 imports them only when the accounts table is empty and stores only versioned

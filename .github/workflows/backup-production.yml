@@ -1,12 +1,14 @@
 name: Backup production
 
 on:
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       operation:
         description: Inspect backup prerequisites or create an encrypted backup
         required: true
-        default: inspect
+        default: backup
         type: choice
         options:
           - inspect
@@ -44,6 +46,7 @@ jobs:
           chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
           ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
       - name: Inspect production backup prerequisites
+        if: inputs.operation == 'inspect'
         shell: bash
         env:
           OPERATION: ${{ inputs.operation }}
@@ -63,7 +66,110 @@ jobs:
           set +a
           .venv/bin/python "$HELPER" --operation inspect
           REMOTE
+      - name: Install verified encryption tool
+        if: inputs.operation != 'inspect'
+        shell: bash
+        env:
+          AGE_RECIPIENT: ${{ vars.GPM_BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          [[ "$AGE_RECIPIENT" =~ ^age1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]]
+          umask 077
+          TOOLS="$RUNNER_TEMP/gpm-backup-tools"
+          mkdir -m 700 "$TOOLS"
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 \
+            https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz \
+            --output "$TOOLS/age.tar.gz"
+          printf '%s  %s\n' cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10 "$TOOLS/age.tar.gz" | sha256sum --check --status
+          tar -xzf "$TOOLS/age.tar.gz" -C "$TOOLS"
+          printf 'GPM_AGE_TOOL=%s\n' "$TOOLS/age/age" >> "$GITHUB_ENV"
+          mkdir -m 700 "$RUNNER_TEMP/gpm-encrypted"
+      - name: Capture and encrypt both production servers
+        id: collect
+        if: inputs.operation != 'inspect'
+        shell: bash
+        env:
+          AGE_RECIPIENT: ${{ vars.GPM_BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+          SCP=(scp -q -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes)
+          for COMPONENT in backend frontend; do
+            if [ "$COMPONENT" = backend ]; then
+              HOST=46.149.71.147
+              BASE=/opt/gpm/backups/managed-v1
+            else
+              HOST=186.246.10.163
+              BASE=/opt/gpm/front-backups/managed-v1
+            fi
+            TOOLS="/root/gpm-backup-tools-$RUN_ID"
+            HELPER="/root/gpm-backup-job-$RUN_ID.py"
+            "${SSH[@]}" "root@$HOST" "umask 077; mkdir -m 700 '$TOOLS'"
+            "${SCP[@]}" "$GPM_AGE_TOOL" "root@$HOST:$TOOLS/age"
+            "${SCP[@]}" scripts/production_backup.py "root@$HOST:$HELPER"
+            "${SSH[@]}" "root@$HOST" "COMPONENT='$COMPONENT' RUN_ID='$RUN_ID' RECIPIENT='$AGE_RECIPIENT' TOOLS='$TOOLS' HELPER='$HELPER' bash -se" <<'REMOTE'
+          set -euo pipefail
+          cleanup() { rm -f -- "$HELPER" "$TOOLS/age"; rmdir -- "$TOOLS"; }
+          trap cleanup EXIT
+          chmod 700 "$TOOLS/age"
+          chmod 600 "$HELPER"
+          if [ "$COMPONENT" = backend ]; then
+            cd /opt/gpm/gpm_platform
+            set -a
+            . /root/gpm-app-env
+            set +a
+            PYTHON=/opt/gpm/gpm_platform/.venv/bin/python
+          else
+            PYTHON=/usr/bin/python3
+          fi
+          "$PYTHON" "$HELPER" --operation backup --component "$COMPONENT" --run-id "$RUN_ID" --recipient "$RECIPIENT" --age-binary "$TOOLS/age"
+          REMOTE
+            "${SCP[@]}" "root@$HOST:$BASE/$COMPONENT-$RUN_ID/$COMPONENT.tar.gz.age" "$RUNNER_TEMP/gpm-encrypted/$COMPONENT.tar.gz.age"
+            "${SCP[@]}" "root@$HOST:$BASE/$COMPONENT-$RUN_ID/encrypted-manifest.json" "$RUNNER_TEMP/gpm-encrypted/$COMPONENT-manifest.json"
+          done
+      - name: Verify decryption, file hashes and isolated PostgreSQL restore
+        id: verify
+        if: inputs.operation != 'inspect'
+        shell: bash
+        env:
+          AGE_IDENTITY: ${{ secrets.GPM_BACKUP_AGE_IDENTITY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          value=os.environ['AGE_IDENTITY'].replace('\r\n','\n')
+          if 'AGE-SECRET-KEY-' not in value:
+              raise SystemExit('Backup decryption identity is not configured')
+          Path(os.environ['RUNNER_TEMP'],'gpm-age-identity.txt').write_text(value)
+          PY
+          python3 scripts/verify_production_backup.py \
+            --artifacts "$RUNNER_TEMP/gpm-encrypted" \
+            --identity "$RUNNER_TEMP/gpm-age-identity.txt" --age "$GPM_AGE_TOOL"
+          (cd "$RUNNER_TEMP/gpm-encrypted" && sha256sum *.age *manifest.json verification.json > SHA256SUMS.txt)
+      - name: Store only verified encrypted off-server backup
+        if: inputs.operation != 'inspect' && steps.verify.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gpm-production-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/gpm-encrypted/*.age
+            ${{ runner.temp }}/gpm-encrypted/*manifest.json
+            ${{ runner.temp }}/gpm-encrypted/verification.json
+            ${{ runner.temp }}/gpm-encrypted/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+      - name: Check live service remains available
+        if: inputs.operation != 'inspect'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 https://app-api.gpmbot.ru/health
+          curl --fail --silent --show-error --max-time 15 https://app.gpmbot.ru/ -o /dev/null
       - name: Remove runner SSH key
         if: always()
         shell: bash
-        run: rm -f "$HOME/.ssh/id_ed25519"
+        run: rm -f "$HOME/.ssh/id_ed25519" "$RUNNER_TEMP/gpm-age-identity.txt"
