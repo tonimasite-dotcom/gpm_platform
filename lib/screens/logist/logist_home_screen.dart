@@ -4,6 +4,7 @@ import '../chats/chat_threads_screen.dart';
 import 'logist_orders_screen.dart';
 import 'logist_analytics_screen.dart';
 import 'logist_profile_screen.dart';
+import 'logist_workers_screen.dart';
 
 class LogistHomeScreen extends StatefulWidget {
   const LogistHomeScreen({super.key});
@@ -19,6 +20,7 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
   Widget build(BuildContext context) {
     final screens = const [
       LogistOrdersScreen(),
+      LogistWorkersScreen(),
       ChatThreadsScreen(role: ChatRole.logist),
       LogistAnalyticsScreen(),
       LogistProfileScreen(),
@@ -27,6 +29,9 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
     return Scaffold(
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -35,11 +40,21 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
         },
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.assignment), label: 'Заказы'),
+            icon: Icon(Icons.assignment),
+            label: 'Заказы',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.forum_outlined), label: 'Чаты'),
+            icon: Icon(Icons.people_outline),
+            label: 'Исполнители',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.analytics), label: 'Аналитика'),
+            icon: Icon(Icons.forum_outlined),
+            label: 'Чаты',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics),
+            label: 'Аналитика',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
       ),

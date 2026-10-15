@@ -1,4 +1,5 @@
 import base64
+import asyncio
 import os
 import tempfile
 import unittest
@@ -191,6 +192,50 @@ class TesterFeedbackTests(unittest.TestCase):
             api.staff_update_worker_profile(self.worker["sub"], {"nationality": False}, self.client)
         self.assertEqual(caught.exception.status_code, 403)
 
+    def test_worker_directory_includes_workers_without_orders_and_only_staff_summary(self):
+        api.update_account_profile(self.worker, {
+            "display_name": "Рабочий без откликов", "nationality": False,
+            "phone": "+7 (900) 123-45-67", "payout_account": "synthetic-private-account",
+        })
+        page = api.list_worker_profiles(self.logist)
+        self.assertEqual({row["id"] for row in page["workers"]}, {self.worker["sub"], self.other["sub"]})
+        self.assertEqual(api.list_orders(), [])
+        worker = next(row for row in page["workers"] if row["id"] == self.worker["sub"])
+        self.assertEqual(set(worker), {"id", "display_name", "username", "phone_number", "nationality", "employment_type", "is_active"})
+        self.assertNotIn("synthetic-private-account", str(page))
+        self.assertIs(worker["nationality"], False)
+        api.staff_update_worker_profile(worker["id"], {"nationality": True, "employment_type": "state"}, self.logist)
+        refreshed = next(row for row in api.list_worker_profiles(self.logist)["workers"] if row["id"] == worker["id"])
+        self.assertIs(refreshed["nationality"], True)
+        self.assertEqual(refreshed["employment_type"], "state")
+
+    def test_worker_directory_search_pagination_and_literal_wildcards(self):
+        api.update_account_profile(self.worker, {"display_name": "Ёлкин_Тест%овый", "phone": "+7 (900) 123-45-67"})
+        for query in ["ёЛКиН", "8 900 123 45 67", "+7 (900)", "%", "_", "TEST-WORKER"]:
+            with self.subTest(query=query):
+                matches = api.list_worker_profiles(self.logist, query=query)["workers"]
+                self.assertEqual([row["id"] for row in matches], [self.worker["sub"]])
+        self.assertEqual(api.list_worker_profiles(self.logist, query="' OR 1=1 --")["workers"], [])
+        first = api.list_worker_profiles(self.logist, limit=1)
+        second = api.list_worker_profiles(self.logist, offset=first["next_offset"], limit=1)
+        self.assertTrue(first["has_more"])
+        self.assertFalse(second["has_more"])
+        self.assertEqual({row["id"] for row in first["workers"] + second["workers"]}, {self.worker["sub"], self.other["sub"]})
+        self.assertEqual(api.list_worker_profiles(self.logist, offset=second["next_offset"])["workers"], [])
+
+    def test_worker_directory_authentication_and_bounds(self):
+        login = api.check_app_credentials("test-logist", "Synthetic password 123!")
+        result = asyncio.run(api.get_workers_for_staff(authorization="Bearer " + login["access_token"], q="", offset=0, limit=20))
+        self.assertEqual(len(result["workers"]), 2)
+        for actor in [self.worker, self.client]:
+            with self.assertRaises(HTTPException) as caught:
+                api.list_worker_profiles(actor)
+            self.assertEqual(caught.exception.status_code, 403)
+        for arguments in [{"offset": -1}, {"limit": 0}, {"limit": 101}, {"query": "a" * 101}]:
+            with self.assertRaises(HTTPException) as caught:
+                api.list_worker_profiles(self.logist, **arguments)
+            self.assertEqual(caught.exception.status_code, 422)
+
     def test_missing_citizenship_is_not_treated_as_foreign(self):
         profile = api.get_account_profile(self.worker)
         self.assertFalse(api.worker_matches_nationality_requirement({"national": "yes"}, profile))
@@ -256,6 +301,11 @@ class TesterFeedbackTests(unittest.TestCase):
             self.assert_concurrent_citizenship_is_saved_once(self.worker)
             api.staff_update_worker_profile(self.worker["sub"], {"nationality": True, "employment_type": "state"}, self.logist)
             self.assertEqual(api.get_account_profile(self.worker)["employment_type"], "state")
+            api.update_account_profile(self.other, {"display_name": "Ёлкин Рабочий", "phone": "+7 (900) 123-45-67"})
+            for query in ["ЁЛКИН", "8 900 123 45 67"]:
+                directory = api.list_worker_profiles(self.logist, query=query, limit=1)
+                self.assertEqual([row["id"] for row in directory["workers"]], [self.other["sub"]])
+                self.assertFalse(directory["has_more"])
             with self.assertRaises(HTTPException):
                 api.update_account_profile(self.worker, {"nationality": False})
             order = self.active_order(owner=self.logist, workers=[self.worker, self.other])
