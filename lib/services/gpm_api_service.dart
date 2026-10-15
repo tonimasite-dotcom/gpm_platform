@@ -1414,17 +1414,23 @@ class GpmApiService {
     );
     if (orderIndex != -1) {
       final rawApplications = _demoOrders[orderIndex]['applications'];
-      if (rawApplications is List && rawApplications.isNotEmpty) {
-        return rawApplications
-            .whereType<Map>()
-            .map(
-              (application) => application.map(
-                (key, value) => MapEntry(key.toString(), value),
-              ),
-            )
-            .toList();
+      if (rawApplications is List &&
+          (isApiMode || rawApplications.isNotEmpty)) {
+        return rawApplications.whereType<Map>().map((application) {
+          final copy = application.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          if (copy['worker'] is Map) {
+            final worker = Map<String, dynamic>.from(copy['worker']);
+            worker['priority_group'] = calculatePriorityGroup(worker);
+            copy['worker'] = worker;
+          }
+          return copy;
+        }).toList();
       }
     }
+
+    if (isApiMode) return const [];
 
     return _demoApplications
         .where((application) => application['order_id'] == orderId)
@@ -1450,6 +1456,15 @@ class GpmApiService {
   }
 
   Future<Map<String, dynamic>?> getWorkerProfile(String workerId) async {
+    if (isApiMode) {
+      final response = await _authenticatedJsonRequest(
+        '/app-api/logist/workers/${Uri.encodeComponent(workerId)}',
+      );
+      return _requiredMap(
+        response['profile'],
+        'Не удалось загрузить исполнителя',
+      );
+    }
     return getWorkerProfileSync(workerId);
   }
 
@@ -1465,12 +1480,40 @@ class GpmApiService {
     return true;
   }
 
+  Future<Map<String, dynamic>> updateWorkerEmployment(
+    String workerId,
+    String employment,
+  ) => updateWorkerStaffProfile(workerId, {'employment_type': employment});
+
+  Future<Map<String, dynamic>> updateWorkerStaffProfile(
+    String workerId,
+    Map<String, dynamic> patch,
+  ) async {
+    if (isApiMode) {
+      final response = await _authenticatedJsonRequest(
+        '/app-api/logist/workers/${Uri.encodeComponent(workerId)}',
+        method: 'PATCH',
+        body: patch,
+      );
+      return _requiredMap(
+        response['profile'],
+        'Не удалось сохранить профиль исполнителя',
+      );
+    }
+    await updateWorkerProfile(workerId, patch);
+    return getWorkerProfileSync(workerId) ?? {};
+  }
+
   int calculatePriorityGroup(Map<String, dynamic> worker) {
     if (worker['employment_type'] == 'state') return 1;
 
     final isRussian = worker['nationality'] == true;
-    final hasPassport = (worker['passport']?.toString().isNotEmpty ?? false);
-    final hasInn = (worker['inn']?.toString().isNotEmpty ?? false);
+    final hasPassport = worker.containsKey('identity_status')
+        ? worker['identity_status'] == 'verified'
+        : (worker['passport']?.toString().isNotEmpty ?? false);
+    final hasInn = worker.containsKey('npd_status')
+        ? worker['npd_status'] == 'verified'
+        : (worker['inn']?.toString().isNotEmpty ?? false);
 
     if (isRussian && hasPassport && hasInn) return 2;
     if (isRussian && hasInn) return 3;
@@ -1686,10 +1729,19 @@ class GpmApiService {
     required String result,
   }) async {
     if (isApiMode) {
-      final success = await updateOrderStatus(orderId, 'CONVERTED');
-      return success
-          ? {'success': true}
-          : {'success': false, 'error': 'Не удалось завершить заказ'};
+      try {
+        final response = await _authenticatedJsonRequest(
+          '/app-api/me/order-reviews/${Uri.encodeComponent(orderId)}',
+          method: 'POST',
+          body: {'worker_id': workerId, 'result': result},
+        );
+        if (response['order'] is Map) {
+          _upsertOrder(Map<String, dynamic>.from(response['order']));
+        }
+        return response;
+      } catch (error) {
+        return {'success': false, 'error': error.toString()};
+      }
     }
     final orderIndex = _demoOrders.indexWhere(
       (order) => order['id'] == orderId,
@@ -1703,28 +1755,48 @@ class GpmApiService {
       return {'success': false, 'error': 'Исполнитель не найден'};
     }
 
+    final order = _demoOrders[orderIndex];
+    final assigned = _assignedWorkerIds(order);
+    if (!assigned.contains(workerId)) {
+      return {'success': false, 'error': 'Исполнитель не назначен на заявку'};
+    }
+    final reviews = Map<String, dynamic>.from(order['worker_reviews'] ?? {});
+    if (reviews.containsKey(workerId)) {
+      return reviews[workerId]['result'] == result
+          ? {'success': true, 'already_recorded': true, 'order': order}
+          : {'success': false, 'error': 'Исполнитель уже оценён'};
+    }
+    if (order['status'] != 'DONE_PENDING') {
+      return {'success': false, 'error': 'Заявка не ожидает подтверждения'};
+    }
+
     switch (result) {
       case 'success':
         worker['success_requests'] =
             (worker['success_requests'] as int? ?? 0) + 1;
-        worker['rating'] = (worker['rating'] as int? ?? 0) + 2;
+        worker['rating'] = (worker['rating'] as int? ?? 0) + 1;
         break;
       case 'fail':
         worker['fail_requests'] = (worker['fail_requests'] as int? ?? 0) + 1;
         worker['rating'] = (worker['rating'] as int? ?? 0) - 2;
         break;
       case 'good':
-        worker['rating'] = (worker['rating'] as int? ?? 0) + 1;
+        worker['rating'] = (worker['rating'] as int? ?? 0) - 1;
         break;
-      case 'neutral':
+      case 'excellent':
+        worker['success_requests'] =
+            (worker['success_requests'] as int? ?? 0) + 1;
+        worker['rating'] = (worker['rating'] as int? ?? 0) + 2;
         break;
       default:
         return {'success': false, 'error': 'Неизвестная оценка'};
     }
 
-    _demoOrders[orderIndex]['status'] = 'CONVERTED';
+    reviews[workerId] = {'result': result};
+    order['worker_reviews'] = reviews;
+    if (assigned.every(reviews.containsKey)) order['status'] = 'CONVERTED';
     _saveDemoState();
-    return {'success': true};
+    return {'success': true, 'order': Map<String, dynamic>.from(order)};
   }
 
   Future<bool> updateOrderStatus(String leadId, String newStatus) async {

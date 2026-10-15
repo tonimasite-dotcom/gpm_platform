@@ -431,7 +431,7 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 403)
 
-    def test_order_owner_can_edit_draft_but_not_published_order(self) -> None:
+    def test_order_owner_can_edit_active_but_not_closed_order(self) -> None:
         payload = sample_payload()
         payload["city"] = "Москва"
         order = api.normalize_external_order(payload)
@@ -459,9 +459,12 @@ class ActiveApiTests(unittest.TestCase):
         self.assertEqual(patch["address_lat"], 0)
 
         published = {**order, "status": "PROCESSED"}
+        updated = api.validate_order_patch(published, {"city": "Казань"}, actor=logist, integration=False)
+        self.assertEqual(updated["city"], "Казань")
+        closed = {**order, "status": "CONVERTED"}
         with self.assertRaises(HTTPException) as caught:
             api.validate_order_patch(
-                published,
+                closed,
                 {"city": "Казань"},
                 actor=logist,
                 integration=False,
@@ -492,8 +495,9 @@ class ActiveApiTests(unittest.TestCase):
         )
         self.assertEqual(patch["city"], "Тула")
 
-    def test_republished_order_keeps_locally_edited_content(self) -> None:
-        original = api.normalize_external_order(sample_payload())
+    def test_republished_active_order_receives_latest_crm_content(self) -> None:
+        payload = {**sample_payload(), "source_instance": api.CRM_SYNC_INSTANCE}
+        original = api.normalize_external_order(payload)
         published = {
             **original,
             "status": "PROCESSED",
@@ -501,11 +505,11 @@ class ActiveApiTests(unittest.TestCase):
             "address": "г Москва, ул. Отредактированная, 5",
         }
 
-        resynced = api.normalize_external_order(sample_payload())
+        resynced = api.normalize_external_order(payload)
         merged = api.merge_existing_workflow_state(resynced, published)
 
-        self.assertEqual(merged["workers_count"], 3)
-        self.assertEqual(merged["address"], "г Москва, ул. Отредактированная, 5")
+        self.assertEqual(merged["workers_count"], resynced["workers_count"])
+        self.assertEqual(merged["address"], resynced["address"])
         self.assertEqual(merged["status"], "PROCESSED")
 
     def test_client_can_edit_only_own_draft(self) -> None:
@@ -990,13 +994,12 @@ class ActiveApiTests(unittest.TestCase):
                 )
                 self.assertEqual(len(visible_to_assigned), 1)
                 self.assertTrue(visible_to_assigned[0]["is_assigned_to_worker"])
-                done_pending = api.patch_order_atomically(
-                    closed["id"],
-                    {"status": "DONE_PENDING"},
-                    actor=worker,
-                    integration=False,
-                )
-                self.assertEqual(done_pending["status"], "DONE_PENDING")
+                with self.assertRaises(HTTPException) as caught:
+                    api.patch_order_atomically(
+                        closed["id"], {"status": "DONE_PENDING"},
+                        actor=worker, integration=False,
+                    )
+                self.assertEqual(caught.exception.status_code, 403)
 
     def test_logist_cannot_close_recruitment_without_assigned_worker(self) -> None:
         order = api.normalize_external_order(sample_payload())
@@ -1822,12 +1825,10 @@ class ActiveApiTests(unittest.TestCase):
                     )["requires_logist_attention"]
                 )
 
-                api.patch_order_atomically(
-                    order["id"],
-                    {"status": "DONE_PENDING"},
-                    actor=worker,
-                    integration=False,
-                )
+                challenge = api.create_attendance_challenge(order["id"], worker, public_api_url="https://api.example.test")
+                api.confirm_attendance_by_client(client, token=challenge["confirmation_url"].rsplit("/", 1)[1])
+                challenge = api.create_attendance_challenge(order["id"], worker, public_api_url="https://api.example.test")
+                api.confirm_attendance_by_client(client, token=challenge["confirmation_url"].rsplit("/", 1)[1])
                 api.patch_order_atomically(
                     order["id"],
                     {"status": "CONVERTED"},

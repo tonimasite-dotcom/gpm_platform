@@ -127,11 +127,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? 'Заполните поле' : null;
 
-  String? _integer(
-    String? value, {
-    required int min,
-    required int max,
-  }) {
+  String? _integer(String? value, {required int min, required int max}) {
     final parsed = int.tryParse(value?.trim() ?? '');
     if (parsed == null || parsed < min || parsed > max) {
       return 'Введите число от $min до $max';
@@ -173,7 +169,8 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     final scheduledAt = _scheduledAt();
     if (scheduledAt == null) return 'Формат: ДД.ММ.ГГГГ и ЧЧ:ММ';
     final now = DateTime.now();
-    if (scheduledAt.isBefore(now.add(const Duration(minutes: 30)))) {
+    if (widget.order['status'] == 'NEW' &&
+        scheduledAt.isBefore(now.add(const Duration(minutes: 30)))) {
       return 'Минимум через 30 минут';
     }
     if (scheduledAt.isAfter(now.add(const Duration(days: 366)))) {
@@ -194,29 +191,27 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
 
     setState(() => _saving = true);
     final minTime = int.parse(_minTime.text.trim());
-    final result = await gpmApi.updateOrderDraft(
-      widget.order['id'].toString(),
-      {
-        'title': _title.text.trim(),
-        'city': _city.text.trim(),
-        'scheduled_at': scheduledAt.toUtc().toIso8601String(),
-        'address': _address.text.trim(),
-        'metro': _metro.text.trim(),
-        'workers_count': int.parse(_workersCount.text.trim()),
-        'hours': minTime,
-        'min_time': minTime,
-        'description': _description.text.trim(),
-        'national': _national,
-        'work_mode': _workMode,
-        'shift_description': _shiftDescription.text.trim(),
-        'price_per_hour': _optionalInt(_pricePerHour),
-        'price_regular': _optionalInt(_priceRegular),
-        'price_state': _optionalInt(_priceState),
-        if (!widget.isLogist) 'individual_price': _optionalInt(_individualPrice),
-        if (!widget.isLogist) 'legal_price': _optionalInt(_legalPrice),
-        'additional_info': _additionalInfo.text.trim(),
-      },
-    );
+    final result = await gpmApi
+        .updateOrderDraft(widget.order['id'].toString(), {
+          'title': _title.text.trim(),
+          'city': _city.text.trim(),
+          'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+          'address': _address.text.trim(),
+          'metro': _metro.text.trim(),
+          'workers_count': int.parse(_workersCount.text.trim()),
+          'min_time': minTime,
+          'description': _description.text.trim(),
+          'national': _national,
+          'work_mode': _workMode,
+          'shift_description': _shiftDescription.text.trim(),
+          'price_per_hour': _optionalInt(_pricePerHour),
+          'price_regular': _optionalInt(_priceRegular),
+          'price_state': _optionalInt(_priceState),
+          if (!widget.isLogist)
+            'individual_price': _optionalInt(_individualPrice),
+          if (!widget.isLogist) 'legal_price': _optionalInt(_legalPrice),
+          'additional_info': _additionalInfo.text.trim(),
+        });
 
     if (!mounted) return;
     setState(() => _saving = false);
@@ -365,12 +360,12 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     String label, {
     bool enabled = true,
   }) => _field(
-        controller,
-        label,
-        keyboardType: TextInputType.number,
-        validator: enabled ? _optionalPrice : null,
-        enabled: enabled,
-      );
+    controller,
+    label,
+    keyboardType: TextInputType.number,
+    validator: enabled ? _optionalPrice : null,
+    enabled: enabled,
+  );
 
   Widget _field(
     TextEditingController controller,

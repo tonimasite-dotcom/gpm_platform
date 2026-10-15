@@ -6,12 +6,14 @@ Test external system:
 https://ts.workstaffcrm.ru
 ```
 
-The external order system sends order data to the GPM backend. CRM is only a
-data source: moderation, publication, applications, assignments, statuses, and
-chats are handled inside GPM without Telegram or another messenger.
+The test CRM publishes order data to GPM. The prepared `gpm-crm-sync-v1`
+integration synchronizes common order fields in both directions; moderation,
+applications, assignments, attendance, statuses, and chats remain inside GPM.
+The CRM portion is installed with synchronization disabled until the matching
+GPM backend release is deployed.
 
 ```text
-External order system -> GPM backend -> PostgreSQL -> Flutter logist app
+Test CRM <-> GPM backend <-> PostgreSQL <-> Flutter logist app
 ```
 
 ## Endpoints
@@ -30,6 +32,34 @@ Read published orders with the server-side integration token:
 GET /app-api/orders
 X-GPM-App-Token: <token>
 ```
+
+Read a linked test CRM order's content and opaque revision:
+
+```http
+GET /app-api/integration/order-sync/{order_id}
+X-GPM-App-Token: <token>
+```
+
+Write common fields only if that revision is still current:
+
+```http
+PATCH /app-api/integration/order-sync/{order_id}
+X-GPM-App-Token: <token>
+Content-Type: application/json
+```
+
+```json
+{
+  "source_instance": "https://ts.workstaffcrm.ru",
+  "revision": "<64-character revision from GET>",
+  "fields": {"price_per_hour": 600}
+}
+```
+
+Both sync routes require the server-side integration token and a persisted
+test-CRM binding. A stale revision returns HTTP 409; the bridge reads again on
+its next attempt. Workflow fields cannot be written through this protocol.
+See [test CRM installation and field mapping](integrations/workstaff-test-crm/README.md).
 
 Update an app order from a trusted server-side integration:
 
@@ -118,6 +148,7 @@ development.
 ```json
 {
   "source_system": "workstaff",
+  "source_instance": "https://ts.workstaffcrm.ru",
   "logist_phone": "+79990000001",
   "client_phone": "+79990000000",
   "client_email": "client@example.com",
@@ -163,6 +194,11 @@ Required fields:
 - `order_data.info`
 
 Publishing the same `order_number` again updates the stored app order.
+When explicitly linking a legacy test order, the trusted publisher can send
+`preserve_existing_content: true`: GPM retains existing app content and the
+assigned owner before linking. The bridge then reconciles common fields using
+app values on conflicts. Human app users cannot request this integration option.
+An order already bound to another CRM instance cannot be claimed by test CRM.
 
 GPM resolves `logist_phone` to a single active logist account when the CRM POST
 is accepted. The assigned account ID, rather than browser storage, controls all
@@ -181,7 +217,8 @@ contain multiple cities. Direct application requests enforce the same rule.
 3. GPM requires `logist_phone`, resolves it to one active server-backed logist
    account, and rejects missing, unknown, or ambiguous values.
 4. Only that assigned logist can review the draft or its applications.
-5. While the order is `NEW`, that logist may correct operational fields such
+5. While the order is active (`NEW`, `PROCESSED`, `IN_PROCESS`, `DONE_PENDING`),
+   that logist may correct operational fields such
    as the city, schedule, address, worker count, work mode and rates. The CRM
    order number, source and assigned logist remain server-owned.
 6. The logist presses `Опубликовать`; GPM changes the status to `PROCESSED`.
@@ -193,10 +230,23 @@ contain multiple cities. Direct application requests enforce the same rule.
    order, chat, and completion flow. Workers recruited through other sources
    remain outside GPM.
 
-Clients and non-CRM logists create their own `NEW` drafts inside the GPM app,
-may edit only those drafts, and publish them from the app. They cannot see,
-edit or publish CRM orders assigned to a company logist. Published orders are
-immutable through the draft editor.
+Clients and non-CRM logists create their own `NEW` drafts inside the GPM app
+and publish them from the app. Clients edit only their own `NEW` drafts;
+logists may also edit their own active orders. They cannot see, edit or publish
+CRM orders assigned to another logist. Closed (`CONVERTED`, `JUNK`) order
+content is preserved to protect financial history.
+
+Republishing the same CRM order number updates operational fields and rates
+on active orders. GPM preserves its status, assigned logist, applications,
+assigned workers and recorded hours. Reducing the worker count below the
+number already assigned is rejected. This requires the CRM publisher to send
+an updated payload. The API does not poll CRM: the test CRM bridge runs
+`gpm:sync-orders` at one-minute intervals after activation and writes accepted
+app edits to the corresponding test CRM columns. If both sides change one
+field, app values win; different changed fields merge. Activation, native field
+mapping and app-only fields are documented in the integration README above.
+An accepted checkout records whole payable hours rounded upward;
+when every assigned worker has checked out, the order enters `DONE_PENDING`.
 
 The active integration does not call a Telegram bot and does not use messenger
 usernames as routing identifiers. See `INDEPENDENT_PLATFORM_ARCHITECTURE.md`.

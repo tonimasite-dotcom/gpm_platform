@@ -32,7 +32,10 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _submittingVerification = false;
-  bool _nationality = false;
+  bool? _nationality;
+  bool get _nationalityRecorded =>
+      _profile['nationality_recorded'] == true ||
+      (!gpmApi.isApiMode && _profile.containsKey('nationality'));
   bool _hasStraps = false;
   bool _hasTools = false;
   String _payoutMethod = '';
@@ -85,7 +88,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       final tools = _map(raw['tools']);
       _hasStraps = tools['straps'] == true;
       _hasTools = tools['tools'] == true;
-      _nationality = raw['nationality'] == true;
+      _nationality = _nationalityRecorded ? raw['nationality'] == true : null;
       _payoutMethod = _text(raw['payout_method']);
     } catch (_) {
       if (mounted) _showError('Не удалось загрузить профиль');
@@ -96,12 +99,16 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate() || _saving) return;
+    if (_nationality == null) {
+      _showError('Укажите гражданство перед сохранением профиля');
+      return;
+    }
     setState(() => _saving = true);
     final patch = <String, dynamic>{
       'display_name': _name.text.trim(),
       'phone': _phone.text.trim(),
       'date_birth': _birthDate.text.trim(),
-      'nationality': _nationality,
+      if (!_nationalityRecorded) 'nationality': _nationality,
       'cities': _cities.text
           .split(',')
           .map((item) => item.trim())
@@ -311,9 +318,20 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                           _YesNoField(
                             label: 'Гражданство РФ',
                             value: _nationality,
-                            onChanged: (value) =>
-                                setState(() => _nationality = value),
+                            onChanged: _nationalityRecorded || _saving
+                                ? null
+                                : (value) =>
+                                      setState(() => _nationality = value),
                           ),
+                          if (_nationalityRecorded) ...[
+                            const SizedBox(height: 6),
+                            const Text('Изменить гражданство может логист.'),
+                          ] else ...[
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Выберите гражданство. После сохранения изменить его сможет логист.',
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           const Align(
                             alignment: Alignment.centerLeft,
@@ -665,8 +683,8 @@ class _AdaptiveRow extends StatelessWidget {
 
 class _YesNoField extends StatelessWidget {
   final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final bool? value;
+  final ValueChanged<bool>? onChanged;
 
   const _YesNoField({
     required this.label,
@@ -686,8 +704,11 @@ class _YesNoField extends StatelessWidget {
             ButtonSegment(value: true, label: Text('Да')),
             ButtonSegment(value: false, label: Text('Нет')),
           ],
-          selected: {value},
-          onSelectionChanged: (selection) => onChanged(selection.first),
+          selected: value == null ? {} : {value!},
+          emptySelectionAllowed: value == null,
+          onSelectionChanged: onChanged == null
+              ? null
+              : (selection) => onChanged!(selection.first),
         ),
       ],
     );
