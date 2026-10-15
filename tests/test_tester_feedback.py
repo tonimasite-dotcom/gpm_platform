@@ -107,7 +107,7 @@ class TesterFeedbackTests(unittest.TestCase):
         self.assertEqual(api.account_finance(self.worker)["total_accrued"], 0)
 
     def test_latest_crm_fields_preserve_assignments_hours_reviews_and_owner(self):
-        original = api.normalize_external_order(sample_payload())
+        original = api.normalize_external_order({**sample_payload(), "source_instance": api.CRM_SYNC_INSTANCE})
         existing = {**original, "status": "IN_PROCESS", "logist_account_id": self.logist["sub"],
             "assigned_worker_ids": [self.worker["sub"]], "worker_hours": {self.worker["sub"]: 5},
             "worker_reviews": {self.worker["sub"]: {"result": "success"}}}
@@ -259,6 +259,8 @@ class TesterFeedbackTests(unittest.TestCase):
             with self.assertRaises(HTTPException):
                 api.update_account_profile(self.worker, {"nationality": False})
             order = self.active_order(owner=self.logist, workers=[self.worker, self.other])
+            order.update(source="external", source_system="workstaff", source_instance=api.CRM_SYNC_INSTANCE)
+            api.save_order(order)
             start = datetime(2026, 10, 13, 9, tzinfo=timezone.utc)
             self.attendance_event(order, self.worker, start)
             self.attendance_event(order, self.other, start)

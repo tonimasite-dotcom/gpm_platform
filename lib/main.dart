@@ -258,7 +258,7 @@ class _GpmLogo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset(
-          'assets/images/gpm_logo.png',
+          'assets/images/gpm_logo_refined.png',
           width: 48,
           height: 48,
           fit: BoxFit.contain,

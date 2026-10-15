@@ -132,6 +132,28 @@ class CrmOrderSyncTests(unittest.TestCase):
             api.merge_existing_workflow_state({**order, "source_instance": "https://other.example"}, order)
         self.assertEqual(caught.exception.status_code, 409)
 
+    def test_legacy_and_other_crm_republication_keeps_active_content_unchanged(self):
+        for instance in ("", "https://workstaffcrm.ru", "https://other.example"):
+            with self.subTest(instance=instance):
+                order = self.linked_order()
+                order.update(source_instance=instance, price_per_hour=850, address="App address")
+                incoming = {**order, "price_per_hour": 400, "address": "CRM address"}
+                saved = api.merge_existing_workflow_state(incoming, order)
+                self.assertEqual(saved["price_per_hour"], 850)
+                self.assertEqual(saved["address"], "App address")
+                draft = api.merge_existing_workflow_state(incoming, {**order, "status": "NEW"})
+                self.assertEqual(draft["price_per_hour"], 400)
+
+    def test_legacy_active_crm_content_patch_is_rejected_but_owner_can_edit(self):
+        order = self.linked_order()
+        order["source_instance"] = ""
+        api.save_order(order)
+        with self.assertRaises(HTTPException) as caught:
+            api.patch_order_atomically(order["id"], {"price_per_hour": 800}, actor=None, integration=True)
+        self.assertEqual(caught.exception.status_code, 409)
+        saved = api.patch_order_atomically(order["id"], {"price_per_hour": 800}, actor=self.logist, integration=False)
+        self.assertEqual(saved["price_per_hour"], 800)
+
     def test_first_test_crm_link_preserves_legacy_app_edits_and_owner(self):
         order = self.linked_order()
         order.pop("source_instance")

@@ -34,3 +34,4 @@ flutter:
   assets:
     - .env
     - assets/images/gpm_logo.png
+    - assets/images/gpm_logo_refined.png

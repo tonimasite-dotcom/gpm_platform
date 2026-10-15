@@ -2401,9 +2401,15 @@ def merge_existing_workflow_state(
     for field in WORKFLOW_FIELDS:
         if field in existing:
             merged[field] = existing[field]
-    # The latest accepted CRM content updates active orders, while assignment,
-    # attendance and review workflow remains owned by GPM.
-    if str(existing.get("status") or "").upper() in {"CONVERTED", "JUNK"}:
+    # Only the explicitly identified test CRM opts into the new active-content
+    # behavior. Legacy/other CRM publishers keep their pre-release semantics.
+    current_status = str(existing.get("status") or "").strip().upper()
+    test_crm = (
+        incoming_instance == CRM_SYNC_INSTANCE
+        and incoming.get("source_system") == "workstaff"
+        and incoming.get("source") in {"external", "crm"}
+    )
+    if current_status in {"CONVERTED", "JUNK"} or (current_status != "NEW" and not test_crm):
         for field in ORDER_DRAFT_EDITABLE_FIELDS:
             if field in existing:
                 merged[field] = existing[field]
@@ -3578,6 +3584,12 @@ def validate_order_patch(
             status_code=409,
             detail="closed order cannot be edited",
         )
+    if (
+        integration and draft_fields and current_status != "NEW"
+        and order.get("source") in {"external", "crm"}
+        and order.get("source_instance") != CRM_SYNC_INSTANCE
+    ):
+        raise HTTPException(status_code=409, detail="active CRM editing is enabled only for the test CRM")
 
     text_fields = {
         "title": (200, True),

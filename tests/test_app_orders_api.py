@@ -496,7 +496,8 @@ class ActiveApiTests(unittest.TestCase):
         self.assertEqual(patch["city"], "Тула")
 
     def test_republished_active_order_receives_latest_crm_content(self) -> None:
-        original = api.normalize_external_order(sample_payload())
+        payload = {**sample_payload(), "source_instance": api.CRM_SYNC_INSTANCE}
+        original = api.normalize_external_order(payload)
         published = {
             **original,
             "status": "PROCESSED",
@@ -504,7 +505,7 @@ class ActiveApiTests(unittest.TestCase):
             "address": "г Москва, ул. Отредактированная, 5",
         }
 
-        resynced = api.normalize_external_order(sample_payload())
+        resynced = api.normalize_external_order(payload)
         merged = api.merge_existing_workflow_state(resynced, published)
 
         self.assertEqual(merged["workers_count"], resynced["workers_count"])
