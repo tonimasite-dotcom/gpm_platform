@@ -1,0 +1,84 @@
+name: Recover encrypted backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: Successful Backup production run ID
+        required: true
+        type: string
+      backup_attempt:
+        description: Backup attempt number
+        required: true
+        default: '1'
+        type: string
+      recipient:
+        description: New local public age recipient (never a private key)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-backup-recovery
+  cancel-in-progress: false
+
+jobs:
+  reencrypt:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - name: Checkout recovery tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Download and re-encrypt a verified backup
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+          BACKUP_ATTEMPT: ${{ inputs.backup_attempt }}
+          RECIPIENT: ${{ inputs.recipient }}
+          AGE_IDENTITY: ${{ secrets.GPM_BACKUP_AGE_IDENTITY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$BACKUP_RUN_ID" =~ ^[0-9]{5,20}$ ]]
+          [[ "$BACKUP_ATTEMPT" =~ ^[0-9]{1,5}$ ]]
+          [[ "$RECIPIENT" =~ ^age1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]]
+          WORK="$RUNNER_TEMP/gpm-recovery"
+          mkdir -m 700 "$WORK"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BACKUP_RUN_ID" > "$WORK/source-run.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          source=json.loads(Path(os.environ['RUNNER_TEMP'],'gpm-recovery/source-run.json').read_text())
+          assert source['head_branch']=='main'
+          assert source['conclusion']=='success'
+          assert source['path']=='.github/workflows/backup-production.yml'
+          Path(os.environ['RUNNER_TEMP'],'gpm-age-identity.txt').write_text(os.environ['AGE_IDENTITY'].replace('\r\n','\n'))
+          PY
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 \
+            https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz -o "$WORK/age.tar.gz"
+          printf '%s  %s\n' cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10 "$WORK/age.tar.gz" | sha256sum --check --status
+          tar -xzf "$WORK/age.tar.gz" -C "$WORK"
+          gh run download "$BACKUP_RUN_ID" --name "gpm-production-encrypted-$BACKUP_RUN_ID-$BACKUP_ATTEMPT" --dir "$WORK/source"
+          python3 scripts/reencrypt_production_backup.py \
+            --source "$WORK/source" --target "$WORK/encrypted" \
+            --identity "$RUNNER_TEMP/gpm-age-identity.txt" --age "$WORK/age/age" --recipient "$RECIPIENT"
+      - name: Store only re-encrypted recovery payload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gpm-recovery-encrypted-${{ github.run_id }}
+          path: ${{ runner.temp }}/gpm-recovery/encrypted/
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
+      - name: Remove temporary recovery identity
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/gpm-age-identity.txt"
