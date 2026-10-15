@@ -13,7 +13,8 @@ class GpmLogoImage extends StatelessWidget {
     width: width,
     height: height,
     fit: BoxFit.contain,
-    filterQuality: FilterQuality.high,
+    // Mipmaps retain smooth edges when the large source is reduced to an icon.
+    filterQuality: FilterQuality.medium,
     isAntiAlias: true,
   );
 }

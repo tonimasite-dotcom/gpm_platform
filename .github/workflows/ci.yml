@@ -65,6 +65,8 @@ jobs:
           find integrations/workstaff-test-crm -name '*.php' -print0 | xargs -0 -n 1 php -l
           php integrations/workstaff-test-crm/tests/sync_plan_test.php
           php integrations/workstaff-test-crm/tests/sync_service_test.php
+          php integrations/workstaff-test-crm/tests/worker_rate_test.php
+          python -m py_compile integrations/workstaff-test-crm/worker-rate/install-worker-rate.py
 
   flutter:
     runs-on: ubuntu-24.04
