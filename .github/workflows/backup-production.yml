@@ -1,0 +1,69 @@
+name: Backup production
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Inspect backup prerequisites or create an encrypted backup
+        required: true
+        default: inspect
+        type: choice
+        options:
+          - inspect
+          - backup
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - name: Checkout backup tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Configure verified production SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+      - name: Inspect production backup prerequisites
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          test "$OPERATION" = inspect
+          HELPER="/root/gpm-backup-job-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.py"
+          SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+          scp -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes scripts/production_backup.py "root@46.149.71.147:$HELPER"
+          "${SSH[@]}" root@46.149.71.147 "HELPER='$HELPER' bash -se" <<'REMOTE'
+          set -euo pipefail
+          trap 'rm -f -- "$HELPER"' EXIT
+          chmod 600 "$HELPER"
+          cd /opt/gpm/gpm_platform
+          set -a
+          . /root/gpm-app-env
+          set +a
+          .venv/bin/python "$HELPER" --operation inspect
+          REMOTE
+      - name: Remove runner SSH key
+        if: always()
+        shell: bash
+        run: rm -f "$HOME/.ssh/id_ed25519"
