@@ -3,8 +3,10 @@
 Прототип платформы GPM: Flutter web/Android-клиент, FastAPI API и PostgreSQL.
 
 15.10.2026 исправления тестировщика выпущены в `app.gpmbot.ru`:
-backend `9e96fff`, frontend `728c612`;
-[последний frontend deployment](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/38730551221).
+backend и frontend `16b8fde`;
+[последний общий deployment](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/38741599111).
+Логисту доступен раздел **«Исполнители»** с поиском и изменением гражданства
+и типа занятости любого рабочего GPM без заказа/отклика.
 Двусторонний обмен включён **только для ts.workstaffcrm.ru**, раз в минуту.
 Заявка 005/26 привязана и уже завершена. В ts добавлен отдельный редактор ставки
 для рабочих; логисту запрещены адрес и клиентская цена. Это CRM-ограничение:
