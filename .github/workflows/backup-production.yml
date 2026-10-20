@@ -151,7 +151,7 @@ jobs:
           (cd "$RUNNER_TEMP/gpm-encrypted" && sha256sum *.age *manifest.json verification.json > SHA256SUMS.txt)
       - name: Store only verified encrypted off-server backup
         if: inputs.operation != 'inspect' && steps.verify.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: gpm-production-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
