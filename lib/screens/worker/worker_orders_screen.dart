@@ -174,6 +174,7 @@ class OrdersList extends StatelessWidget {
         final color = _workerStatusColor(order);
 
         return Card(
+          shape: orderCardShape,
           elevation: 0,
           margin: const EdgeInsets.symmetric(vertical: 6),
           child: ListTile(
@@ -193,7 +194,12 @@ class OrdersList extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 _StatusPill(text: statusText, color: color),
-                for (final line in workerPaymentLines(order)) ...[
+                const SizedBox(height: 4),
+                Text(
+                  workerRateText(order),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                for (final line in workerPaymentLines(order).skip(1)) ...[
                   const SizedBox(height: 4),
                   Text(line),
                 ],
@@ -483,7 +489,7 @@ class _StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(text, style: TextStyle(fontSize: 11, color: color)),
     );

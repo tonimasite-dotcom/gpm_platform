@@ -142,6 +142,7 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                   final color = orderStatusColor(order['status']);
 
                   return Card(
+                    shape: orderCardShape,
                     elevation: 2,
                     margin: const EdgeInsets.symmetric(vertical: 6),
                     child: ListTile(
@@ -162,7 +163,7 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               status,
@@ -185,6 +186,11 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                             order['address'] ?? '',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            workerRateText(order),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 5),
                           OrderPublishedAtMarker(
@@ -399,7 +405,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                         color: orderStatusColor(
                           order['status'],
                         ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         orderStatusText(order['status']),

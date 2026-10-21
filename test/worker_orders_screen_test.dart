@@ -6,6 +6,62 @@ import 'package:gpm_platform/screens/worker/worker_orders_screen.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
 
 void main() {
+  testWidgets('all order statuses show rates before opening the order', (
+    tester,
+  ) async {
+    for (final status in [
+      'NEW',
+      'PROCESSED',
+      'IN_PROCESS',
+      'DONE_PENDING',
+      'CONVERTED',
+      'JUNK',
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OrdersList(
+              orders: [
+                {
+                  'id': 'hourly-$status',
+                  'title': 'Почасовая заявка',
+                  'status': status,
+                  'price_per_hour': 700,
+                  'hours': 4,
+                },
+                {
+                  'id': 'shift-$status',
+                  'title': 'Заявка на смену',
+                  'status': status,
+                  'work_mode': 'shift',
+                  'price_per_hour': 5000,
+                },
+                {
+                  'id': 'legacy-$status',
+                  'title': 'Старая заявка',
+                  'status': status,
+                  'individual_price': 4400,
+                  'workers_count': 2,
+                  'hours': 4,
+                },
+              ],
+              emptyText: '',
+              onChanged: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Ставка: 700 ₽/ч'), findsOneWidget);
+      expect(find.text('Ставка: 5000 ₽/смена'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Расчётная ставка: 550 ₽/ч'),
+        150,
+      );
+      expect(find.text('Расчётная ставка: 550 ₽/ч'), findsOneWidget);
+    }
+  });
+
   testWidgets('worker who responded sees recruitment as completed', (
     tester,
   ) async {

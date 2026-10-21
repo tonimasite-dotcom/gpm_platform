@@ -3,6 +3,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/utils/order_display.dart';
 
 void main() {
+  test('legacy rate is estimated per worker using payable hours', () {
+    expect(
+      workerRateText({
+        'individual_price': 4400,
+        'workers_count': 2,
+        'hours': 1,
+        'min_time': 4,
+      }),
+      'Расчётная ставка: 550 ₽/ч',
+    );
+    expect(
+      workerRateText({
+        'legal_price': 10000,
+        'workers_count': 2,
+        'hours': 8,
+        'work_mode': 'shift',
+      }),
+      'Расчётная ставка: 5000 ₽/смена',
+    );
+    expect(
+      workerRateText({'legal_price': 1000, 'workers_count': 1, 'hours': 3}),
+      'Расчётная ставка: 333,33 ₽/ч',
+    );
+    expect(workerRateText({'individual_price': 4400}), 'Ставка не указана');
+    expect(workerRateText({}), 'Ставка не указана');
+    expect(
+      workerRateText({
+        'price_per_hour': 700,
+        'individual_price': 4400,
+        'hours': 4,
+      }),
+      'Ставка: 700 ₽/ч',
+    );
+  });
+
   test(
     'shift payment is shown once per performer without multiplying hours',
     () {

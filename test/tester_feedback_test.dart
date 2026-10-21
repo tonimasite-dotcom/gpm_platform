@@ -215,7 +215,7 @@ void main() {
       );
       expect(
         workerPaymentLines({'workers_count': 2, 'individual_price': 4400}),
-        ['Предполагаемый заработок: 2200 ₽'],
+        ['Ставка не указана', 'Предполагаемый заработок: 2200 ₽'],
       );
     },
   );

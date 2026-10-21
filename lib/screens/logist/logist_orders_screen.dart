@@ -325,6 +325,7 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
     final isExternalOrder = gpmApi.isExternalOrder(order);
 
     return Card(
+      shape: orderCardShape,
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
       child: Column(
@@ -367,6 +368,11 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
                         ? FontWeight.normal
                         : FontWeight.bold,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  workerRateText(order),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 5),
                 OrderPublishedAtMarker(createdAt: order['created_at']),
@@ -1095,7 +1101,7 @@ class _StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(text, style: TextStyle(fontSize: 11, color: color)),
     );

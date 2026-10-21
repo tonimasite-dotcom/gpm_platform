@@ -1,24 +1,62 @@
 import 'package:flutter/material.dart';
 
+import '../theme/gpm_theme.dart';
+
+const orderCardShape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(10)),
+  side: BorderSide(color: GpmColors.line),
+);
+
+int _paymentNumber(dynamic value) => int.tryParse(value?.toString() ?? '') ?? 0;
+
+int _performerRate(Map<String, dynamic> order) => [
+  _paymentNumber(order['price_per_hour']),
+  _paymentNumber(order['price_state']),
+  _paymentNumber(order['price_regular']),
+].firstWhere((value) => value > 0, orElse: () => 0);
+
+/// Existing budget-only orders have no explicit rate. Label their derived
+/// rate as an estimate and keep the stored budget and accrual unchanged.
+String workerRateText(Map<String, dynamic> order) {
+  final isShift = order['work_mode'] == 'shift';
+  final unit = isShift ? 'смена' : 'ч';
+  final rate = _performerRate(order);
+  if (rate > 0) return 'Ставка: $rate ₽/$unit';
+
+  final individual = _paymentNumber(order['individual_price']);
+  final budget = individual > 0
+      ? individual
+      : _paymentNumber(order['legal_price']);
+  final slots = _paymentNumber(order['workers_count']);
+  final perWorker = budget ~/ (slots > 0 ? slots : 1);
+  final minimum = _paymentNumber(order['min_time']);
+  final planned = _paymentNumber(order['hours']);
+  final hours = planned > minimum ? planned : minimum;
+  if (perWorker <= 0 || (!isShift && hours <= 0)) {
+    return 'Ставка не указана';
+  }
+  final estimated = isShift ? perWorker.toDouble() : perWorker / hours;
+  final amount = estimated
+      .toStringAsFixed(2)
+      .replaceFirst(RegExp(r'\.?0+$'), '')
+      .replaceAll('.', ',');
+  return 'Расчётная ставка: $amount ₽/$unit';
+}
+
 /// Payment per performer. Legacy orders with only a total budget are split
 /// across the requested worker slots, just as the backend accrual does.
 List<String> workerPaymentLines(Map<String, dynamic> order) {
   int number(dynamic value) => int.tryParse(value?.toString() ?? '') ?? 0;
-  final rates = [
-    number(order['price_per_hour']),
-    number(order['price_state']),
-    number(order['price_regular']),
-  ];
-  final rate = rates.firstWhere((value) => value > 0, orElse: () => 0);
+  final rate = _performerRate(order);
   final minimum = number(order['min_time']);
   final planned = number(order['hours']);
   final hours = planned > minimum ? planned : minimum;
   if (rate > 0) {
     if (order['work_mode'] == 'shift') {
-      return ['Ставка: $rate ₽/смена', 'Предполагаемый заработок: $rate ₽'];
+      return [workerRateText(order), 'Предполагаемый заработок: $rate ₽'];
     }
     return [
-      'Ставка: $rate ₽/ч',
+      workerRateText(order),
       if (hours > 0) 'Предполагаемый заработок: ${rate * hours} ₽',
       if (minimum > 0) 'Минимальное оплачиваемое время: ${hoursText(minimum)}',
     ];
@@ -26,9 +64,13 @@ List<String> workerPaymentLines(Map<String, dynamic> order) {
   final individual = number(order['individual_price']);
   final budget = individual > 0 ? individual : number(order['legal_price']);
   final slots = number(order['workers_count']);
-  return budget > 0
-      ? ['Предполагаемый заработок: ${budget ~/ (slots > 0 ? slots : 1)} ₽']
-      : ['Оплата уточняется у логиста'];
+  return [
+    workerRateText(order),
+    if (budget > 0)
+      'Предполагаемый заработок: ${budget ~/ (slots > 0 ? slots : 1)} ₽'
+    else
+      'Оплата уточняется у логиста',
+  ];
 }
 
 /// Shared order presentation helpers.
@@ -126,11 +168,11 @@ class OrderPublishedAtMarker extends StatelessWidget {
     final publishedAt = formatOrderPublishedAt(createdAt);
     if (publishedAt == null) return const SizedBox.shrink();
 
-    final foreground = Theme.of(context).colorScheme.onSurfaceVariant;
+    const foreground = GpmColors.black;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: GpmColors.yellow,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
