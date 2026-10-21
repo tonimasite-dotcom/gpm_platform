@@ -1841,6 +1841,18 @@ class ActiveApiTests(unittest.TestCase):
 
 
 class OrderAmountTests(unittest.TestCase):
+    def test_shift_rate_is_paid_once_per_worker_regardless_of_hours(self):
+        order = {
+            "work_mode": "shift",
+            "price_per_hour": 5000,
+            "hours": 8,
+            "min_time": 4,
+            "workers_count": 2,
+            "worker_hours": {"worker-1": 10},
+        }
+        self.assertEqual(api._order_amount(order), 5000)
+        self.assertEqual(api._order_amount(order, "worker-1"), 5000)
+
     def test_uses_performer_rate_not_client_price(self):
         order = {
             "hours": 4,

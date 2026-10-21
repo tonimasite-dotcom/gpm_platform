@@ -697,12 +697,16 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               label: 'Стоимость для юрлиц',
               value: _priceText(order['legal_price']),
             ),
-            if (order['work_mode'] == 'shift')
+            if (order['work_mode'] == 'shift') ...[
+              _OrderFact(
+                label: 'Ставка исполнителя за смену',
+                value: _priceText(order['price_per_hour']),
+              ),
               _OrderFact(
                 label: 'Описание смены',
                 value: order['shift_description'],
-              )
-            else ...[
+              ),
+            ] else ...[
               _OrderFact(
                 label: 'Ставка (штатный постоянного графика)',
                 value: order['price_regular'],

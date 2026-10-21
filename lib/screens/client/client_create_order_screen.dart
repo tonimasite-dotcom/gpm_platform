@@ -44,7 +44,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   final _unitWeightController = TextEditingController();
   final _floorController = TextEditingController();
   final _priceController = TextEditingController();
-  final _hourlyRateController = TextEditingController();
+  final _rateController = TextEditingController();
+  String _workMode = 'rate';
+  bool get _isLogist => gpmApi.currentRole == 'logist';
   Timer? _addressLookupTimer;
   int _hours = 4;
   int _workersCount = 2;
@@ -81,7 +83,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     _unitWeightController.dispose();
     _floorController.dispose();
     _priceController.dispose();
-    _hourlyRateController.dispose();
+    _rateController.dispose();
     super.dispose();
   }
 
@@ -445,7 +447,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
 
     try {
       final cargoType = _cargoTypeController.text.trim();
-      final price = _optionalPositiveInt(_priceController);
+      final price = _isLogist ? null : _optionalPositiveInt(_priceController);
       final result = await gpmApi.createOrder(
         title: cargoType.isEmpty ? 'Заказ грузчиков' : cargoType,
         description: _buildDescription(),
@@ -460,11 +462,11 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         metro: _metroController.text.trim(),
         national: _national,
         minTime: _hours,
-        pricePerHour: int.parse(_hourlyRateController.text.trim()),
+        pricePerHour: int.parse(_rateController.text.trim()),
         individualPrice: _clientType == 'individual' ? price : null,
         legalPrice: _clientType == 'legal' ? price : null,
         nationality: _national == 'yes' ? 'ru' : null,
-        workMode: 'rate',
+        workMode: _workMode,
         timezone: 'Europe/Moscow',
         addressStreet:
             _selectedAddress?.street ?? _addressController.text.trim(),
@@ -520,8 +522,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       _unitWeightController.clear();
       _floorController.clear();
       _priceController.clear();
-      _hourlyRateController.clear();
+      _rateController.clear();
       setState(() {
+        _workMode = 'rate';
         _hours = 4;
         _workersCount = 2;
         _hasElevator = true;
@@ -785,27 +788,43 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     setState(() => _national = selection.first),
               ),
               const SizedBox(height: 12),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'rate', label: Text('Ставка в час')),
+                  ButtonSegment(value: 'shift', label: Text('Смена')),
+                ],
+                selected: {_workMode},
+                onSelectionChanged: (selection) =>
+                    setState(() => _workMode = selection.first),
+              ),
+              const SizedBox(height: 12),
               TextFormField(
-                controller: _hourlyRateController,
+                controller: _rateController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Ставка исполнителя в час, ₽',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _workMode == 'shift'
+                      ? 'Ставка исполнителя за смену, ₽'
+                      : 'Ставка исполнителя в час, ₽',
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   final rate = int.tryParse(value?.trim() ?? '');
                   return rate == null || rate <= 0 || rate > 1000000000
-                      ? 'Укажите положительную ставку в час'
+                      ? (_workMode == 'shift'
+                            ? 'Укажите положительную ставку за смену'
+                            : 'Укажите положительную ставку в час')
                       : null;
                 },
               ),
-              const SizedBox(height: 12),
-              _ClientPriceSection(
-                clientType: _clientType,
-                controller: _priceController,
-                validatePrice: _optionalPrice,
-                recommendedPrice: _recommendedPrice,
-              ),
+              if (!_isLogist) ...[
+                const SizedBox(height: 12),
+                _ClientPriceSection(
+                  clientType: _clientType,
+                  controller: _priceController,
+                  validatePrice: _optionalPrice,
+                  recommendedPrice: _recommendedPrice,
+                ),
+              ],
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,

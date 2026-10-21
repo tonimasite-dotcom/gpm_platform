@@ -245,9 +245,8 @@ class _TransactionTile extends StatelessWidget {
 }
 
 int _orderAmount(Map<String, dynamic> order) {
-  // Guarantee the minimum payable time. Client-created orders currently have
-  // no separate performer rate, so their stated total budget is shared between
-  // the requested worker slots.
+  // Shift rates are paid once per performer. Hourly rates guarantee the
+  // minimum payable time; legacy total budgets are shared between worker slots.
   final statedHours = _asInt(order['hours']);
   final minimumHours = _asInt(order['min_time']);
   final hours = statedHours > minimumHours ? statedHours : minimumHours;
@@ -256,7 +255,7 @@ int _orderAmount(Map<String, dynamic> order) {
   var rate = hourlyRate;
   if (rate == 0) rate = stateRate;
   if (rate == 0) rate = _asInt(order['price_regular']);
-  if (rate > 0) return rate * hours;
+  if (rate > 0) return order['work_mode'] == 'shift' ? rate : rate * hours;
 
   final totalBudget = _asInt(order['individual_price']) != 0
       ? _asInt(order['individual_price'])

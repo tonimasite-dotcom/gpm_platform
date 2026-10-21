@@ -5390,6 +5390,8 @@ def _order_amount(order: dict[str, Any], worker_id: str | None = None) -> int:
         or _int(order.get("price_regular"))
     )
     if rate > 0:
+        if order.get("work_mode") == "shift":
+            return rate
         return max(0, rate * hours)
 
     total_budget = _int(order.get("individual_price")) or _int(

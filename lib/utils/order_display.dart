@@ -14,6 +14,9 @@ List<String> workerPaymentLines(Map<String, dynamic> order) {
   final planned = number(order['hours']);
   final hours = planned > minimum ? planned : minimum;
   if (rate > 0) {
+    if (order['work_mode'] == 'shift') {
+      return ['Ставка: $rate ₽/смена', 'Предполагаемый заработок: $rate ₽'];
+    }
     return [
       'Ставка: $rate ₽/ч',
       if (hours > 0) 'Предполагаемый заработок: ${rate * hours} ₽',

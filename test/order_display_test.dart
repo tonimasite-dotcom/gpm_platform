@@ -3,6 +3,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/utils/order_display.dart';
 
 void main() {
+  test(
+    'shift payment is shown once per performer without multiplying hours',
+    () {
+      expect(
+        workerPaymentLines({
+          'work_mode': 'shift',
+          'price_per_hour': 5000,
+          'hours': 8,
+          'min_time': 4,
+          'workers_count': 2,
+        }),
+        ['Ставка: 5000 ₽/смена', 'Предполагаемый заработок: 5000 ₽'],
+      );
+      expect(
+        workerPaymentLines({
+          'work_mode': 'rate',
+          'price_per_hour': 700,
+          'hours': 8,
+          'min_time': 4,
+        }),
+        contains('Предполагаемый заработок: 5600 ₽'),
+      );
+    },
+  );
+
   group('orderStatusText', () {
     test('maps every backend status code to a Russian label', () {
       expect(orderStatusText('NEW'), 'На модерации');
