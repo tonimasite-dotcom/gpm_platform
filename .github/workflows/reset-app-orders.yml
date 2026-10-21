@@ -14,9 +14,6 @@ on:
       backup_run_id:
         description: Successful verified Backup production run within six hours (clear only)
         type: string
-      worker_fingerprint:
-        description: Optional SHA-256 of case-folded worker username for private diagnostics
-        type: string
 
 permissions:
   contents: read
@@ -75,16 +72,13 @@ jobs:
         env:
           OPERATION: ${{ inputs.operation }}
           EXPECTED_PLAN: ${{ inputs.expected_plan }}
-          WORKER_FINGERPRINT: ${{ inputs.worker_fingerprint }}
         run: |
           set -euo pipefail
           REQUEST=$(python3 - <<'PY'
-          import base64, json, os, re
+          import base64, json, os
           operation = os.environ['OPERATION']
           assert operation in {'inspect', 'clear'}
-          fingerprint = os.environ['WORKER_FINGERPRINT']
-          assert not fingerprint or re.fullmatch('[0-9a-f]{64}', fingerprint)
-          print(base64.b64encode(json.dumps({'operation': operation, 'expected_plan': os.environ['EXPECTED_PLAN'], 'worker_fingerprint': fingerprint}).encode()).decode())
+          print(base64.b64encode(json.dumps({'operation': operation, 'expected_plan': os.environ['EXPECTED_PLAN']}).encode()).decode())
           PY
           )
           REMOTE="/root/gpm-order-maintenance-${GITHUB_RUN_ID}"

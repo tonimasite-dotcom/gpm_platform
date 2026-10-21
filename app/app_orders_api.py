@@ -3493,22 +3493,14 @@ def worker_matches_nationality_requirement(
 def worker_can_discover_order(
     order: dict[str, Any], profile: dict[str, Any] | None
 ) -> bool:
-    return worker_order_unavailability_reason(order, profile) is None
-
-
-def worker_order_unavailability_reason(
-    order: dict[str, Any], profile: dict[str, Any] | None
-) -> str | None:
     if str(order.get("status") or "").upper() != "PROCESSED":
-        return "Заказ больше не принимает отклики"
+        return False
     order_city = order_city_identity(order)
-    if not order_city or order_city not in worker_profile_cities(profile):
-        return "Город заказа отсутствует в городах работы вашего профиля"
-    if not worker_matches_nationality_requirement(order, profile):
-        if profile is None or profile.get("nationality_recorded") is False or not isinstance(profile.get("nationality"), bool):
-            return "Укажите гражданство в профиле и сохраните его перед откликом"
-        return "Гражданство в сохранённом профиле не соответствует требованиям заказа. Обратитесь к логисту"
-    return None
+    return bool(
+        order_city
+        and order_city in worker_profile_cities(profile)
+        and worker_matches_nationality_requirement(order, profile)
+    )
 
 
 def logist_owns_order(
@@ -5195,22 +5187,17 @@ def apply_to_order_atomically(
 ) -> dict[str, Any]:
     require_role(user, "worker")
     account_id = str(user.get("sub") or "")
+    profile = get_account_profile(user)
     with db_connection() as connection:
         if _is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
-        stored_profile = _read_profile_in_connection(connection, account_id)
-        profile = {
-            **default_profile(user), **stored_profile,
-            "nationality_recorded": "nationality" in stored_profile,
-        }
         order = read_order_in_connection(connection, order_id, for_update=True)
         if order is None:
             raise HTTPException(status_code=404, detail="order not found")
         if str(order.get("status") or "") != "PROCESSED":
             raise HTTPException(status_code=409, detail="order is not accepting applications")
-        unavailable_reason = worker_order_unavailability_reason(order, profile)
-        if unavailable_reason is not None:
-            raise HTTPException(status_code=403, detail=unavailable_reason)
+        if not worker_can_discover_order(order, profile):
+            raise HTTPException(status_code=403, detail="order is unavailable for this worker")
         applications = [
             dict(item)
             for item in order.get("applications") or []

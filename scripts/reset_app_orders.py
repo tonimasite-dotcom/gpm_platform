@@ -61,28 +61,6 @@ def snapshot(connection):
     }
 
 
-def worker_diagnostics(connection, fingerprint=''):
-    counts = Counter()
-    target = None
-    for username, data in rows(connection, f'''SELECT a.username, p.data
-        FROM {api.ACCOUNTS_TABLE_NAME} a
-        LEFT JOIN {api.PROFILES_TABLE_NAME} p ON p.account_id = a.account_id
-        WHERE a.role = 'worker' '''):
-        profile = data if isinstance(data, dict) else json.loads(data or '{}')
-        nationality = profile.get('nationality')
-        kind = 'russian' if nationality is True else 'non_russian' if nationality is False else 'missing_or_invalid'
-        counts[kind] += 1
-        if fingerprint and hashlib.sha256(username.casefold().encode()).hexdigest() == fingerprint:
-            target = {
-                'nationality': nationality if isinstance(nationality, bool) else None,
-                'nationality_value_type': type(nationality).__name__,
-                'nationality_recorded': 'nationality' in profile,
-                'moscow_in_profile': 'москва' in api.worker_profile_cities(profile),
-                'matches_rf_requirement': api.worker_matches_nationality_requirement({'national': 'yes'}, profile),
-            }
-    return {'counts': dict(counts), 'target': target}
-
-
 def clear_orders(connection, expected_plan):
     if not api._is_sqlite_connection(connection):
         execute(connection, "SET LOCAL lock_timeout = '5s'")
@@ -125,7 +103,6 @@ def main():
             connection.commit()
         else:
             result = snapshot(connection)
-        result['worker_diagnostics'] = worker_diagnostics(connection, args.get('worker_fingerprint', ''))
         print(json.dumps(result, sort_keys=True))
 
 

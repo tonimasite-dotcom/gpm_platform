@@ -43,7 +43,7 @@ class OrderResetTests(unittest.TestCase):
         self.assertEqual(api.list_orders(), [])
 
 
-class RequiredRateAndCitizenshipTests(unittest.TestCase):
+class RequiredRateTests(unittest.TestCase):
     setUp = feedback.TesterFeedbackTests.setUp
     actor = feedback.TesterFeedbackTests.actor
 
@@ -62,29 +62,3 @@ class RequiredRateAndCitizenshipTests(unittest.TestCase):
         order['price_per_hour'] = 600
         with self.assertRaises(api.HTTPException):
             api.validate_order_patch(order, {'price_per_hour': None}, actor=None, integration=True)
-
-    def test_application_uses_current_saved_citizenship(self):
-        from tests.test_app_orders_api import sample_payload
-        payload = sample_payload()
-        payload.update(city='Москва')
-        payload['order_data']['national'] = 'yes'
-        order = api.normalize_external_order(payload)
-        order.update(status='PROCESSED', logist_account_id=self.logist['sub'])
-        api.save_order(order)
-        api.update_account_profile(self.worker, {'cities': ['Москва'], 'nationality': False})
-        with self.assertRaises(api.HTTPException) as rejected:
-            api.apply_to_order_atomically(order['id'], self.worker)
-        self.assertIn('Гражданство', rejected.exception.detail)
-        api.staff_update_worker_profile(self.worker['sub'], {'nationality': True}, self.logist)
-        self.assertTrue(api.get_account_profile(self.worker)['nationality'])
-        result = api.apply_to_order_atomically(order['id'], self.worker)
-        self.assertEqual(result['status'], 'PENDING')
-        self.assertTrue(api.worker_summary(self.worker['sub'])['nationality'])
-
-    def test_city_error_does_not_claim_wrong_citizenship(self):
-        reason = api.worker_order_unavailability_reason(
-            {'status': 'PROCESSED', 'city': 'Москва', 'national': 'yes'},
-            {'cities': ['Санкт-Петербург'], 'nationality': True},
-        )
-        self.assertIn('Город', reason)
-        self.assertNotIn('Гражданство', reason)
