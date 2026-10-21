@@ -335,7 +335,13 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
             ),
             _priceField(_priceRegular, 'Ставка: постоянный график'),
             _priceField(_priceState, 'Ставка: свободный график'),
-            _priceField(_pricePerHour, 'Ставка: наёмник'),
+            _priceField(
+              _pricePerHour,
+              _workMode == 'shift'
+                  ? 'Ставка за смену: наёмник'
+                  : 'Ставка в час: наёмник',
+              requirePerformerRate: true,
+            ),
             _field(_additionalInfo, 'Дополнительная информация', maxLines: 3),
             const SizedBox(height: 20),
             FilledButton.icon(
@@ -359,11 +365,25 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     TextEditingController controller,
     String label, {
     bool enabled = true,
+    bool requirePerformerRate = false,
   }) => _field(
     controller,
     label,
     keyboardType: TextInputType.number,
-    validator: enabled ? _optionalPrice : null,
+    validator: !enabled
+        ? null
+        : (value) {
+            final error = _optionalPrice(value);
+            if (error != null) return error;
+            if (requirePerformerRate &&
+                ![_pricePerHour, _priceRegular, _priceState].any((controller) {
+                  final rate = int.tryParse(controller.text.trim());
+                  return rate != null && rate > 0 && rate <= 1000000000;
+                })) {
+              return 'Укажите положительную ставку исполнителя';
+            }
+            return null;
+          },
     enabled: enabled,
   );
 

@@ -163,7 +163,7 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(3),
                             ),
                             child: Text(
                               status,
@@ -405,7 +405,7 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                         color: orderStatusColor(
                           order['status'],
                         ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                       child: Text(
                         orderStatusText(order['status']),

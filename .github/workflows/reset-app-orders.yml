@@ -1,0 +1,111 @@
+name: Inspect or clear requested app orders
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [inspect, clear]
+        default: inspect
+        required: true
+      expected_plan:
+        description: Exact plan_sha256 from a reviewed inspection (clear only)
+        type: string
+      backup_run_id:
+        description: Successful verified Backup production run within six hours (clear only)
+        type: string
+      worker_fingerprint:
+        description: Optional SHA-256 of case-folded worker username for private diagnostics
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify backup before clearing
+        if: inputs.operation == 'clear'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+          EXPECTED_PLAN: ${{ inputs.expected_plan }}
+        run: |
+          set -euo pipefail
+          [[ "$BACKUP_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$EXPECTED_PLAN" =~ ^[0-9a-f]{64}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BACKUP_RUN_ID" > "$RUNNER_TEMP/backup-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BACKUP_RUN_ID/artifacts" > "$RUNNER_TEMP/backup-artifacts.json"
+          python3 - <<'PY'
+          import datetime, json, os
+          from pathlib import Path
+          run = json.loads((Path(os.environ['RUNNER_TEMP']) / 'backup-run.json').read_text())
+          assert run['name'] == 'Backup production' and run['conclusion'] == 'success'
+          assert run['head_branch'] == 'main' and run['path'] == '.github/workflows/backup-production.yml'
+          elapsed = datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(run['updated_at'].replace('Z', '+00:00'))
+          assert datetime.timedelta() <= elapsed <= datetime.timedelta(hours=6)
+          artifacts = json.loads((Path(os.environ['RUNNER_TEMP']) / 'backup-artifacts.json').read_text())
+          assert any(not a['expired'] and a['name'].startswith('gpm-production-encrypted-') for a in artifacts['artifacts'])
+          PY
+      - name: Configure verified access
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+      - name: Run bounded app maintenance
+        env:
+          OPERATION: ${{ inputs.operation }}
+          EXPECTED_PLAN: ${{ inputs.expected_plan }}
+          WORKER_FINGERPRINT: ${{ inputs.worker_fingerprint }}
+        run: |
+          set -euo pipefail
+          REQUEST=$(python3 - <<'PY'
+          import base64, json, os, re
+          operation = os.environ['OPERATION']
+          assert operation in {'inspect', 'clear'}
+          fingerprint = os.environ['WORKER_FINGERPRINT']
+          assert not fingerprint or re.fullmatch('[0-9a-f]{64}', fingerprint)
+          print(base64.b64encode(json.dumps({'operation': operation, 'expected_plan': os.environ['EXPECTED_PLAN'], 'worker_fingerprint': fingerprint}).encode()).decode())
+          PY
+          )
+          REMOTE="/root/gpm-order-maintenance-${GITHUB_RUN_ID}"
+          SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes)
+          "${SSH[@]}" root@46.149.71.147 "install -m 700 -d '$REMOTE'"
+          cleanup() {
+            "${SSH[@]}" root@46.149.71.147 "rm -f -- '$REMOTE/helper.py' && rmdir -- '$REMOTE'" || true
+          }
+          trap cleanup EXIT
+          scp -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes scripts/reset_app_orders.py "root@46.149.71.147:$REMOTE/helper.py"
+          "${SSH[@]}" root@46.149.71.147 "HELPER='$REMOTE/helper.py' REQUEST='$REQUEST' bash -se" <<'REMOTE'
+          set -euo pipefail
+          chmod 600 "$HELPER"
+          cd /opt/gpm/gpm_platform
+          set -a
+          . /root/gpm-app-env
+          set +a
+          PYTHONPATH=/opt/gpm/gpm_platform .venv/bin/python "$HELPER" --request "$REQUEST"
+          REMOTE
+      - name: Check live service
+        run: curl --fail --silent --show-error --max-time 15 https://app-api.gpmbot.ru/health
+      - name: Remove runner SSH key
+        if: always()
+        run: rm -f "$HOME/.ssh/id_ed25519"

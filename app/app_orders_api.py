@@ -2184,6 +2184,12 @@ def bounded_integer(
     return parsed
 
 
+def require_performer_rate(order: dict[str, Any]) -> None:
+    rates = [order.get(field) for field in ("price_per_hour", "price_regular", "price_state")]
+    if not any(isinstance(rate, int) and not isinstance(rate, bool) and 0 < rate <= 1_000_000_000 for rate in rates):
+        raise ValueError("Укажите положительную ставку исполнителя за час или смену")
+
+
 def normalize_external_order(
     payload: dict[str, Any],
     *,
@@ -2290,7 +2296,7 @@ def normalize_external_order(
         minimum=1,
         maximum=24,
     )
-    return {
+    order = {
         "id": order_number,
         "title": f"Заявка № {order_number}",
         "address": address,
@@ -2383,6 +2389,10 @@ def normalize_external_order(
         "assigned_worker_ids": [],
         "applications": [],
     }
+    if order["work_mode"] not in {"rate", "shift"}:
+        raise ValueError("invalid work_mode")
+    require_performer_rate(order)
+    return order
 
 
 def merge_existing_workflow_state(
@@ -3483,14 +3493,22 @@ def worker_matches_nationality_requirement(
 def worker_can_discover_order(
     order: dict[str, Any], profile: dict[str, Any] | None
 ) -> bool:
+    return worker_order_unavailability_reason(order, profile) is None
+
+
+def worker_order_unavailability_reason(
+    order: dict[str, Any], profile: dict[str, Any] | None
+) -> str | None:
     if str(order.get("status") or "").upper() != "PROCESSED":
-        return False
+        return "Заказ больше не принимает отклики"
     order_city = order_city_identity(order)
-    return bool(
-        order_city
-        and order_city in worker_profile_cities(profile)
-        and worker_matches_nationality_requirement(order, profile)
-    )
+    if not order_city or order_city not in worker_profile_cities(profile):
+        return "Город заказа отсутствует в городах работы вашего профиля"
+    if not worker_matches_nationality_requirement(order, profile):
+        if profile is None or profile.get("nationality_recorded") is False or not isinstance(profile.get("nationality"), bool):
+            return "Укажите гражданство в профиле и сохраните его перед откликом"
+        return "Гражданство в сохранённом профиле не соответствует требованиям заказа. Обратитесь к логисту"
+    return None
 
 
 def logist_owns_order(
@@ -3761,6 +3779,11 @@ def validate_order_patch(
         else:
             raise HTTPException(status_code=403, detail="insufficient permissions")
 
+    if draft_fields or normalized.get("status") == "PROCESSED":
+        try:
+            require_performer_rate({**order, **normalized})
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
     return normalized
 
 
@@ -5172,17 +5195,22 @@ def apply_to_order_atomically(
 ) -> dict[str, Any]:
     require_role(user, "worker")
     account_id = str(user.get("sub") or "")
-    profile = get_account_profile(user)
     with db_connection() as connection:
         if _is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
+        stored_profile = _read_profile_in_connection(connection, account_id)
+        profile = {
+            **default_profile(user), **stored_profile,
+            "nationality_recorded": "nationality" in stored_profile,
+        }
         order = read_order_in_connection(connection, order_id, for_update=True)
         if order is None:
             raise HTTPException(status_code=404, detail="order not found")
         if str(order.get("status") or "") != "PROCESSED":
             raise HTTPException(status_code=409, detail="order is not accepting applications")
-        if not worker_can_discover_order(order, profile):
-            raise HTTPException(status_code=403, detail="order is unavailable for this worker")
+        unavailable_reason = worker_order_unavailability_reason(order, profile)
+        if unavailable_reason is not None:
+            raise HTTPException(status_code=403, detail=unavailable_reason)
         applications = [
             dict(item)
             for item in order.get("applications") or []

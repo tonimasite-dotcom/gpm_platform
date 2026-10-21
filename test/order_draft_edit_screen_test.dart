@@ -45,5 +45,19 @@ void main() {
       find.byKey(const Key('order-nationality-field'), skipOffstage: false),
       findsOneWidget,
     );
+    final rate = find.widgetWithText(TextFormField, 'Ставка в час: наёмник');
+    await tester.scrollUntilVisible(
+      rate,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(tester.state<FormState>(find.byType(Form)).validate(), isFalse);
+    await tester.pump();
+    expect(
+      find.text('Укажите положительную ставку исполнителя'),
+      findsOneWidget,
+    );
+    await tester.enterText(rate, '700');
+    expect(tester.state<FormState>(find.byType(Form)).validate(), isTrue);
   });
 }

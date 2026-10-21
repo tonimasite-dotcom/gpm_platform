@@ -55,6 +55,7 @@ def sample_payload(*, source: str = "external") -> dict:
                 "additional": "",
             },
             "hours": 4,
+            "price_per_hour": 600,
             "note": "Тестовая заявка",
         },
     }

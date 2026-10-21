@@ -153,7 +153,7 @@ class OrderPublishedAtMarker extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: GpmColors.yellow,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(3),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
