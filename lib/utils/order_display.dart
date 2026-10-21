@@ -15,32 +15,12 @@ int _performerRate(Map<String, dynamic> order) => [
   _paymentNumber(order['price_regular']),
 ].firstWhere((value) => value > 0, orElse: () => 0);
 
-/// Existing budget-only orders have no explicit rate. Label their derived
-/// rate as an estimate and keep the stored budget and accrual unchanged.
+/// Show only the stored performer rate, using the order's payment unit.
 String workerRateText(Map<String, dynamic> order) {
   final isShift = order['work_mode'] == 'shift';
   final unit = isShift ? 'смена' : 'ч';
   final rate = _performerRate(order);
-  if (rate > 0) return 'Ставка: $rate ₽/$unit';
-
-  final individual = _paymentNumber(order['individual_price']);
-  final budget = individual > 0
-      ? individual
-      : _paymentNumber(order['legal_price']);
-  final slots = _paymentNumber(order['workers_count']);
-  final perWorker = budget ~/ (slots > 0 ? slots : 1);
-  final minimum = _paymentNumber(order['min_time']);
-  final planned = _paymentNumber(order['hours']);
-  final hours = planned > minimum ? planned : minimum;
-  if (perWorker <= 0 || (!isShift && hours <= 0)) {
-    return 'Ставка не указана';
-  }
-  final estimated = isShift ? perWorker.toDouble() : perWorker / hours;
-  final amount = estimated
-      .toStringAsFixed(2)
-      .replaceFirst(RegExp(r'\.?0+$'), '')
-      .replaceAll('.', ',');
-  return 'Расчётная ставка: $amount ₽/$unit';
+  return rate > 0 ? 'Ставка: $rate ₽/$unit' : 'Ставка не указана';
 }
 
 /// Payment per performer. Legacy orders with only a total budget are split

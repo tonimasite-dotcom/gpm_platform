@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/utils/order_display.dart';
 
 void main() {
-  test('legacy rate is estimated per worker using payable hours', () {
+  test('rate uses only stored rates and never derives them from budgets', () {
     expect(
       workerRateText({
         'individual_price': 4400,
@@ -11,7 +11,7 @@ void main() {
         'hours': 1,
         'min_time': 4,
       }),
-      'Расчётная ставка: 550 ₽/ч',
+      'Ставка не указана',
     );
     expect(
       workerRateText({
@@ -20,11 +20,11 @@ void main() {
         'hours': 8,
         'work_mode': 'shift',
       }),
-      'Расчётная ставка: 5000 ₽/смена',
+      'Ставка не указана',
     );
     expect(
       workerRateText({'legal_price': 1000, 'workers_count': 1, 'hours': 3}),
-      'Расчётная ставка: 333,33 ₽/ч',
+      'Ставка не указана',
     );
     expect(workerRateText({'individual_price': 4400}), 'Ставка не указана');
     expect(workerRateText({}), 'Ставка не указана');

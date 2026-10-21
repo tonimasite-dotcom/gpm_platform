@@ -54,11 +54,8 @@ void main() {
       await tester.pump();
       expect(find.text('Ставка: 700 ₽/ч'), findsOneWidget);
       expect(find.text('Ставка: 5000 ₽/смена'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Расчётная ставка: 550 ₽/ч'),
-        150,
-      );
-      expect(find.text('Расчётная ставка: 550 ₽/ч'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Ставка не указана'), 150);
+      expect(find.text('Ставка не указана'), findsOneWidget);
     }
   });
 
