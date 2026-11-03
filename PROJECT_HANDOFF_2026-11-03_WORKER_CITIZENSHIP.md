@@ -19,8 +19,31 @@
 
 Локально: 115 backend tests, два PostgreSQL-сценария пропущены без отдельной БД;
 65 Flutter tests, flutter analyze без замечаний, git diff --check пройден.
-Публикация разрешена владельцем. CI, свежая резервная копия и deployment
-выполняются; окончательные версии и ссылки будут записаны после завершения.
+Публикация выполнена по прямому запросу владельца:
+
+- Backend/frontend: `8e9e8a5360af24aaf9b2c916a7d035f7ba33e19a`, ветка `main`.
+- [CI 41619921834](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/41619921834):
+  success; backend с настоящим PostgreSQL, PHP regression checks, Flutter
+  analyze/tests и release web build.
+- [Backup 41619875482](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/41619875482):
+  success; расшифровка, хеши файлов и изолированное восстановление PostgreSQL
+  проверены. Off-server artifact: `gpm-production-encrypted-41619875482-1`.
+- [Deployment 41620211480](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/41620211480):
+  `all`, success. Повторные Flutter analyze/tests/web build, аудит зависимостей,
+  115 backend tests на runner и сервере пройдены; оба компонента опубликованы.
+- Прямые публичные проверки после выпуска: API `/health` возвращает
+  `status=ok`, `storage=postgres`; app.gpmbot.ru отвечает HTTP 200.
+  Workflow также проверил конфигурацию frontend и активность backend service.
+- Rollback кода backend: `/opt/gpm/backups/20261103_103542`;
+  frontend: `/opt/gpm/front-backups/20261103_103625`;
+  прежний frontend: `/var/www/gpm-app-previous-20261103_103625`.
+  Восстановление данных требует отдельного backup, а не копии кода.
+- [Demo 41620208820](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/41620208820):
+  success. Обновления документации после выпуска не требуют повторного deployment.
+
+Точка остановки: изменения опубликованы. Осталась ручная приемка владельцем.
+Правило автоматического выпуска простых правок сохранено в AGENTS.md,
+PRODUCTION_DEPLOYMENT.md, README и новом continuation prompt.
 
 ## Границы и продолжение
 
@@ -40,3 +63,5 @@
 После выпуска владелец проверяет отсутствие блока в профиле и форму регистрации.
 Ручную регистрацию в рабочей БД агент не выполняет. Старые замечания ручной
 приемки от 15/21 октября и отложенные Telegram backup alerts остаются отдельно.
+
+Продолжение: `CONTINUE_PROJECT_PROMPT_2026-11-03_WORKER_CITIZENSHIP.md`.
