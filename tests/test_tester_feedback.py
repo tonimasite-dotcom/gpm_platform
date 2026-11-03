@@ -6,7 +6,8 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from threading import Barrier
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -38,6 +39,40 @@ class TesterFeedbackTests(unittest.TestCase):
         invitation = api.create_account_invitation(name, role, created_by="test")
         account = api.redeem_account_invitation(invitation["token"], "Synthetic password 123!")
         return {"sub": account["account_id"], "username": name, "role": role}
+
+    def test_registration_requires_and_saves_worker_citizenship(self):
+        for nationality in (True, False):
+            invitation = api.create_account_invitation(
+                f"registration-worker-{nationality}", "worker", created_by="test")
+            payload = {
+                "invitation": invitation["token"],
+                "password": "Synthetic password 123!",
+                "password_confirmation": "Synthetic password 123!",
+            }
+            # The server checks the invitation role even if the caller omits it.
+            for invalid in (None, "false", 0):
+                request = SimpleNamespace(json=AsyncMock(return_value={
+                    **payload, "nationality": invalid}), client=None, headers={})
+                with self.assertRaises(HTTPException) as caught:
+                    asyncio.run(api.register_with_invitation(request))
+                self.assertEqual(caught.exception.status_code, 422)
+            request = SimpleNamespace(json=AsyncMock(return_value={
+                **payload, "nationality": nationality}), client=None, headers={})
+            result = asyncio.run(api.register_with_invitation(request))
+            account = api.check_app_credentials(result["username"], payload["password"])
+            worker = {"sub": account["account_id"], "role": "worker"}
+            profile = api.get_account_profile(worker)
+            self.assertTrue(profile["nationality_recorded"])
+            self.assertIs(profile["nationality"], nationality)
+            self.assertTrue(api.worker_matches_nationality_requirement(
+                {"national": "yes" if nationality else "no"}, profile))
+            self.assertFalse(api.worker_matches_nationality_requirement(
+                {"national": "no" if nationality else "yes"}, profile))
+            with self.assertRaises(HTTPException):
+                api.update_account_profile(worker, {"nationality": not nationality})
+            corrected = api.staff_update_worker_profile(
+                worker["sub"], {"nationality": not nationality}, self.logist)
+            self.assertIs(corrected["nationality"], not nationality)
 
     def active_order(self, *, workers=None, owner=None):
         workers = workers or [self.worker]

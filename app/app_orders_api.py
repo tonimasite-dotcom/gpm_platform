@@ -1487,8 +1487,12 @@ def redeem_account_invitation(
     password: str,
     *,
     expected_role: str | None = None,
+    nationality: bool | None = None,
+    require_worker_nationality: bool = False,
     audit_details: dict[str, Any] | None = None,
 ) -> dict[str, str]:
+    # Public registration requires citizenship; trusted provisioning callers may
+    # still create an account whose citizenship will be set by a logist later.
     normalized_token = normalize_invitation_token(token)
     if not 20 <= len(normalized_token) <= 200:
         raise HTTPException(status_code=400, detail="invalid or expired invitation")
@@ -1532,6 +1536,11 @@ def redeem_account_invitation(
             failure_reason = "invalid_or_expired"
         elif expected_role and expected_role.strip().lower() != role:
             failure_reason = "role_mismatch"
+        elif role == "worker" and (
+            (require_worker_nationality and not isinstance(nationality, bool))
+            or (nationality is not None and not isinstance(nationality, bool))
+        ):
+            raise HTTPException(status_code=422, detail="Укажите гражданство")
         else:
             try:
                 validate_new_password(password, username)
@@ -1604,6 +1613,8 @@ def redeem_account_invitation(
                     )
             if role in ORDER_NUMBER_ACTOR_ROLES:
                 ensure_actor_code(connection, account_id, role)
+            if role == "worker" and isinstance(nationality, bool):
+                _write_profile_in_connection(connection, account_id, {"nationality": nationality})
             record_audit_event_in_connection(
                 connection,
                 event_type="invitation_redeemed",
@@ -6205,6 +6216,8 @@ async def register_with_invitation(request: Request) -> dict[str, Any]:
         invitation,
         password,
         expected_role=expected_role,
+        nationality=payload.get("nationality"),
+        require_worker_nationality=True,
         audit_details=audit_details,
     )
     return {

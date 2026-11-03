@@ -141,6 +141,7 @@ class GpmApiService {
     required String password,
     required String passwordConfirmation,
     required String role,
+    bool? nationality,
   }) async {
     if (_appApiUrl.trim().isEmpty) {
       return {'success': false, 'error': 'GPM_APP_API_URL не задан'};
@@ -158,6 +159,7 @@ class GpmApiService {
               'password': password,
               'password_confirmation': passwordConfirmation,
               'role': role,
+              if (role == 'worker') 'nationality': nationality,
             }),
           )
           .timeout(_requestTimeout);

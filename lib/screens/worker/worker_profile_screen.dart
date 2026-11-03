@@ -32,10 +32,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _submittingVerification = false;
-  bool? _nationality;
-  bool get _nationalityRecorded =>
-      _profile['nationality_recorded'] == true ||
-      (!gpmApi.isApiMode && _profile.containsKey('nationality'));
   bool _hasStraps = false;
   bool _hasTools = false;
   String _payoutMethod = '';
@@ -88,7 +84,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       final tools = _map(raw['tools']);
       _hasStraps = tools['straps'] == true;
       _hasTools = tools['tools'] == true;
-      _nationality = _nationalityRecorded ? raw['nationality'] == true : null;
       _payoutMethod = _text(raw['payout_method']);
     } catch (_) {
       if (mounted) _showError('Не удалось загрузить профиль');
@@ -99,16 +94,11 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate() || _saving) return;
-    if (_nationality == null) {
-      _showError('Укажите гражданство перед сохранением профиля');
-      return;
-    }
     setState(() => _saving = true);
     final patch = <String, dynamic>{
       'display_name': _name.text.trim(),
       'phone': _phone.text.trim(),
       'date_birth': _birthDate.text.trim(),
-      if (!_nationalityRecorded) 'nationality': _nationality,
       'cities': _cities.text
           .split(',')
           .map((item) => item.trim())
@@ -314,24 +304,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
-                          _YesNoField(
-                            label: 'Гражданство РФ',
-                            value: _nationality,
-                            onChanged: _nationalityRecorded || _saving
-                                ? null
-                                : (value) =>
-                                      setState(() => _nationality = value),
-                          ),
-                          if (_nationalityRecorded) ...[
-                            const SizedBox(height: 6),
-                            const Text('Изменить гражданство может логист.'),
-                          ] else ...[
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Выберите гражданство. После сохранения изменить его сможет логист.',
-                            ),
-                          ],
                           const SizedBox(height: 14),
                           const Align(
                             alignment: Alignment.centerLeft,

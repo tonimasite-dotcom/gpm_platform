@@ -43,9 +43,20 @@ class _ProfileApi extends GpmApiService {
   @override
   Future<Map<String, dynamic>> getMyProfile() async => {
     'display_name': 'Исполнитель',
+    'phone': '+79990000000',
+    'date_birth': '01.01.1990',
+    'cities': ['Москва'],
     'nationality': true,
     'nationality_recorded': recorded,
   };
+
+  @override
+  Future<Map<String, dynamic>> updateMyProfile(
+    Map<String, dynamic> patch,
+  ) async {
+    saved = patch;
+    return {...await getMyProfile(), ...patch};
+  }
 
   @override
   Future<Map<String, dynamic>?> getWorkerProfile(String workerId) async => {
@@ -140,20 +151,25 @@ void main() {
   });
 
   for (final recorded in [false, true]) {
-    testWidgets('worker citizenship control respects recorded=$recorded', (
+    testWidgets('worker profile hides citizenship for recorded=$recorded', (
       tester,
     ) async {
       dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
-      app.gpmApi = _ProfileApi(recorded: recorded);
+      final api = _ProfileApi(recorded: recorded);
+      app.gpmApi = api;
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: WorkerProfileScreen())),
       );
       await tester.pumpAndSettle();
-      final citizenship = tester.widget<SegmentedButton<bool>>(
-        find.byType(SegmentedButton<bool>).first,
-      );
-      expect(citizenship.onSelectionChanged == null, recorded);
-      expect(citizenship.selected, recorded ? {true} : isEmpty);
+      expect(find.text('Гражданство РФ'), findsNothing);
+      expect(find.text('Изменить гражданство может логист.'), findsNothing);
+      final save = find.text('Сохранить профиль');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(api.saved, isNotNull);
+      expect(api.saved!.containsKey('nationality'), isFalse);
     });
   }
 

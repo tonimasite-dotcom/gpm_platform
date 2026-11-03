@@ -23,6 +23,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
   final _registrationFormKey = GlobalKey<FormState>();
 
   String? _role;
+  bool? _registrationNationality;
   _AuthMode _authMode = _AuthMode.login;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -45,6 +46,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
   void _selectRole(String role) {
     setState(() {
       _role = role;
+      _registrationNationality = null;
       _authMode = _AuthMode.login;
       _error = null;
       _notice = null;
@@ -96,6 +98,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       password: _registrationPasswordController.text,
       passwordConfirmation: _registrationPasswordConfirmationController.text,
       role: _role!,
+      nationality: _registrationNationality,
     );
     if (!mounted) return;
     if (result['success'] == true) {
@@ -105,10 +108,12 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       _invitationController.clear();
       _registrationPasswordController.clear();
       _registrationPasswordConfirmationController.clear();
+      _registrationNationality = null;
       setState(() {
         _isLoading = false;
         _authMode = _AuthMode.login;
-        _notice = 'Аккаунт $username создан. Введите выбранный пароль для входа.';
+        _notice =
+            'Аккаунт $username создан. Введите выбранный пароль для входа.';
       });
       return;
     }
@@ -161,8 +166,12 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                             Transform.translate(
                               offset: const Offset(0, -18),
                               child: Container(
-                                padding:
-                                    const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  24,
+                                  20,
+                                  32,
+                                ),
                                 decoration: const BoxDecoration(
                                   color: GpmColors.page,
                                   borderRadius: BorderRadius.vertical(
@@ -198,9 +207,9 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       children: [
         Text(
           'Выберите роль',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontSize: 26,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontSize: 26),
         ),
         const SizedBox(height: 12),
         Container(
@@ -262,10 +271,9 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
         const SizedBox(height: 8),
         Text(
           selectedRole.description,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: GpmColors.graphite),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: GpmColors.graphite),
         ),
         const SizedBox(height: 20),
         if (_notice != null) ...[
@@ -298,10 +306,10 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           onSelectionChanged: _isLoading
               ? null
               : (selection) => setState(() {
-                     _authMode = selection.first;
-                     _error = null;
-                     _notice = null;
-                  }),
+                  _authMode = selection.first;
+                  _error = null;
+                  _notice = null;
+                }),
           style: ButtonStyle(
             minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
             shape: WidgetStatePropertyAll(
@@ -346,11 +354,11 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                 labelText: 'Пароль',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
-                  tooltip:
-                      _obscurePassword ? 'Показать пароль' : 'Скрыть пароль',
-                  onPressed: () => setState(
-                    () => _obscurePassword = !_obscurePassword,
-                  ),
+                  tooltip: _obscurePassword
+                      ? 'Показать пароль'
+                      : 'Скрыть пароль',
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                   icon: Icon(
                     _obscurePassword
                         ? Icons.visibility_outlined
@@ -398,10 +406,9 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
         children: [
           Text(
             'Регистрация по приглашению: ${role.shortTitle}',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -446,6 +453,46 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                 ? 'Пароли не совпадают'
                 : null,
           ),
+          if (role.value == 'worker') ...[
+            const SizedBox(height: 12),
+            FormField<bool>(
+              validator: (_) => _registrationNationality == null
+                  ? 'Укажите гражданство'
+                  : null,
+              builder: (field) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Гражданство РФ'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Да')),
+                      ButtonSegment(value: false, label: Text('Нет')),
+                    ],
+                    emptySelectionAllowed: true,
+                    selected: _registrationNationality == null
+                        ? <bool>{}
+                        : {_registrationNationality!},
+                    onSelectionChanged: _isLoading
+                        ? null
+                        : (values) {
+                            setState(
+                              () => _registrationNationality = values.isEmpty
+                                  ? null
+                                  : values.first,
+                            );
+                            field.didChange(_registrationNationality);
+                          },
+                  ),
+                  if (field.hasError)
+                    Text(
+                      field.errorText!,
+                      style: const TextStyle(color: GpmColors.red),
+                    ),
+                ],
+              ),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -556,18 +603,17 @@ class _RoleCard extends StatelessWidget {
                   children: [
                     Text(
                       option.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       option.description,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: GpmColors.graphite,
-                            height: 1.35,
-                          ),
+                        color: GpmColors.graphite,
+                        height: 1.35,
+                      ),
                     ),
                   ],
                 ),
@@ -615,18 +661,12 @@ class _GpmAuthHero extends StatelessWidget {
           const Positioned(
             top: -42,
             right: -34,
-            child: _DecorativeBubble(
-              size: 150,
-              color: Color(0x24F8B800),
-            ),
+            child: _DecorativeBubble(size: 150, color: Color(0x24F8B800)),
           ),
           const Positioned(
             left: -50,
             bottom: -56,
-            child: _DecorativeBubble(
-              size: 150,
-              color: Color(0x18FF1744),
-            ),
+            child: _DecorativeBubble(size: 150, color: Color(0x18FF1744)),
           ),
           Positioned(
             top: 34,
@@ -690,9 +730,9 @@ class _GpmAuthHero extends StatelessWidget {
                 Text(
                   'Заказы, люди и работа в одном месте',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 12,
-                        color: GpmColors.graphite.withValues(alpha: 0.68),
-                      ),
+                    fontSize: 12,
+                    color: GpmColors.graphite.withValues(alpha: 0.68),
+                  ),
                 ),
               ],
             ),

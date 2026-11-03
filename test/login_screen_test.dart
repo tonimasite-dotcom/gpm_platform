@@ -40,6 +40,25 @@ void main() {
 
     expect(find.textContaining('Регистрация по приглашению'), findsOneWidget);
     expect(find.text('Код приглашения'), findsOneWidget);
+    expect(find.text('Гражданство РФ'), findsOneWidget);
+    final citizenship = tester.widget<SegmentedButton<bool>>(
+      find.byType(SegmentedButton<bool>),
+    );
+    expect(citizenship.selected, isEmpty);
+    final createAccount = find.text('Создать аккаунт');
+    await tester.ensureVisible(createAccount);
+    await tester.tap(createAccount);
+    await tester.pumpAndSettle();
+    expect(find.text('Укажите гражданство'), findsOneWidget);
+    await tester.ensureVisible(find.text('Нет'));
+    await tester.tap(find.text('Нет'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<SegmentedButton<bool>>(find.byType(SegmentedButton<bool>))
+          .selected,
+      {false},
+    );
     expect(find.textContaining('одноразовый код'), findsOneWidget);
     expect(find.textContaining('admin/admin'), findsNothing);
   });
