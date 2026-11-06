@@ -69,6 +69,10 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
         }
 
         final data = snapshot.data ?? const <String, dynamic>{};
+        final controlHeight =
+            (56 * MediaQuery.textScalerOf(context).scale(26) / 26)
+                .clamp(56.0, double.infinity)
+                .toDouble();
         final transactions = (data['transactions'] as List? ?? const [])
             .whereType<Map>()
             .map(
@@ -113,10 +117,10 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                     ),
                     const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
+                      width: double.infinity,
+                      height: controlHeight,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF6D8),
                         borderRadius: BorderRadius.circular(8),
@@ -124,6 +128,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                       ),
                       child: Text(
                         '${_formatMoney(_asInt(data['available']))} ₽',
+                        textAlign: TextAlign.right,
                         style: const TextStyle(
                           color: GpmColors.black,
                           fontSize: 26,
@@ -147,9 +152,10 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                       value: '$completedCount',
                     ),
                     const SizedBox(height: 14),
-                    const SizedBox(
+                    SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
+                      height: controlHeight,
+                      child: const FilledButton(
                         onPressed: null,
                         child: Text('Вывести деньги'),
                       ),
@@ -198,11 +204,16 @@ class _BreakdownRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: GpmColors.graphite)),
-        Text(
-          value,
-          style: const TextStyle(
-            color: GpmColors.black,
-            fontWeight: FontWeight.w700,
+        Padding(
+          // Align with the amount panel's 14 px inset and 1 px border.
+          padding: const EdgeInsets.only(right: 15),
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: GpmColors.black,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
