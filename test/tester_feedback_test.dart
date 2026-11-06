@@ -145,6 +145,16 @@ void main() {
     await tester.ensureVisible(secondWorkerRating);
     await tester.tap(secondWorkerRating);
     await tester.pumpAndSettle();
+    expect(api.reviewed, isNull);
+    expect(find.textContaining('Рейтинг: +2. Успешно: +1.'), findsOneWidget);
+    await tester.tap(find.text('Отмена'));
+    await tester.pumpAndSettle();
+    expect(api.reviewed, isNull);
+    expect(api.order['worker_reviews'], isEmpty);
+    await tester.tap(find.text('Справился хорошо').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Сохранить оценку'));
+    await tester.pumpAndSettle();
     expect(api.reviewed, {'worker_id': 'second-worker', 'result': 'excellent'});
     expect(find.text('Оценка: Справился хорошо'), findsOneWidget);
     expect(find.text('Справился хорошо'), findsOneWidget);

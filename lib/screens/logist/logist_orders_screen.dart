@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
+import '../../widgets/worker_rating.dart';
 import '../attendance/order_attendance.dart';
 import 'worker_profile_review_screen.dart';
 import '../client/client_create_order_screen.dart';
@@ -610,7 +611,41 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     }, 'Заявка отменена');
   }
 
-  Future<void> _confirmCompletion(String workerId, String result) async {
+  Future<void> _confirmCompletion(
+    String workerId,
+    String result,
+    String workerName,
+  ) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Сохранить оценку?'),
+        content: SingleChildScrollView(
+          child: Text(
+            '$workerName\n${workerResultLabels[result]}\n'
+            '${workerResultEffect(result)}\n\n'
+            'После сохранения изменить оценку нельзя.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Сохранить оценку'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed != true) {
+      setState(() => _isUpdating = false);
+      return;
+    }
     await _runAction(
       () => gpmApi.completeOrderWithResult(
         orderId: order['id'].toString(),
@@ -861,13 +896,18 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                         const SizedBox(height: 8),
                         if (reviews[assigned[index]] is Map)
                           Text(
-                            'Оценка: ${_workerResultLabels[reviews[assigned[index]]['result']] ?? 'Сохранена'}',
+                            'Оценка: ${workerResultLabels[reviews[assigned[index]]['result']] ?? 'Сохранена'}',
                           )
                         else if (order['status'] == 'DONE_PENDING')
                           _WorkerResultButtons(
                             enabled: !_isUpdating,
-                            onResult: (result) =>
-                                _confirmCompletion(assigned[index], result),
+                            onResult: (result) => _confirmCompletion(
+                              assigned[index],
+                              result,
+                              names[assigned[index]]?.isNotEmpty == true
+                                  ? names[assigned[index]]!
+                                  : 'Исполнитель ${index + 1}',
+                            ),
                           ),
                         const SizedBox(height: 16),
                       ],
@@ -875,6 +915,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                   );
                 },
               ),
+              const WorkerRatingRules(),
             ],
           ],
         ),
@@ -882,13 +923,6 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     );
   }
 }
-
-const _workerResultLabels = {
-  'success': 'Справился',
-  'fail': 'Не справился',
-  'excellent': 'Справился хорошо',
-  'good': 'С нареканиями',
-};
 
 class _WorkerResultButtons extends StatelessWidget {
   final bool enabled;
@@ -1024,7 +1058,7 @@ class _ApplicationCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Рейтинг: ${worker['rating'] ?? 0} · Успешно: ${worker['success_requests'] ?? 0} · Срывы: ${worker['fail_requests'] ?? 0}',
+              workerRatingSummary(worker),
               style: TextStyle(color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),

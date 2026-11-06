@@ -6,6 +6,7 @@ import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
 import '../../utils/date_time_input_formatters.dart';
+import '../../widgets/worker_rating.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -522,6 +523,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         ),
                       ],
                     ),
+                    const WorkerRatingRules(),
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: _saving ? null : _save,

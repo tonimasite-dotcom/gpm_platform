@@ -15,6 +15,9 @@ Map<String, dynamic> _worker(String id, String name) => {
   'nationality': true,
   'employment_type': 'contract',
   'is_active': true,
+  'rating': -3,
+  'success_requests': 2,
+  'fail_requests': 4,
 };
 
 Map<String, dynamic> _page(
@@ -99,8 +102,13 @@ void main() {
     expect(find.text('Заказов пока нет'), findsOneWidget);
     await tester.tap(find.text('Исполнители'));
     await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Рейтинг: -3 · Успешно: 2 · Срывы: 4'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Рабочий без заказов'));
     await tester.pumpAndSettle();
+    expect(find.text('Рейтинг: -3 · Успешно: 2 · Срывы: 4'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<bool>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Не РФ').last);
@@ -116,6 +124,7 @@ void main() {
     await tester.tap(find.text('Штатный исполнитель').last);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Сохранить'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Сохранить'));
     await tester.pumpAndSettle();
     expect(api.editedWorker, 'without-orders');

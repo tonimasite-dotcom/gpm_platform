@@ -236,7 +236,8 @@ class TesterFeedbackTests(unittest.TestCase):
         self.assertEqual({row["id"] for row in page["workers"]}, {self.worker["sub"], self.other["sub"]})
         self.assertEqual(api.list_orders(), [])
         worker = next(row for row in page["workers"] if row["id"] == self.worker["sub"])
-        self.assertEqual(set(worker), {"id", "display_name", "username", "phone_number", "nationality", "employment_type", "is_active"})
+        self.assertEqual(set(worker), {"id", "display_name", "username", "phone_number", "nationality", "employment_type", "is_active", "rating", "success_requests", "fail_requests"})
+        self.assertEqual(worker["rating"], 0)
         self.assertNotIn("synthetic-private-account", str(page))
         self.assertIs(worker["nationality"], False)
         api.staff_update_worker_profile(worker["id"], {"nationality": True, "employment_type": "state"}, self.logist)
@@ -416,6 +417,38 @@ class TesterFeedbackTests(unittest.TestCase):
         reviewed = api.review_order_worker_atomically(order["id"], self.other["sub"], "excellent", self.logist)
         self.assertEqual(reviewed["order"]["status"], "CONVERTED")
         self.assertEqual(api.get_account_profile(self.other)["rating"], 2)
+
+    def test_reviews_are_private_and_directory_reflects_saved_ratings(self):
+        order = self.ready_for_review(workers=[self.worker, self.other])
+        api.review_order_worker_atomically(order["id"], self.worker["sub"], "fail", self.logist)
+        reviewed = api.review_order_worker_atomically(order["id"], self.other["sub"], "excellent", self.logist)
+        order = reviewed["order"]
+        for actor, expected_delta in ((self.worker, -2), (self.other, 2)):
+            visible = api.order_for_user(order, actor)
+            self.assertEqual(set(visible["worker_reviews"]), {actor["sub"]})
+            review = visible["worker_reviews"][actor["sub"]]
+            self.assertEqual(review["rating_delta"], expected_delta)
+            self.assertEqual(set(review), {"result", "rating_delta", "reviewed_at"})
+        self.assertEqual(api.order_for_user(order, self.logist)["worker_reviews"], order["worker_reviews"])
+        self.assertNotIn("worker_reviews", api.order_for_user(order, self.client))
+        self.assertEqual(api.order_for_user(order, self.actor("worker", "unassigned"))["worker_reviews"], {})
+        directory = {row["id"]: row for row in api.list_worker_profiles(self.logist)["workers"]}
+        self.assertEqual(directory[self.worker["sub"]]["rating"], -2)
+        self.assertEqual(directory[self.worker["sub"]]["fail_requests"], 1)
+        self.assertEqual(directory[self.other["sub"]]["rating"], 2)
+        self.assertEqual(directory[self.other["sub"]]["success_requests"], 1)
+        # Response filtering must not modify the stored reviews or audit author.
+        self.assertEqual(api.get_order(order["id"])["worker_reviews"], order["worker_reviews"])
+
+    def test_rating_and_counters_cannot_be_edited_through_profile_endpoints(self):
+        for field in ("rating", "success_requests", "fail_requests"):
+            with self.assertRaises(HTTPException) as caught:
+                api.update_account_profile(self.worker, {field: 100})
+            self.assertEqual(caught.exception.status_code, 422)
+            with self.assertRaises(HTTPException) as caught:
+                api.staff_update_worker_profile(self.worker["sub"], {field: 100}, self.logist)
+            self.assertEqual(caught.exception.status_code, 422)
+            self.assertEqual(api.get_account_profile(self.worker)[field], 0)
 
     def test_repeated_review_is_idempotent_and_different_review_is_rejected(self):
         order = self.ready_for_review()

@@ -1504,6 +1504,9 @@ class GpmApiService {
             'nationality': entry.value['nationality'],
             'employment_type': entry.value['employment_type'] ?? 'contract',
             'is_active': true,
+            'rating': entry.value['rating'] ?? 0,
+            'success_requests': entry.value['success_requests'] ?? 0,
+            'fail_requests': entry.value['fail_requests'] ?? 0,
           },
         )
         .toList();

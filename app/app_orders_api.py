@@ -2472,6 +2472,13 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
         visible["is_assigned_to_worker"] = account_id in assigned
         visible.pop("applications", None)
         visible.pop("assigned_worker_ids", None)
+        own_review = (order.get("worker_reviews") or {}).get(account_id)
+        visible["worker_reviews"] = (
+            {account_id: {
+                key: own_review[key]
+                for key in ("result", "rating_delta", "reviewed_at") if key in own_review
+            }} if isinstance(own_review, dict) else {}
+        )
         for field in (
             "client_email",
             "client_phone",
@@ -2484,6 +2491,7 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
             visible.pop(field, None)
     elif role == "client":
         visible.pop("logist_account_id", None)
+        visible.pop("worker_reviews", None)
     return visible
 
 
@@ -5124,6 +5132,9 @@ def list_worker_profiles(
             "nationality": profile.get("nationality"),
             "employment_type": profile.get("employment_type", "contract"),
             "is_active": bool(active),
+            "rating": profile.get("rating", 0),
+            "success_requests": profile.get("success_requests", 0),
+            "fail_requests": profile.get("fail_requests", 0),
         })
     return {"workers": workers, "has_more": len(rows) > limit, "next_offset": offset + len(workers)}
 

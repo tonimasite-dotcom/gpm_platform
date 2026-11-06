@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
+import '../../widgets/worker_rating.dart';
 
 class WorkerProfileReviewScreen extends StatefulWidget {
   final String workerId;
@@ -80,6 +81,9 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(profile['phone_number']?.toString() ?? ''),
+                const SizedBox(height: 12),
+                Text(workerRatingSummary(profile)),
+                const WorkerRatingRules(),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool>(
                   isExpanded: true,

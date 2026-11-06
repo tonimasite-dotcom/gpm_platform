@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
+import '../../widgets/worker_rating.dart';
 import 'worker_profile_review_screen.dart';
 
 class LogistWorkersScreen extends StatefulWidget {
@@ -178,22 +179,29 @@ class _LogistWorkersScreenState extends State<LogistWorkersScreen> {
                           .toString(),
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    subtitle: Text(
-                      [
-                        if ((worker['phone_number'] ?? '')
-                            .toString()
-                            .isNotEmpty)
-                          worker['phone_number'].toString(),
-                        worker['nationality'] == null
-                            ? 'Гражданство не указано'
-                            : worker['nationality'] == true
-                            ? 'РФ'
-                            : 'Не РФ',
-                        worker['employment_type'] == 'state'
-                            ? 'Штатный'
-                            : 'Подрядчик',
-                        if (worker['is_active'] == false) 'Аккаунт отключён',
-                      ].join(' · '),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          [
+                            if ((worker['phone_number'] ?? '')
+                                .toString()
+                                .isNotEmpty)
+                              worker['phone_number'].toString(),
+                            worker['nationality'] == null
+                                ? 'Гражданство не указано'
+                                : worker['nationality'] == true
+                                ? 'РФ'
+                                : 'Не РФ',
+                            worker['employment_type'] == 'state'
+                                ? 'Штатный'
+                                : 'Подрядчик',
+                            if (worker['is_active'] == false)
+                              'Аккаунт отключён',
+                          ].join(' · '),
+                        ),
+                        Text(workerRatingSummary(worker)),
+                      ],
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _openWorker(worker),
