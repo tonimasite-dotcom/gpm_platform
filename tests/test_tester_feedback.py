@@ -64,10 +64,10 @@ class TesterFeedbackTests(unittest.TestCase):
             profile = api.get_account_profile(worker)
             self.assertTrue(profile["nationality_recorded"])
             self.assertIs(profile["nationality"], nationality)
+            self.assertEqual(api.worker_matches_nationality_requirement(
+                {"national": "yes"}, profile), nationality)
             self.assertTrue(api.worker_matches_nationality_requirement(
-                {"national": "yes" if nationality else "no"}, profile))
-            self.assertFalse(api.worker_matches_nationality_requirement(
-                {"national": "no" if nationality else "yes"}, profile))
+                {"national": "every"}, profile))
             with self.assertRaises(HTTPException):
                 api.update_account_profile(worker, {"nationality": not nationality})
             corrected = api.staff_update_worker_profile(
@@ -191,6 +191,68 @@ class TesterFeedbackTests(unittest.TestCase):
         worker = api.enrich_order_worker_profiles(api.orders_for_user([order], self.logist))[0]["applications"][0]["worker"]
         self.assertFalse(worker["nationality"])
 
+    def test_citizenship_discovery_and_applications_use_the_current_profile(self):
+        api.update_account_profile(self.worker, {"nationality": True, "cities": ["Москва"]})
+        api.update_account_profile(self.other, {"nationality": False, "cities": ["Москва"]})
+        orders = {}
+        for requirement in ("yes", "every", "no"):
+            payload = sample_payload(source="manual")
+            payload["city"] = "Москва"
+            payload["order_data"].update({"national": requirement, "order_number": f"citizenship-{requirement}"})
+            incoming = api.normalize_external_order(
+                payload, created_by=self.logist["sub"], created_by_role="logist",
+                require_order_number=False,
+            )
+            incoming["logist_account_id"] = self.logist["sub"]
+            saved = api.persist_published_order(incoming, actor=self.logist)
+            order = api.patch_order_atomically(
+                saved["id"], {"status": "PROCESSED"}, actor=None, integration=True,
+            )
+            orders[requirement] = order
+            for actor in (self.worker, self.other):
+                allowed = requirement != "yes" or actor == self.worker
+                profile = api.get_account_profile(actor)
+                visible = api.orders_for_user([order], actor, profile=profile)
+                self.assertEqual(bool(visible), allowed)
+                if allowed:
+                    api.apply_to_order_atomically(order["id"], actor)
+                else:
+                    with self.assertRaises(HTTPException) as caught:
+                        api.apply_to_order_atomically(order["id"], actor)
+                    self.assertEqual(caught.exception.status_code, 403)
+
+        # An existing application must show the corrected profile, not a snapshot.
+        api.staff_update_worker_profile(self.worker["sub"], {"nationality": False}, self.logist)
+        for order in orders.values():
+            projected = api.enrich_order_worker_profiles([api.get_order(order["id"])])[0]
+            own = next(item for item in projected["applications"] if item["worker_id"] == self.worker["sub"])
+            self.assertIs(own["worker"]["nationality"], False)
+        with self.assertRaises(HTTPException) as caught:
+            api.apply_to_order_atomically(orders["yes"]["id"], self.worker)
+        self.assertEqual(caught.exception.status_code, 403)
+        api.staff_update_worker_profile(self.worker["sub"], {"nationality": True}, self.logist)
+        api.apply_to_order_atomically(orders["yes"]["id"], self.worker)
+        # Citizenship eligibility does not bypass city eligibility.
+        api.update_account_profile(self.worker, {"cities": ["Санкт-Петербург"]})
+        with self.assertRaises(HTTPException) as caught:
+            api.apply_to_order_atomically(orders["every"]["id"], self.worker)
+        self.assertEqual(caught.exception.status_code, 403)
+        self.assertEqual(api.get_order(orders["no"]["id"])["national"], "no")
+
+    def test_only_explicit_rf_requirements_restrict_citizenship(self):
+        for requirement in (True, "yes", "ru", "rf", "russian", " YES "):
+            for field in ("national", "nationality"):
+                with self.subTest(requirement=requirement, field=field):
+                    order = {field: requirement}
+                    self.assertTrue(api.worker_matches_nationality_requirement(order, {"nationality": True}))
+                    self.assertFalse(api.worker_matches_nationality_requirement(order, {"nationality": False}))
+                    self.assertFalse(api.worker_matches_nationality_requirement(order, None))
+        for requirement in (False, "no", "non_ru", "non-rf", "foreign", "every", "any", None):
+            for profile in ({"nationality": True}, {"nationality": False}, None):
+                self.assertTrue(api.worker_matches_nationality_requirement({"national": requirement}, profile))
+        self.assertFalse(api.worker_matches_nationality_requirement(
+            {"national": None, "nationality": "ru"}, {"nationality": False}))
+
     def test_only_logist_can_manage_employment_and_other_profile_fields_are_rejected(self):
         api.update_account_profile(self.worker, {"nationality": True})
         updated = api.staff_update_worker_profile(self.worker["sub"], {"employment_type": "state"}, self.logist)
@@ -275,7 +337,7 @@ class TesterFeedbackTests(unittest.TestCase):
     def test_missing_citizenship_is_not_treated_as_foreign(self):
         profile = api.get_account_profile(self.worker)
         self.assertFalse(api.worker_matches_nationality_requirement({"national": "yes"}, profile))
-        self.assertFalse(api.worker_matches_nationality_requirement({"national": "no"}, profile))
+        self.assertTrue(api.worker_matches_nationality_requirement({"national": "no"}, profile))
         self.assertTrue(api.worker_matches_nationality_requirement({"national": "every"}, profile))
         profile = api.update_account_profile(self.worker, {"nationality": False})
         self.assertTrue(api.worker_matches_nationality_requirement({"national": "no"}, profile))

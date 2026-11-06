@@ -3487,7 +3487,9 @@ def worker_matches_nationality_requirement(
     order: dict[str, Any],
     profile: dict[str, Any] | None,
 ) -> bool:
-    requirement = order.get("national", order.get("nationality"))
+    requirement = order.get("national")
+    if requirement is None:
+        requirement = order.get("nationality")
     normalized = str(requirement or "").strip().lower()
     if requirement is True or normalized in {"yes", "ru", "rf", "russian"}:
         return (
@@ -3495,17 +3497,8 @@ def worker_matches_nationality_requirement(
             and profile.get("nationality_recorded") is not False
             and profile.get("nationality") is True
         )
-    if requirement is False or normalized in {
-        "no",
-        "non_ru",
-        "non-rf",
-        "foreign",
-    }:
-        return (
-            profile is not None
-            and profile.get("nationality_recorded") is not False
-            and profile.get("nationality") is False
-        )
+    # Only Russian citizenship can be required. Legacy no/non_ru means that
+    # Russian citizenship is not required, without rewriting stored orders.
     return True
 
 

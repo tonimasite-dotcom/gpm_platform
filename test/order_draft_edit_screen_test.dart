@@ -26,7 +26,7 @@ void main() {
             'workers_count': 2,
             'hours': 4,
             'min_time': 4,
-            'national': 'every',
+            'national': 'no',
             'work_mode': 'rate',
           },
         ),
@@ -45,6 +45,19 @@ void main() {
       find.byKey(const Key('order-nationality-field'), skipOffstage: false),
       findsOneWidget,
     );
+    final citizenship = find.byKey(const Key('order-nationality-field'));
+    await tester.scrollUntilVisible(
+      citizenship,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(citizenship);
+    await tester.pumpAndSettle();
+    expect(find.text('Только РФ'), findsOneWidget);
+    expect(find.text('Любое'), findsWidgets);
+    expect(find.text('Не РФ'), findsNothing);
+    await tester.tap(find.text('Любое').last);
+    await tester.pumpAndSettle();
     final rate = find.widgetWithText(TextFormField, 'Ставка в час: наёмник');
     await tester.scrollUntilVisible(
       rate,

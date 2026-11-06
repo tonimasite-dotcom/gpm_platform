@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import 'demo_storage.dart';
+import '../utils/order_citizenship.dart';
 
 class GpmApiService {
   static const sourceManual = 'manual';
@@ -876,7 +877,6 @@ class GpmApiService {
     final effectiveAdditional = [
       if (additionalInfo?.trim().isNotEmpty == true) additionalInfo!.trim(),
       if (national == 'yes') 'Только РФ',
-      if (national == 'no') 'Только не РФ',
       if (workMode == 'shift' && shiftDescription?.trim().isNotEmpty == true)
         shiftDescription!.trim(),
     ].join('\n');
@@ -1631,6 +1631,14 @@ class GpmApiService {
     final order = await getOrderById(orderId);
     if (order == null) {
       return {'success': false, 'error': 'Заявка не найдена'};
+    }
+
+    if (orderRequiresRussianCitizenship(order) &&
+        _demoWorkers[workerId]?['nationality'] != true) {
+      return {
+        'success': false,
+        'error': 'Для этой заявки требуется гражданство РФ',
+      };
     }
 
     final existing = _demoApplications.where(

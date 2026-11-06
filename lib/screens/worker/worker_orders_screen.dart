@@ -4,6 +4,7 @@ import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
+import '../../utils/order_citizenship.dart';
 import '../attendance/order_attendance.dart';
 
 class WorkerOrdersScreen extends StatefulWidget {
@@ -60,15 +61,9 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
   bool _matchesNationalityRequirement(Map<String, dynamic> order) {
     // The authenticated API already applies the current server profile.
     if (gpmApi.isApiMode) return true;
-    final national = order['national'] ?? order['nationality'];
     final worker = gpmApi.getWorkerProfileSync(GpmApiService.demoWorkerId);
-    if (national == true || national == 'yes' || national == 'ru') {
-      return worker?['nationality'] == true;
-    }
-    if (national == false || national == 'no' || national == 'non_ru') {
-      return worker?['nationality'] == false;
-    }
-    return true;
+    return !orderRequiresRussianCitizenship(order) ||
+        worker?['nationality'] == true;
   }
 
   bool _isActiveForWorker(Map<String, dynamic> order) {
@@ -387,10 +382,6 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
                         value: order['workers_count'],
                       ),
                     _OrderFact(
-                      label: 'Гражданство исполнителя',
-                      value: _nationalText(order),
-                    ),
-                    _OrderFact(
                       label: 'Режим работы',
                       value: _workModeText(order),
                     ),
@@ -512,15 +503,6 @@ class _OrderFact extends StatelessWidget {
       child: Text('$label: $text'),
     );
   }
-}
-
-String _nationalText(Map<String, dynamic> order) {
-  final value = order['national'] ?? order['nationality'];
-  if (value == true || value == 'yes' || value == 'ru') return 'Только РФ';
-  if (value == false || value == 'no' || value == 'non_ru') {
-    return 'Только не РФ';
-  }
-  return 'Любое';
 }
 
 bool _isRecruitmentClosedForWorker(Map<String, dynamic> order) {

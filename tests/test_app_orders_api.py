@@ -382,7 +382,7 @@ class ActiveApiTests(unittest.TestCase):
 
         self.assertTrue(api.worker_can_discover_order(russian, russian_profile))
         self.assertFalse(api.worker_can_discover_order(russian, non_russian_profile))
-        self.assertFalse(
+        self.assertTrue(
             api.worker_can_discover_order(non_russian, russian_profile)
         )
         self.assertTrue(

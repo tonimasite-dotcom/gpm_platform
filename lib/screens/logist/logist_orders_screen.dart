@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
+import '../../utils/order_citizenship.dart';
 import '../../widgets/worker_rating.dart';
 import '../attendance/order_attendance.dart';
 import 'worker_profile_review_screen.dart';
@@ -725,7 +726,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             _OrderFact(label: 'Кол-во людей', value: order['workers_count']),
             _OrderFact(
               label: 'Гражданство исполнителя',
-              value: _nationalText(order),
+              value: orderCitizenshipText(order),
             ),
             _OrderFact(label: 'Режим работы', value: _workModeText(order)),
             _OrderFact(label: 'Метро', value: order['metro']),
@@ -1140,15 +1141,6 @@ class _StatusPill extends StatelessWidget {
       child: Text(text, style: TextStyle(fontSize: 11, color: color)),
     );
   }
-}
-
-String _nationalText(Map<String, dynamic> order) {
-  final value = order['national'] ?? order['nationality'];
-  if (value == true || value == 'yes' || value == 'ru') return 'Только РФ';
-  if (value == false || value == 'no' || value == 'non_ru') {
-    return 'Только не РФ';
-  }
-  return 'Любое';
 }
 
 String _minPayText(Map<String, dynamic> order) {

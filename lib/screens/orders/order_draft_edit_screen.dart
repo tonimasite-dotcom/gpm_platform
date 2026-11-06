@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../../utils/date_time_input_formatters.dart';
+import '../../utils/order_citizenship.dart';
 
 class OrderDraftEditScreen extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -76,8 +77,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
     _individualPrice = _textController(order['individual_price']);
     _legalPrice = _textController(order['legal_price']);
     _additionalInfo = _textController(order['additional_info']);
-    final national = _value(order['national']);
-    _national = national == 'yes' || national == 'no' ? national : 'every';
+    _national = orderRequiresRussianCitizenship(order) ? 'yes' : 'every';
     _workMode = _value(order['work_mode']) == 'shift' ? 'shift' : 'rate';
   }
 
@@ -297,8 +297,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
                 labelText: 'Гражданство исполнителя',
               ),
               items: const [
-                DropdownMenuItem(value: 'yes', child: Text('РФ')),
-                DropdownMenuItem(value: 'no', child: Text('Не РФ')),
+                DropdownMenuItem(value: 'yes', child: Text('Только РФ')),
                 DropdownMenuItem(value: 'every', child: Text('Любое')),
               ],
               onChanged: (value) => setState(() => _national = value!),

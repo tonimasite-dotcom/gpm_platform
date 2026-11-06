@@ -7,11 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
 
 void main() {
-  test('demo CRM import preserves non-Russian citizenship requirement', () async {
+  test('legacy citizenship data accepts RF and non-RF demo workers', () async {
     dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
     final api = GpmApiService();
 
-    final result = await api.importCrmOrder({
+    final payload = <String, dynamic>{
       'source': 'external',
       'order_data': {
         'order_number': '099/26',
@@ -26,12 +26,38 @@ void main() {
         'info': {'address': 'Москва, Тестовая улица, 1'},
         'hours': 4,
       },
-    });
+    };
+    final result = await api.importCrmOrder(payload);
     final order = await api.getOrderById(result['orderId'].toString());
 
     expect(result['success'], isTrue);
     expect(order?['national'], 'no');
     expect(order?['nationality'], 'non_ru');
+    for (final isRussian in [true, false]) {
+      await api.updateWorkerProfile(GpmApiService.demoWorkerId, {
+        'nationality': isRussian,
+      });
+      final applied = await api.applyToOrder(
+        orderId: result['orderId'].toString(),
+        workerId: GpmApiService.demoWorkerId,
+        workerName: GpmApiService.demoWorkerName,
+      );
+      expect(applied['success'], isTrue);
+    }
+    final rfResult = await api.importCrmOrder({
+      ...payload,
+      'order_data': {
+        ...Map<String, dynamic>.from(payload['order_data'] as Map),
+        'order_number': '098/26',
+        'national': 'yes',
+      },
+    });
+    final refused = await api.applyToOrder(
+      orderId: rfResult['orderId'].toString(),
+      workerId: GpmApiService.demoWorkerId,
+      workerName: GpmApiService.demoWorkerName,
+    );
+    expect(refused['success'], isFalse);
   });
 
   test('draft update keeps CRM order number with slash in route', () async {
