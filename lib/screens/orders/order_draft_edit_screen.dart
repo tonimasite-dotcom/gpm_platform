@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
 
 import '../../main.dart' show gpmApi;
@@ -343,16 +344,18 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
             ),
             _field(_additionalInfo, 'Дополнительная информация', maxLines: 3),
             const SizedBox(height: 20),
-            FilledButton.icon(
+            FilledButton(
               onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: const Text('Сохранить изменения'),
+              child: GpmButtonContent(
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: const Text('Сохранить изменения'),
+              ),
             ),
           ],
         ),

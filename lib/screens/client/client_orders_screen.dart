@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../utils/order_display.dart';
@@ -449,30 +450,25 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                           children: [
                             Text(workerName),
                             const SizedBox(height: 8),
-                            Row(
+                            GpmActionButtons(
                               children: [
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: loading || applicationId.isEmpty
-                                        ? null
-                                        : () => _decideApplication(
-                                            applicationId,
-                                            true,
-                                          ),
-                                    child: const Text('Принять'),
-                                  ),
+                                FilledButton(
+                                  onPressed: loading || applicationId.isEmpty
+                                      ? null
+                                      : () => _decideApplication(
+                                          applicationId,
+                                          true,
+                                        ),
+                                  child: const Text('Принять'),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: loading || applicationId.isEmpty
-                                        ? null
-                                        : () => _decideApplication(
-                                            applicationId,
-                                            false,
-                                          ),
-                                    child: const Text('Отклонить'),
-                                  ),
+                                OutlinedButton(
+                                  onPressed: loading || applicationId.isEmpty
+                                      ? null
+                                      : () => _decideApplication(
+                                          applicationId,
+                                          false,
+                                        ),
+                                  child: const Text('Отклонить'),
                                 ),
                               ],
                             ),
@@ -496,21 +492,25 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                 if (status == 'NEW') ...[
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
+                    child: OutlinedButton(
                       onPressed: _pendingAction == null
                           ? () => _editDraft(order)
                           : null,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Редактировать'),
+                      child: const GpmButtonContent(
+                        icon: Icon(Icons.edit_outlined),
+                        label: Text('Редактировать'),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
-                    child: FilledButton.icon(
+                    child: FilledButton(
                       onPressed: _pendingAction == null ? _publishDraft : null,
-                      icon: const Icon(Icons.publish_outlined),
-                      label: const Text('Опубликовать'),
+                      child: const GpmButtonContent(
+                        icon: Icon(Icons.publish_outlined),
+                        label: Text('Опубликовать'),
+                      ),
                     ),
                   ),
                 ],

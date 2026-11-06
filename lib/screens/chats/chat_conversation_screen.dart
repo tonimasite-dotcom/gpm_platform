@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
 
 import '../../main.dart' show gpmApi, chatService;
@@ -438,10 +439,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
                 Positioned(
                   bottom: 8,
                   right: 12,
-                  child: FilledButton.icon(
+                  child: FilledButton(
                     onPressed: _goToLatest,
-                    icon: const Icon(Icons.arrow_downward),
-                    label: const Text('Новые сообщения'),
+                    child: const GpmButtonContent(
+                      icon: Icon(Icons.arrow_downward),
+                      label: Text('Новые сообщения'),
+                    ),
                   ),
                 ),
             ],
@@ -664,10 +667,9 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8, bottom: 8),
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(label),
+        child: GpmButtonContent(icon: Icon(icon, size: 18), label: Text(label)),
       ),
     );
   }

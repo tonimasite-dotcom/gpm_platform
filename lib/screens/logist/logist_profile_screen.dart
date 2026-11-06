@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
@@ -388,7 +389,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              SegmentedButton<String>(
+              GpmSegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'standard', label: Text('Стандарт')),
                   ButtonSegment(value: 'senior', label: Text('Старший')),
@@ -442,10 +443,12 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              FilledButton.icon(
+              FilledButton(
                 onPressed: _saveProfile,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Сохранить профиль'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.save_outlined),
+                  label: Text('Сохранить профиль'),
+                ),
               ),
             ],
           ),
@@ -660,20 +663,26 @@ class _ModerationCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               if (submission['has_attachment'] == true)
-                OutlinedButton.icon(
+                OutlinedButton(
                   onPressed: busy ? null : onAttachment,
-                  icon: const Icon(Icons.image_outlined),
-                  label: const Text('Открыть фото'),
+                  child: const GpmButtonContent(
+                    icon: Icon(Icons.image_outlined),
+                    label: Text('Открыть фото'),
+                  ),
                 ),
-              OutlinedButton.icon(
+              OutlinedButton(
                 onPressed: busy ? null : onReject,
-                icon: const Icon(Icons.close),
-                label: const Text('Отклонить'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.close),
+                  label: Text('Отклонить'),
+                ),
               ),
-              FilledButton.icon(
+              FilledButton(
                 onPressed: busy ? null : onApprove,
-                icon: const Icon(Icons.check),
-                label: const Text('Подтвердить'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.check),
+                  label: Text('Подтвердить'),
+                ),
               ),
             ],
           ),

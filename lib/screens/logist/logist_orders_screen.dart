@@ -5,6 +5,7 @@ import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
 import '../../utils/order_citizenship.dart';
 import '../../widgets/worker_rating.dart';
+import '../../widgets/adaptive_buttons.dart';
 import '../attendance/order_attendance.dart';
 import 'worker_profile_review_screen.dart';
 import '../client/client_create_order_screen.dart';
@@ -93,10 +94,12 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
           child: Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
+                child: FilledButton(
                   onPressed: _openCreateOrder,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Создать'),
+                  child: const GpmButtonContent(
+                    icon: Icon(Icons.add),
+                    label: Text('Создать'),
+                  ),
                 ),
               ),
             ],
@@ -402,42 +405,39 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
                 children: [
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
+                    child: OutlinedButton(
                       onPressed: _editOrder,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Редактировать'),
+                      child: const GpmButtonContent(
+                        icon: Icon(Icons.edit_outlined),
+                        label: Text('Редактировать'),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  GpmActionButtons(
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            await _updateOrderStatus(
-                              context,
-                              'JUNK',
-                              'Заказ отклонен',
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                          ),
-                          child: const Text('Отклонить'),
+                      OutlinedButton(
+                        onPressed: () async {
+                          await _updateOrderStatus(
+                            context,
+                            'JUNK',
+                            'Заказ отклонен',
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
                         ),
+                        child: const Text('Отклонить'),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            await _updateOrderStatus(
-                              context,
-                              'PROCESSED',
-                              'Заказ одобрен и доступен исполнителям',
-                            );
-                          },
-                          child: const Text('Опубликовать'),
-                        ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await _updateOrderStatus(
+                            context,
+                            'PROCESSED',
+                            'Заказ одобрен и доступен исполнителям',
+                          );
+                        },
+                        child: const Text('Опубликовать'),
                       ),
                     ],
                   ),
@@ -780,17 +780,21 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: _isUpdating ? null : _editDraft,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Редактировать заявку'),
+                  child: const GpmButtonContent(
+                    icon: Icon(Icons.edit_outlined),
+                    label: Text('Редактировать заявку'),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              OutlinedButton.icon(
+              OutlinedButton(
                 onPressed: _isUpdating ? null : _cancelOrder,
-                icon: const Icon(Icons.cancel_outlined),
-                label: const Text('Отменить заявку'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.cancel_outlined),
+                  label: Text('Отменить заявку'),
+                ),
               ),
             ],
             if (order['status'] == 'PROCESSED' &&
@@ -799,10 +803,12 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: _isUpdating ? null : _closeRecruitment,
-                  icon: const Icon(Icons.person_search_outlined),
-                  label: const Text('Завершить поиск исполнителей'),
+                  child: const GpmButtonContent(
+                    icon: Icon(Icons.person_search_outlined),
+                    label: Text('Завершить поиск исполнителей'),
+                  ),
                 ),
               ),
             ],
@@ -936,25 +942,33 @@ class _WorkerResultButtons extends StatelessWidget {
     spacing: 8,
     runSpacing: 8,
     children: [
-      FilledButton.icon(
+      FilledButton(
         onPressed: enabled ? () => onResult('success') : null,
-        icon: const Icon(Icons.thumb_up_alt_outlined),
-        label: const Text('Справился'),
+        child: const GpmButtonContent(
+          icon: Icon(Icons.thumb_up_alt_outlined),
+          label: Text('Справился'),
+        ),
       ),
-      OutlinedButton.icon(
+      OutlinedButton(
         onPressed: enabled ? () => onResult('fail') : null,
-        icon: const Icon(Icons.thumb_down_alt_outlined),
-        label: const Text('Не справился'),
+        child: const GpmButtonContent(
+          icon: Icon(Icons.thumb_down_alt_outlined),
+          label: Text('Не справился'),
+        ),
       ),
-      OutlinedButton.icon(
+      OutlinedButton(
         onPressed: enabled ? () => onResult('excellent') : null,
-        icon: const Icon(Icons.thumb_up_alt_outlined),
-        label: const Text('Справился хорошо'),
+        child: const GpmButtonContent(
+          icon: Icon(Icons.thumb_up_alt_outlined),
+          label: Text('Справился хорошо'),
+        ),
       ),
-      OutlinedButton.icon(
+      OutlinedButton(
         onPressed: enabled ? () => onResult('good') : null,
-        icon: const Icon(Icons.report_gmailerrorred_outlined),
-        label: const Text('С нареканиями'),
+        child: const GpmButtonContent(
+          icon: Icon(Icons.report_gmailerrorred_outlined),
+          label: Text('С нареканиями'),
+        ),
       ),
     ],
   );
@@ -1065,10 +1079,12 @@ class _ApplicationCard extends StatelessWidget {
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: OutlinedButton(
                 onPressed: isUpdating ? null : onProfile,
-                icon: const Icon(Icons.manage_accounts_outlined),
-                label: const Text('Профиль и данные'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.manage_accounts_outlined),
+                  label: Text('Профиль и данные'),
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -1078,23 +1094,18 @@ class _ApplicationCard extends StatelessWidget {
             ),
             if (isPending) ...[
               const SizedBox(height: 12),
-              Row(
+              GpmActionButtons(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: isUpdating ? null : onReject,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                      child: const Text('Отклонить'),
+                  OutlinedButton(
+                    onPressed: isUpdating ? null : onReject,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
                     ),
+                    child: const Text('Отклонить'),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: isUpdating ? null : onApprove,
-                      child: const Text('Подтвердить'),
-                    ),
+                  ElevatedButton(
+                    onPressed: isUpdating ? null : onApprove,
+                    child: const Text('Подтвердить'),
                   ),
                 ],
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -384,7 +385,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          SegmentedButton<String>(
+                          GpmSegmentedButton<String>(
                             segments: const [
                               ButtonSegment(
                                 value: 'account',
@@ -525,17 +526,21 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     ),
                     const WorkerRatingRules(),
                     const SizedBox(height: 16),
-                    FilledButton.icon(
+                    FilledButton(
                       onPressed: _saving ? null : _save,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(
-                        _saving ? 'Сохраняем...' : 'Сохранить профиль',
+                      child: GpmButtonContent(
+                        icon: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(
+                          _saving ? 'Сохраняем...' : 'Сохранить профиль',
+                        ),
                       ),
                     ),
                   ],
@@ -673,7 +678,7 @@ class _YesNoField extends StatelessWidget {
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        SegmentedButton<bool>(
+        GpmSegmentedButton<bool>(
           segments: const [
             ButtonSegment(value: true, label: Text('Да')),
             ButtonSegment(value: false, label: Text('Нет')),
@@ -765,10 +770,12 @@ class _VerificationCard extends StatelessWidget {
           ],
           if (!verified && !pending) ...[
             const SizedBox(height: 12),
-            OutlinedButton.icon(
+            OutlinedButton(
               onPressed: onPressed,
-              icon: const Icon(Icons.send_outlined),
-              label: Text(actionLabel),
+              child: GpmButtonContent(
+                icon: const Icon(Icons.send_outlined),
+                label: Text(actionLabel),
+              ),
             ),
           ],
         ],
@@ -1022,19 +1029,23 @@ class _PassportDialogState extends State<_PassportDialog> {
                         runSpacing: 8,
                         alignment: WrapAlignment.center,
                         children: [
-                          OutlinedButton.icon(
+                          OutlinedButton(
                             onPressed: _picking
                                 ? null
                                 : () => _pick(ImageSource.gallery),
-                            icon: const Icon(Icons.image_outlined),
-                            label: const Text('Выбрать фото'),
+                            child: const GpmButtonContent(
+                              icon: Icon(Icons.image_outlined),
+                              label: Text('Выбрать фото'),
+                            ),
                           ),
-                          OutlinedButton.icon(
+                          OutlinedButton(
                             onPressed: _picking
                                 ? null
                                 : () => _pick(ImageSource.camera),
-                            icon: const Icon(Icons.photo_camera_outlined),
-                            label: const Text('Сделать фото'),
+                            child: const GpmButtonContent(
+                              icon: Icon(Icons.photo_camera_outlined),
+                              label: Text('Сделать фото'),
+                            ),
                           ),
                         ],
                       ),
@@ -1051,10 +1062,12 @@ class _PassportDialogState extends State<_PassportDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Отмена'),
         ),
-        FilledButton.icon(
+        FilledButton(
           onPressed: _submit,
-          icon: const Icon(Icons.send_outlined),
-          label: const Text('Отправить на проверку'),
+          child: const GpmButtonContent(
+            icon: Icon(Icons.send_outlined),
+            label: Text('Отправить на проверку'),
+          ),
         ),
       ],
     );
@@ -1134,14 +1147,16 @@ class _NpdDialogState extends State<_NpdDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Отмена'),
         ),
-        FilledButton.icon(
+        FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
               Navigator.of(context).pop(_inn.text.trim());
             }
           },
-          icon: const Icon(Icons.send_outlined),
-          label: const Text('Отправить на проверку'),
+          child: const GpmButtonContent(
+            icon: Icon(Icons.send_outlined),
+            label: Text('Отправить на проверку'),
+          ),
         ),
       ],
     );

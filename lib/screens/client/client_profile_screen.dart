@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
@@ -204,7 +205,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              SegmentedButton<String>(
+              GpmSegmentedButton<String>(
                 segments: const [
                   ButtonSegment(
                     value: 'individual',
@@ -320,7 +321,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              SegmentedButton<String>(
+              GpmSegmentedButton<String>(
                 segments: isLegal
                     ? const [
                         ButtonSegment(
@@ -412,16 +413,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              OutlinedButton.icon(
+              OutlinedButton(
                 onPressed: _showSupportMessage,
-                icon: const Icon(Icons.support_agent),
-                label: const Text('Обратиться в поддержку 24/7'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.support_agent),
+                  label: Text('Обратиться в поддержку 24/7'),
+                ),
               ),
               const SizedBox(height: 12),
-              FilledButton.icon(
+              FilledButton(
                 onPressed: _saveProfile,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Сохранить профиль'),
+                child: const GpmButtonContent(
+                  icon: Icon(Icons.save_outlined),
+                  label: Text('Сохранить профиль'),
+                ),
               ),
             ],
           ),

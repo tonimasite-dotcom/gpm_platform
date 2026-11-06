@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -249,20 +250,21 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
                   ...rows.map((row) => _AttendanceRow(row: row)),
                 if (widget.allowClientConfirmation) ...[
                   const SizedBox(height: 12),
-                  Row(
+                  GpmActionButtons(
                     children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _confirming ? null : _scan,
-                          icon: const Icon(Icons.qr_code_scanner),
-                          label: const Text('Сканировать QR'),
+                      FilledButton(
+                        onPressed: _confirming ? null : _scan,
+                        child: const GpmButtonContent(
+                          icon: Icon(Icons.qr_code_scanner),
+                          label: Text('Сканировать QR'),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton.outlined(
-                        tooltip: 'Ввести код',
+                      OutlinedButton(
                         onPressed: _confirming ? null : _enterCode,
-                        icon: const Icon(Icons.password_outlined),
+                        child: const GpmButtonContent(
+                          icon: Icon(Icons.password_outlined),
+                          label: Text('Ввести код'),
+                        ),
                       ),
                     ],
                   ),
@@ -378,10 +380,12 @@ class _WorkerAttendancePanelState extends State<WorkerAttendancePanel> {
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    child: FilledButton.icon(
+                    child: FilledButton(
                       onPressed: _creating ? null : _createChallenge,
-                      icon: const Icon(Icons.qr_code_2),
-                      label: Text(buttonText),
+                      child: GpmButtonContent(
+                        icon: const Icon(Icons.qr_code_2),
+                        label: Text(buttonText),
+                      ),
                     ),
                   ),
                 ],

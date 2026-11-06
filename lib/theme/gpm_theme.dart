@@ -88,7 +88,11 @@ ThemeData buildGpmTheme() {
         minimumSize: const Size(48, 48),
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        textStyle: const TextStyle(
+          fontFamily: 'Arial',
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -98,7 +102,11 @@ ThemeData buildGpmTheme() {
         minimumSize: const Size(48, 48),
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        textStyle: const TextStyle(
+          fontFamily: 'Arial',
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -108,17 +116,34 @@ ThemeData buildGpmTheme() {
         minimumSize: const Size(48, 48),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(
+          fontFamily: 'Arial',
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: GpmColors.red,
-        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        minimumSize: const Size(48, 48),
+        textStyle: const TextStyle(
+          fontFamily: 'Arial',
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(
+            fontFamily: 'Arial',
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         backgroundColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? GpmColors.red

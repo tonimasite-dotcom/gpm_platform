@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
@@ -778,7 +779,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              SegmentedButton<String>(
+              GpmSegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'yes', label: Text('Только РФ')),
                   ButtonSegment(value: 'every', label: Text('Любое')),
@@ -788,7 +789,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                     setState(() => _national = selection.first),
               ),
               const SizedBox(height: 12),
-              SegmentedButton<String>(
+              GpmSegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'rate', label: Text('Ставка в час')),
                   ButtonSegment(value: 'shift', label: Text('Смена')),

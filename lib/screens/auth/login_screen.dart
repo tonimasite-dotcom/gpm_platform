@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
@@ -249,10 +250,12 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(
+          child: TextButton(
             onPressed: _isLoading ? null : _changeRole,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Изменить роль'),
+            child: const GpmButtonContent(
+              icon: Icon(Icons.arrow_back),
+              label: Text('Изменить роль'),
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -288,7 +291,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
           ),
           const SizedBox(height: 16),
         ],
-        SegmentedButton<_AuthMode>(
+        GpmSegmentedButton<_AuthMode>(
           segments: const [
             ButtonSegment(
               value: _AuthMode.login,
@@ -381,16 +384,18 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
               ),
             ],
             const SizedBox(height: 18),
-            FilledButton.icon(
+            FilledButton(
               onPressed: _isLoading ? null : _submit,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.login),
-              label: const Text('Войти'),
+              child: GpmButtonContent(
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login),
+                label: const Text('Войти'),
+              ),
             ),
           ],
         ),
@@ -464,7 +469,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                 children: [
                   const Text('Гражданство РФ'),
                   const SizedBox(height: 8),
-                  SegmentedButton<bool>(
+                  GpmSegmentedButton<bool>(
                     segments: const [
                       ButtonSegment(value: true, label: Text('Да')),
                       ButtonSegment(value: false, label: Text('Нет')),
@@ -504,16 +509,18 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
             ),
           ],
           const SizedBox(height: 18),
-          FilledButton.icon(
+          FilledButton(
             onPressed: _isLoading ? null : _submitRegistration,
-            icon: _isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.person_add_alt_1_outlined),
-            label: const Text('Создать аккаунт'),
+            child: GpmButtonContent(
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.person_add_alt_1_outlined),
+              label: const Text('Создать аккаунт'),
+            ),
           ),
         ],
       ),
