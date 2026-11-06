@@ -1,6 +1,18 @@
 # GPM Platform
 
-Статус на 06.11.2026: правила гражданства и карточка исполнителя опубликованы,
+Статус на 06.11.2026: адаптивные мобильные кнопки опубликованы, frontend `242f4b7`.
+На узких экранах действия складываются в столбец, подписи не уменьшаются;
+переключатели и значки учитывают ширину и системный масштаб текста.
+Проверены 320–1024 px и масштаб 100/130/200%, включая карточку «Опубликовать».
+[CI 42192540674](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42192540674),
+[backup 42192220712](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42192220712) и
+[frontend deployment 42192987328](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42192987328): success.
+107 Flutter tests, analyze и release web build прошли; сайт/API и смена JS-сборки проверены.
+Backend остается `f63745a`. Осталась ручная приемка на телефонах владельца.
+[Детали и точка продолжения](PROJECT_HANDOFF_2026-11-06_MOBILE_BUTTONS.md).
+[Продолжение в новом чате](CONTINUE_PROJECT_PROMPT_2026-11-06_MOBILE_BUTTONS.md).
+
+Предыдущий выпуск 06.11.2026: правила гражданства и карточка исполнителя опубликованы,
 backend/frontend `f63745a`. «Только РФ» доступно только рабочим РФ, «Любое» — всем;
 ограничение по городу сохранено. Поле гражданства скрыто в карточке исполнителя.
 [CI 42188185872](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42188185872),
