@@ -4,13 +4,16 @@
 
 Код: `8cac2b4b3ac0e8ec6e2ef998cbc491727ade8ad7`.
 Ветка подготовки: `fix/worker-ratings-2026-11-06`.
-Изменения подготовлены локально. Production НЕ обновлен.
+Изменения опубликованы 06.11.2026, deployment завершен около 11:11 МСК.
+Развернутый backend/frontend: `1252671a7a483f61536df38ed490b8e2a697cd6f`.
+Это commit кода `8cac2b4` плюс первоначальная документация подготовки.
 Владелец прямо поручил довести рейтинги до рабочего состояния и опубликовать.
 Повторное подтверждение простого выпуска не требуется.
 
-GitHub CLI сообщает недействительный токен аккаунта `tonimasite-dotcom`.
-Попытка запуска штатного `Backup production` отклонена HTTP 401; workflow
-не запущен. Пользователю предложено выполнить `gh auth login -h github.com`.
+Первоначальный HTTP 401 устранен: владелец подтвердил вход GitHub CLI.
+CLI требуется доступ к Windows keyring вне sandbox. Если обычный `gh auth status`
+снова сообщает неверный токен, сначала проверить его с соответствующим доступом,
+а не предлагать владельцу заново входить. Авторизованные команды GitHub прошли.
 Не запрашивать и не выводить токены, пароли или содержимое хранилищ учетных данных.
 
 ## Изменения
@@ -54,24 +57,35 @@ GitHub CLI сообщает недействительный токен акка
 
 ## Выпуск и продолжение
 
-CI текущего кода: еще не запущен. Deployment: еще не запущен.
-Последний видимый успешный backup: 05.11.2026,
-[run 42011025789](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42011025789).
-Свежий backup непосредственно перед этим выпуском еще не проверен.
-Последний подтвержденный production: `8e9e8a5`,
-[deployment 41620211480](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/41620211480).
+- [CI 42185197084](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185197084):
+  success, SHA `1252671`. Backend: 117 tests с настоящим PostgreSQL, в том числе
+  конкурентные операции профиля/оценки и attendance/finance. Flutter analyze,
+  tests и release web build прошли; PHP regression checks пройдены.
+- [Backup 42185172324](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185172324):
+  success перед выпуском. Проверены расшифровка, хеши и изолированное восстановление
+  PostgreSQL. Подтвержден artifact `gpm-production-encrypted-42185172324-1`,
+  ID `13487795149`, не expired на момент проверки. Содержимое рабочих данных
+  не скачивалось и не публиковалось.
+- Изменения перенесены fast-forward в main, без перезаписи чужой истории.
+- [Deployment 42185483970](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185483970):
+  target `all`, success, SHA `1252671`. Повторные Flutter analyze/tests/build,
+  аудит зависимостей, backend tests на runner и сервере, проверка production
+  конфигурации и сервиса прошли. Backend log подтвердил SHA `1252671`.
+- [Demo 42185483637](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185483637):
+  success, SHA `1252671`.
+- Независимые публичные проверки после выпуска: `/health` возвращает
+  `status=ok`, `storage=postgres`; сайт HTTP 200 и Flutter bootstrap; публичный
+  frontend config указывает production API. В скачанной публичной JS-сборке
+  проверены новые правила, текст подтверждения и неизменяемость оценки.
+  Проверка выполнялась без входа и записи рабочих данных.
+- Rollback backend: `/opt/gpm/backups/20261106_081019`.
+  Rollback frontend: `/opt/gpm/front-backups/20261106_081102`.
+  Предыдущий frontend: `/var/www/gpm-app-previous-20261106_081102`.
+  Это копии кода; для восстановления данных нужен отдельный encrypted backup.
 
-После восстановления входа:
-
-1. Проверить актуальный `origin/main`, перенести код без перезаписи чужих изменений.
-2. Отправить ветку и запустить CI: настоящий PostgreSQL, Flutter analyze/tests/build.
-3. Запустить штатный `Backup production`, дождаться success и проверить наличие
-   зашифрованного artifact с успешным изолированным восстановлением PostgreSQL.
-4. После успешных проверок перенести изменение в main и выполнить штатный
-   `Deploy production`, target `all`. Миграции и пересчет данных не нужны.
-5. Проверить публичные health/frontend, SHA развернутых компонентов и результат
-   workflow. Записать CI/deploy/backup, rollback и остаток приемки в этот handoff
-   и README, зафиксировать документацию в Git и отправить ее.
+Выпуск завершен. Обновления README/handoff после него содержат только документацию
+и не требуют повторного deployment. Логи CI/deploy и smoke-скрипт находятся в
+игнорируемой `.tmp/ratings-*`. Не запускать повторный выпуск без новых изменений.
 
 Остаток ручной приемки после выпуска: владелец открывает каталог/профиль логиста,
 проверяет рейтинг/счетчики и правила, отменяет пробную оценку, проверяет правила

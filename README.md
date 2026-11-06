@@ -1,10 +1,14 @@
 # GPM Platform
 
-Статус на 06.11.2026: исправления рейтингов подготовлены локально, код `8cac2b4`.
+Статус на 06.11.2026: исправления рейтингов опубликованы в рабочее приложение.
+Код `8cac2b4`, развернутый backend/frontend `1252671`.
 Логист видит рейтинг и счетчики в каталоге и профиле; добавлены правила и
 подтверждение оценки, закрыта передача чужих оценок рабочему через API.
-Публикация еще не выполнена: требуется восстановить вход GitHub CLI (HTTP 401),
-проверить свежий backup, пройти CI и штатный deployment.
+[CI 42185197084](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185197084),
+[backup 42185172324](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185172324) и
+[deployment 42185483970](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185483970): success.
+Проверены API (`ok`, `postgres`), сайт и новые тексты в опубликованной JS-сборке.
+Осталась ручная приемка экранов под рабочими аккаунтами владельцем.
 [Проверки и точка продолжения](PROJECT_HANDOFF_2026-11-06_WORKER_RATINGS.md).
 [Продолжение в новом чате](CONTINUE_PROJECT_PROMPT_2026-11-06_WORKER_RATINGS.md).
 
