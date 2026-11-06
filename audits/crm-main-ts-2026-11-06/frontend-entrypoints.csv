@@ -1,0 +1,3 @@
+﻿entry,main_file,ts_file,same_content,main_sha256,ts_sha256
+/dist/css/app.css,dist/css/app.9705ee.css,dist/css/app.5a273b.css,True,a22befc54079fd0fe8af1f9eee6e5e10912f0b8b153a6c3b20b1b25d5413141c,a22befc54079fd0fe8af1f9eee6e5e10912f0b8b153a6c3b20b1b25d5413141c
+/dist/js/app.js,dist/js/app.ccae21.js,dist/js/app.ab20f7.js,False,77dd6045bad2dbc744b1de3884e12d61ebacaa51ef823946097db35396d06f82,f378e548177bdc3ace57e1495a6a36f9900ceb9c77e4fd3dbb64896d90fbf180

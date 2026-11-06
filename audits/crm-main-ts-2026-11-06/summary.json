@@ -1,0 +1,245 @@
+{
+  "created_utc": "2026-11-06T12:27:02.202568+00:00",
+  "mode": "read-only; no deployments, app bootstrap, jobs, migrations or business writes",
+  "source_differences_stable_on_second_scan": true,
+  "source_file_counts": {
+    "different": 192,
+    "main_only": 195,
+    "ts_only": 23
+  },
+  "source_module_counts": {
+    "app": 219,
+    "config": 7,
+    "database": 38,
+    "resources": 144,
+    "routes": 2
+  },
+  "database_targets_are_distinct": true,
+  "databases": {
+    "main": {
+      "server_version": "5.7.42",
+      "tables": 112,
+      "columns": 1190,
+      "indexes": 274,
+      "foreign_keys": 29,
+      "foreign_rules": 29,
+      "triggers": 0,
+      "views": 0,
+      "routines": 0,
+      "events": 0,
+      "migration_history": 217,
+      "distinct_indexes": 232,
+      "migration_files_without_history": [],
+      "migration_history_without_files": []
+    },
+    "ts": {
+      "server_version": "5.7.42",
+      "tables": 72,
+      "columns": 837,
+      "indexes": 124,
+      "foreign_keys": 26,
+      "foreign_rules": 26,
+      "triggers": 0,
+      "views": 0,
+      "routines": 0,
+      "events": 0,
+      "migration_history": 180,
+      "distinct_indexes": 112,
+      "migration_files_without_history": [],
+      "migration_history_without_files": []
+    }
+  },
+  "new_main_tables": [
+    "admin_permission_overrides",
+    "customer_pause_notifications",
+    "customer_pause_status",
+    "debit_notifications",
+    "document_history_events",
+    "document_payment_activation",
+    "document_payment_allocations",
+    "document_payment_codes",
+    "document_payment_contours",
+    "document_payment_declines",
+    "document_payment_dirty",
+    "document_payment_line_links",
+    "document_payment_links",
+    "document_payment_locks",
+    "document_payment_mail_attempts",
+    "document_payment_manual_marks",
+    "document_payment_proofs",
+    "document_payment_review_events",
+    "document_payment_reviews",
+    "document_payment_states",
+    "order_accrual_corrections",
+    "order_accrual_refunds",
+    "order_cash_receipts",
+    "order_client_resets",
+    "order_deletions",
+    "order_financial_reopens",
+    "order_worker_calculations",
+    "order_worker_mail_states",
+    "payout_cash_sources",
+    "payout_registries",
+    "payout_registry_items",
+    "payout_settlement_gate",
+    "payout_settlement_lines",
+    "payout_settlement_requests",
+    "payout_settlements",
+    "worker_card_history",
+    "worker_identity_claims",
+    "worker_identity_keys",
+    "worker_last_order_runs",
+    "worker_last_orders"
+  ],
+  "new_columns_in_existing_tables": {
+    "branches.is_available_for_reconciliation": "tinyint(1)",
+    "customers.pause_watch_off": "tinyint(1)",
+    "customers.entrepreneur_surname": "varchar(60)",
+    "customers.entrepreneur_first_name": "varchar(60)",
+    "customers.entrepreneur_patronymic": "varchar(60)",
+    "orders.send_workers_registration": "tinyint(1)",
+    "orders.logist_edit_until": "datetime",
+    "orders.calculation_version": "tinyint(3) unsigned",
+    "plannings.created_by": "bigint(20) unsigned",
+    "plannings.source_order_id": "bigint(20) unsigned",
+    "plannings.source_order_number": "varchar(255)",
+    "report_cards.prize_issued_by": "bigint(20) unsigned",
+    "report_cards.penalty_issued_by": "bigint(20) unsigned",
+    "users.deleted_email": "varchar(255)"
+  },
+  "system_role_permission_counts": {
+    "accountant": {
+      "main": 43,
+      "ts": 43
+    },
+    "admin": {
+      "main": 155,
+      "ts": 150
+    },
+    "head": {
+      "main": 72,
+      "ts": 69
+    },
+    "hr": {
+      "main": 16,
+      "ts": 27
+    },
+    "loader": {
+      "main": 13,
+      "ts": 13
+    },
+    "logist": {
+      "main": 18,
+      "ts": 36
+    },
+    "manager": {
+      "main": 60,
+      "ts": 71
+    }
+  },
+  "npm": {
+    "lockfile_versions": {
+      "main": 2,
+      "ts": 1
+    },
+    "package_counts": {
+      "main": 1841,
+      "ts": 1841
+    },
+    "normalized_package_differences": 0
+  },
+  "git_heads": {
+    "main": "6f8b4baa8016462e1dc261babab0b60a39388e4f",
+    "ts": "1d5844136c8cb793a74a2208fa40c7cf305b41aa"
+  },
+  "scan_totals": {
+    "main": {
+      "files": 18882,
+      "bytes": 473979746
+    },
+    "ts": {
+      "files": 15937,
+      "bytes": 261769208
+    }
+  },
+  "current_build_feature_markers": {
+    "main": {
+      "logist_edit_access": {
+        "matching_files": 20,
+        "current_entry_referenced_files": [
+          "22.ceb557.js",
+          "80.977c24.js",
+          "81.feeb6d.js",
+          "24.9d829e.js",
+          "23.6877c9.js",
+          "92.9a7881.js",
+          "11.ac93d2.js"
+        ]
+      },
+      "logist_edit_until": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      },
+      "calculation_version": {
+        "matching_files": 94,
+        "current_entry_referenced_files": [
+          "22.ceb557.js",
+          "44.3e044b.js",
+          "80.977c24.js",
+          "81.feeb6d.js",
+          "24.9d829e.js",
+          "23.6877c9.js",
+          "92.9a7881.js"
+        ]
+      },
+      "GpmWorkerRateEditor": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      },
+      "read_finance_history": {
+        "matching_files": 20,
+        "current_entry_referenced_files": [
+          "26.5861e7.js"
+        ]
+      },
+      "send_workers_registration": {
+        "matching_files": 3,
+        "current_entry_referenced_files": [
+          "12.bef5ab.js"
+        ]
+      }
+    },
+    "ts": {
+      "logist_edit_access": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      },
+      "logist_edit_until": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      },
+      "calculation_version": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      },
+      "GpmWorkerRateEditor": {
+        "matching_files": 3,
+        "current_entry_referenced_files": [
+          "79.ad47fa.js",
+          "app.ab20f7.js",
+          "80.4cb94f.js"
+        ]
+      },
+      "read_finance_history": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      },
+      "send_workers_registration": {
+        "matching_files": 0,
+        "current_entry_referenced_files": []
+      }
+    }
+  },
+  "privacy": "No .env values, credentials, private keys, business records or personal-role names exported. Personal role memberships were not copied.",
+  "limitations": "File/schema/reference permission comparison only. No interactive main-CRM login or functional acceptance; no atomic freeze of live systems."
+}

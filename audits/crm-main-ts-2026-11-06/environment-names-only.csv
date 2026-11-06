@@ -1,0 +1,18 @@
+﻿status,variable_name,values
+main_only,CUSTOMER_PAUSE_NOTIFY,not exported
+main_only,DOCUMENT_REMINDERS_EXTENDED_SCOPE,not exported
+ts_only,GPM_APP_API_URL,not exported
+ts_only,GPM_APP_API_TOKEN,not exported
+ts_only,LOGIN_EMAIL_CODE_ENABLED,not exported
+ts_only,GPM_APP_ORDER_SYNC_ENABLED,not exported
+different_values,APP_URL,not exported
+different_values,MIX_BASE_URL,not exported
+different_values,RECAPTCHA_SITE_KEY,not exported
+different_values,RECAPTCHA_SECRET_KEY,not exported
+different_values,DB_DATABASE,not exported
+different_values,DB_USERNAME,not exported
+different_values,DB_PASSWORD,not exported
+different_values,JWT_SECRET,not exported
+different_values,DADATA_TOKEN,not exported
+different_values,DADATA_SECRET,not exported
+different_values,TELEGRAM_BOT_TOKEN,not exported

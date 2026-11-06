@@ -1,0 +1,55 @@
+﻿role,permission,main,ts
+admin,read_cancel_worker_fines,True,False
+admin,read_completed_status_change,True,False
+admin,read_finance_history,True,False
+admin,read_finances_full_view,True,False
+admin,read_remove_payout_marks,True,False
+head,read_completed_status_change,True,False
+head,read_finance_history,True,False
+head,read_finances_full_view,True,False
+hr,create_articles,False,True
+hr,create_calls,False,True
+hr,create_manager_customers,False,True
+hr,delete_articles,False,True
+hr,delete_calls,False,True
+hr,delete_manager_customers,False,True
+hr,read_calls,False,True
+hr,read_manager_customers,False,True
+hr,update_articles,False,True
+hr,update_calls,False,True
+hr,update_manager_customers,False,True
+logist,create_articles,False,True
+logist,create_call_communication_types,False,True
+logist,create_call_statuses,False,True
+logist,create_calls,False,True
+logist,create_manager_orders,False,True
+logist,create_tasks,False,True
+logist,delete_articles,False,True
+logist,delete_call_communication_types,False,True
+logist,delete_call_statuses,False,True
+logist,delete_manager_orders,False,True
+logist,delete_tasks,False,True
+logist,read_manager_orders,False,True
+logist,read_tasks,False,True
+logist,update_articles,False,True
+logist,update_call_communication_types,False,True
+logist,update_call_statuses,False,True
+logist,update_manager_orders,False,True
+logist,update_tasks,False,True
+manager,create_accountant_orders,False,True
+manager,create_articles,False,True
+manager,create_users,False,True
+manager,delete_accountant_orders,False,True
+manager,delete_articles,False,True
+manager,delete_users,False,True
+manager,read_accountant_orders,False,True
+manager,read_users,False,True
+manager,update_accountant_orders,False,True
+manager,update_articles,False,True
+manager,update_users,False,True
+<global permission>,read_cancel_worker_fines,True,False
+<global permission>,read_completed_status_change,True,False
+<global permission>,read_delete_orders,True,False
+<global permission>,read_finance_history,True,False
+<global permission>,read_finances_full_view,True,False
+<global permission>,read_remove_payout_marks,True,False
