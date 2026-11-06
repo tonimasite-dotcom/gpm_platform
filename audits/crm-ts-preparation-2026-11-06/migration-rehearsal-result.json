@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "migration_class": "AddReferencePermissionsForGpmTs",
+  "error_code": "ORIGINAL_TABLE_DATA_CHANGED",
+  "private_rehearsal_only": true,
+  "elapsed_seconds": 46.25,
+  "live_changed": false
+}

@@ -1,0 +1,22 @@
+{
+  "ts_mysql_restore_verified": true,
+  "table_count": 72,
+  "all_dump_row_counts_match": true,
+  "sql_sha256_verified": true,
+  "sql_unchanged": true,
+  "plaintext_files_created": false,
+  "live_database_changed": false,
+  "metadata_correction_tables": 1,
+  "corrected_manifest": {
+    "file": "ts-manifest-corrected.json.age",
+    "sha256": "a240755b929ad9ce6bd25d5994155227cca313102d2ee11154caebc707bcb7f5",
+    "bytes": 4697436
+  },
+  "original_manifest_preserved": true,
+  "files_archive_verified": true,
+  "file_entries_verified": 24862,
+  "regular_files_verified": 24853,
+  "external_symlinks_followed": false,
+  "full_filesystem_restore_performed": false,
+  "scope_note": "TS public/storage refers to a separate test site; target data not copied or accessed"
+}

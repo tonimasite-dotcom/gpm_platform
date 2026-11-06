@@ -1,0 +1,93 @@
+{
+  "mode": "private_candidate_only",
+  "live_changed": false,
+  "deployable": false,
+  "conflicts_resolved_by_reviewed_upstream_and_ts_hooks": true,
+  "upstream_differences": [
+    {
+      "path": "app/Http/Controllers/Auth/LoginController.php",
+      "sha256": "39a163875b3e46d96fc69684e1a3c298ca7dde5fb3ae6c3606bfdaea37c55f7b",
+      "upstream_sha256": "c1fb8baa12bebed194188db9078e61953df03cb62335ea1ef81494c6fb9d8696",
+      "reason": "Upstream account checks plus existing ts-only mail-code setting; no credential changes"
+    },
+    {
+      "path": "app/Http/Controllers/BotController.php",
+      "sha256": "e0ec1876af27583a0da13c575d8d609f0d507d10fdf83234655deb133e7807ff",
+      "upstream_sha256": "f3194e2efd06ba3a73096dc1148a7ae909ba6e558ff81cc60688ece7a34a4b98",
+      "reason": "Keep existing ts integration configuration; no upstream credentials"
+    },
+    {
+      "path": "app/Http/Controllers/Order/ManagerOrderController.php",
+      "sha256": "da801abd4422067facb67be26cdafc3bdf91a36d9bb10f3b13e37516440d2555",
+      "upstream_sha256": "db95811607cd62360a966ebdace532f0c8dae6d84f14dcd24a8e2732635ff621",
+      "reason": "Upstream controller plus unchanged ts GPM publication method"
+    },
+    {
+      "path": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+      "sha256": "6be31ef1660d207f587fad25ad4f31ab95539fa6932269620cb9535d3a398862",
+      "upstream_sha256": "931d52ead0c6ebf3c146a7271d0ae9fe5abf86642778b6cc3be6cad8d846b8d2",
+      "reason": "Latest upstream payment logic with original ts TLS options"
+    },
+    {
+      "path": "app/Providers/AppServiceProvider.php",
+      "sha256": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+      "upstream_sha256": "d0d371f424b205fab2d99267bfd50dcb92628b476be501a206703fd90b4d6a01",
+      "reason": "Preserve ts model guard and provider behavior"
+    },
+    {
+      "path": "app/Services/Payment/ManagerPaymentService.php",
+      "sha256": "8f28ea5a9e874f9bf008d634f7ddf6b39b032794f3497b38f2dd0d2ee3144347",
+      "upstream_sha256": "6406e393ef4d013f0714c701c29f2ec19b1ec2037fb062853a5e598fe2b5800e",
+      "reason": "Latest upstream payment logic with original ts TLS options"
+    },
+    {
+      "path": "config/auth.php",
+      "sha256": "880c9dd0045b696c33a0f60a49396eeaf2ae89efb2e3d36378449c77284fc548",
+      "upstream_sha256": "4a81820b45e1cfcbdcd410be73f78480a70b38bae20d5f4747d29efc9d7d4be4",
+      "reason": "Preserve ts login email-code flag; upstream login supports direct JWT"
+    },
+    {
+      "path": "database/migrations/2024_01_25_120000_sync_test_database_structure_with_production.php",
+      "sha256": "b220b2ded3804eb724bba7ada2757d8e3eff46d54cb4ff2abea5898cbc9f2052",
+      "upstream_sha256": "6f36c82ebb4f32c40ccef20cda5614b8f250bdbd974fde237948550a1fe4ef9d",
+      "reason": "Already applied historical migration; preserve ts source and do not rerun"
+    },
+    {
+      "path": "resources/js/pages/app/orders/logist_orders/LogistOrderForm.vue",
+      "sha256": "52f5ef6e02bb6ddb33ca70dea3f77c78cdc62554ae5364319d188f171b5cc0a2",
+      "upstream_sha256": "e855dd6d8c1afde6a32a430780dee99a4a6325f03c697cc1980cea1744f90d15",
+      "reason": "Latest upstream form plus existing ts rate-only editor and visibility condition"
+    },
+    {
+      "path": "resources/js/pages/app/orders/logist_orders/index.vue",
+      "sha256": "2ca3a1effa2b3055ba976e03bcb59050aeee69d9463d67e7797339cf14dd8668",
+      "upstream_sha256": "1b2d31fd60bb9749a943f6cfda5ab5a871498082521e304ef49ee46ad9880f78",
+      "reason": "Upstream order list plus existing GPM dialog/action/methods; one dialog instance"
+    },
+    {
+      "path": "resources/js/services/LogistOrderDataService.js",
+      "sha256": "b9b81d2f3eac050fe2832a585f19a3fb6e35aff2071fe5173880254926996534",
+      "upstream_sha256": "6df950c6894e7cd81c35eb428e8e2d8d0444b17bb7dd5f3821800eeb5e52153b",
+      "reason": "Upstream service plus unchanged ts publication request"
+    },
+    {
+      "path": "resources/views/spa.blade.php",
+      "sha256": "9a62d0a80bc47d0e931dbfde11835159b2628b6929315ce00a14b1f65b6c14fc",
+      "upstream_sha256": "f387a29c60b3ed46ca41d28f08bb8cd585357c3c44a1961cc6a998ad7fb617b0",
+      "reason": "Preserve ts public CAPTCHA fallback and analytics settings"
+    },
+    {
+      "path": "routes/api.php",
+      "sha256": "ec80ad730eddfa91251bb8f1e59c00237584841242e8ccb3eb404e9054ceb67b",
+      "upstream_sha256": "2e9a0d9d88b1b3392585a1f59476dd3fc730047b9c6f52536093390b7bf7882f",
+      "reason": "Upstream routes plus two existing authenticated ts GPM routes"
+    }
+  ],
+  "pending": [
+    "migration adapters",
+    "complete secret review",
+    "PHP/regression checks",
+    "private frontend build",
+    "backup/restore and database rehearsal"
+  ]
+}

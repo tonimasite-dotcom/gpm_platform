@@ -1,0 +1,25 @@
+{
+  "kind": "online_preparation_not_release_checkpoint",
+  "encrypted": true,
+  "table_count": 72,
+  "file_entries": 24862,
+  "unstable_online_file_count": 0,
+  "elapsed_seconds": 190.73,
+  "artifacts": {
+    "ts-manifest.json.age": {
+      "sha256": "b93022d3511af3601124d029e579fee11be491729e9413f00dfa2250ff638165",
+      "bytes": 4697277
+    },
+    "ts-mysql.sql.gz.age": {
+      "sha256": "fb1b1ebae34b5c9d7e4749bf2bdcbfe6ca6e68416a3e92205c47586d31e502ea",
+      "bytes": 55778126
+    },
+    "ts-files.tar.gz.age": {
+      "sha256": "9feb85e024588ba9ade9abf53ae5724625cb6d56807afc692174f8df45d8e02d",
+      "bytes": 1785435951
+    }
+  },
+  "restore_verified": false,
+  "live_changed": false,
+  "main_crm_accessed": false
+}

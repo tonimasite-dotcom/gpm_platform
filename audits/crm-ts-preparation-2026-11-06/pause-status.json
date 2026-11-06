@@ -1,0 +1,9 @@
+{
+  "status": "paused_by_owner",
+  "private_table_count": 112,
+  "private_migration_history_count": 217,
+  "release_ready": false,
+  "live_crm_changed": false,
+  "private_mysql_shutdown_requested": true,
+  "live_mysql_accessed_for_shutdown": false
+}
