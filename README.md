@@ -1,6 +1,17 @@
 # GPM Platform
 
-Статус на 06.11.2026: исправления рейтингов опубликованы в рабочее приложение.
+Статус на 06.11.2026: правила гражданства и карточка исполнителя опубликованы,
+backend/frontend `f63745a`. «Только РФ» доступно только рабочим РФ, «Любое» — всем;
+ограничение по городу сохранено. Поле гражданства скрыто в карточке исполнителя.
+[CI 42188185872](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42188185872),
+[backup 42187692875](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42187692875) и
+[deployment 42188561924](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42188561924): success.
+Проверены API (`ok`, `postgres`), сайт, production config и смена публичной JS-сборки.
+Осталась ручная приемка этих экранов владельцем под рабочими аккаунтами.
+[Детали выпуска и точка продолжения](PROJECT_HANDOFF_2026-11-06_ORDER_CITIZENSHIP.md).
+[Продолжение в новом чате](CONTINUE_PROJECT_PROMPT_2026-11-06_ORDER_CITIZENSHIP.md).
+
+Предыдущий выпуск 06.11.2026: исправления рейтингов опубликованы в рабочее приложение.
 Код `8cac2b4`, развернутый backend/frontend `1252671`.
 Логист видит рейтинг и счетчики в каталоге и профиле; добавлены правила и
 подтверждение оценки, закрыта передача чужих оценок рабочему через API.
@@ -8,7 +19,7 @@
 [backup 42185172324](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185172324) и
 [deployment 42185483970](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42185483970): success.
 Проверены API (`ok`, `postgres`), сайт и новые тексты в опубликованной JS-сборке.
-Осталась ручная приемка экранов под рабочими аккаунтами владельцем.
+Ручная приемка рейтингов подтверждена владельцем в чате.
 [Проверки и точка продолжения](PROJECT_HANDOFF_2026-11-06_WORKER_RATINGS.md).
 [Продолжение в новом чате](CONTINUE_PROJECT_PROMPT_2026-11-06_WORKER_RATINGS.md).
 
