@@ -1,0 +1,505 @@
+{
+  "audit_date_moscow": "2026-11-10",
+  "read_only_application_audit": true,
+  "ts_safe_environment_flags": {
+    "APP_ENV": "production",
+    "APP_URL": "https://ts.workstaffcrm.ru",
+    "MAIL_MAILER": "smtp",
+    "MAIL_DRIVER": "ABSENT",
+    "QUEUE_CONNECTION": "sync",
+    "CACHE_DRIVER": "file",
+    "SESSION_DRIVER": "file",
+    "LOGIN_EMAIL_CODE_ENABLED": "true",
+    "GPM_APP_ORDER_SYNC_ENABLED": "true"
+  },
+  "kernels": {
+    "live_ts": {
+      "sha256": "b72d6217f3798bb75ff7870f4caa58c71b6100172cca11277897143195121405",
+      "uncommented_schedule_command_names": [
+        "inspire",
+        "debit:check_debit",
+        "parse:email_leads",
+        "loader:check:active",
+        "set:refresh_banking_token",
+        "set:api_transactions"
+      ],
+      "uncommented_debit_notify_present": false,
+      "scheduler_executed": false
+    },
+    "saved_ts": {
+      "sha256": "b72d6217f3798bb75ff7870f4caa58c71b6100172cca11277897143195121405",
+      "uncommented_schedule_command_names": [
+        "inspire",
+        "debit:check_debit",
+        "parse:email_leads",
+        "loader:check:active",
+        "set:refresh_banking_token",
+        "set:api_transactions"
+      ],
+      "uncommented_debit_notify_present": false,
+      "scheduler_executed": false
+    },
+    "saved_main": {
+      "sha256": "5521e327db0edc28bbef6efd0207886dd1d968401f1e02b9738907819fa4521f",
+      "uncommented_schedule_command_names": [
+        "inspire",
+        "debit:calculate",
+        "debit:notify",
+        "customers:pause-status",
+        "customers:pause-check",
+        "parse:email_leads",
+        "loader:check:active",
+        "workers:last-orders",
+        "set:refresh_banking_token",
+        "set:api_transactions",
+        "documents:reconcile-payments"
+      ],
+      "uncommented_debit_notify_present": true,
+      "scheduler_executed": false
+    },
+    "candidate": {
+      "sha256": "5521e327db0edc28bbef6efd0207886dd1d968401f1e02b9738907819fa4521f",
+      "uncommented_schedule_command_names": [
+        "inspire",
+        "debit:calculate",
+        "debit:notify",
+        "customers:pause-status",
+        "customers:pause-check",
+        "parse:email_leads",
+        "loader:check:active",
+        "workers:last-orders",
+        "set:refresh_banking_token",
+        "set:api_transactions",
+        "documents:reconcile-payments"
+      ],
+      "uncommented_debit_notify_present": true,
+      "scheduler_executed": false
+    }
+  },
+  "main_reference_is_saved_snapshot": true,
+  "live_main_accessed": false,
+  "laravel_bootstrapped": false,
+  "database_connected": false,
+  "scheduled_jobs_or_sync_executed": false,
+  "live_files_changed": false,
+  "external_messages_sent": false,
+  "permanent_daily_mail_denial_verified": false,
+  "external_demo_mode_verified": false,
+  "release_ready": false,
+  "inspected_cron_entries": [
+    {
+      "file": "/etc/cron.d/gpm-test-crm-sync",
+      "line": 4,
+      "mentions_ts": true,
+      "schedule_fields": [
+        "*",
+        "*",
+        "*",
+        "*",
+        "*"
+      ],
+      "artisan_commands": [
+        "gpm:sync-orders"
+      ],
+      "absolute_paths": [
+        "/usr/bin/flock",
+        "/var/www/gruzpiter/data/www/ts.workstaffcrm.ru/storage/app/gpm-app-sync/cron.lock",
+        "/usr/bin/php",
+        "/var/www/gruzpiter/data/www/ts.workstaffcrm.ru/artisan",
+        "/var/www/gruzpiter/data/www/ts.workstaffcrm.ru/storage/logs/gpm-order-sync.log"
+      ]
+    },
+    {
+      "file": "/var/spool/cron/crontabs/gruzpiter",
+      "line": 5,
+      "mentions_ts": false,
+      "schedule_fields": [
+        "*",
+        "*",
+        "*",
+        "*",
+        "*"
+      ],
+      "artisan_commands": [
+        "schedule:run"
+      ],
+      "absolute_paths": [
+        "/www/test.workstaffcrm.ru",
+        "/opt/php74/bin/php"
+      ]
+    }
+  ],
+  "scheduler_alternative_paths": [
+    {
+      "path": "/www/test.workstaffcrm.ru",
+      "exists": false,
+      "same_directory_as_ts": false
+    },
+    {
+      "path": "/var/www/gruzpiter/data/www/test.workstaffcrm.ru",
+      "exists": true,
+      "same_directory_as_ts": false
+    }
+  ],
+  "source_files": {
+    "live_ts": [
+      {
+        "file": "app/Services/WebKlexMailClient.php",
+        "sha256": "be2d391192344d7c2640e8f92277c1fedbfd351294529843c1252fa286df712f",
+        "imports": [
+          "App\\Exports\\MailExport",
+          "App\\Mail\\DocumentMail",
+          "App\\Mail\\SendClientAndManagerMail",
+          "App\\Mail\\VerificationMail",
+          "App\\Models\\Branch",
+          "App\\Models\\Documents\\DocumentLink"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Mails/MailService.php",
+        "sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+        "imports": [
+          "App\\Mail\\MailClientMessage",
+          "App\\Models\\Mails\\MailMessage",
+          "App\\Models\\Mails\\MailSetting",
+          "App\\Models\\User"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Mail/MailService.php",
+        "sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Banking/BankingService.php",
+        "sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+        "imports": [
+          "App\\Events\\Calls\\IncomingCall",
+          "App\\Helpers\\CallHelper",
+          "App\\Http\\Resources\\SeekerResource",
+          "App\\Models\\Branch",
+          "App\\Models\\Call",
+          "App\\Models\\ContactPerson",
+          "App\\Models\\Customer",
+          "App\\Models\\Reference\\Position",
+          "App\\Models\\Seeker",
+          "App\\Models\\User"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Traits/sendSmsTrait.php",
+        "sha256": "d39c63e82f830220dbf5540baac55ae4983428457d5b0ef0596a0a1381ed815f",
+        "imports": [
+          "App\\Http\\Controllers\\QtsmsSms\\Qtsms",
+          "App\\Models\\Branch"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/GpmAppOrderSync.php",
+        "sha256": "6a6737a913c51d1f1a2ca63f846a2492280cdf951737d77bec7ef5f13db2a080",
+        "imports": [
+          "App\\Models\\Order",
+          "App\\Models\\Reference\\MetroStation"
+        ],
+        "env_names": [
+          "GPM_APP_API_TOKEN",
+          "GPM_APP_API_URL",
+          "GPM_APP_ORDER_SYNC_ENABLED"
+        ]
+      },
+      {
+        "file": "app/Services/Order/GpmAppOrderPublisher.php",
+        "sha256": "906dacd8a5a1366ada2ad842878305c2d3c7916b9d6f9c05544996ac27668f95",
+        "imports": [
+          "App\\Models\\Order"
+        ],
+        "env_names": [
+          "GPM_APP_API_TOKEN",
+          "GPM_APP_API_URL"
+        ]
+      },
+      {
+        "file": "app/Services/Order/GpmLogistOrderGuard.php",
+        "sha256": "4a5cbaf6c49b34a200ac782768d31d8afc31857512f47c1dadc0e79a959487a7",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/GpmWorkerRateRules.php",
+        "sha256": "2e9cc2dbfbb5fb60738b13ceb09553375290d894d0a4d9e83f89e6c948f05031",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Http/Controllers/Order/GpmWorkerRateController.php",
+        "sha256": "e02e7bce9b7724a8eb4834c11be981743013c6d7c9b404d336ad6d9e9a99bd9a",
+        "imports": [
+          "App\\Http\\Controllers\\Controller",
+          "App\\Models\\Branch",
+          "App\\Models\\Order",
+          "App\\Services\\Order\\GpmWorkerRateRules",
+          "App\\Services\\Order\\HistoryOrderService"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Models/Order.php",
+        "sha256": "93df305b22f57bc6ed7e5763103b6e19e54f28706cb6b24300ef2d94bc9a9a5b",
+        "imports": [
+          "App\\Models\\Documents\\DocumentLink",
+          "App\\Models\\Reference\\Car",
+          "App\\Models\\Reference\\Tariff",
+          "App\\Models\\Reference\\MetroStation"
+        ],
+        "env_names": []
+      }
+    ],
+    "saved_main": [
+      {
+        "file": "app/Services/WebKlexMailClient.php",
+        "sha256": "bc0da3356d7bb0ab83bd8da61dafdfec670b28ced7911d47f105ec94bc008af8",
+        "imports": [
+          "App\\Exports\\MailExport",
+          "App\\Mail\\DocumentMail",
+          "App\\Mail\\SendClientAndManagerMail",
+          "App\\Mail\\VerificationMail",
+          "App\\Models\\Branch",
+          "App\\Models\\Documents\\DocumentLink"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Mails/MailService.php",
+        "sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+        "imports": [
+          "App\\Mail\\MailClientMessage",
+          "App\\Models\\Mails\\MailMessage",
+          "App\\Models\\Mails\\MailSetting",
+          "App\\Models\\User"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Mail/MailService.php",
+        "sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Banking/BankingService.php",
+        "sha256": "837b77f1adf5ef7501d36decb4edc930e7f4cc640855b123d385888f3641459b",
+        "imports": [
+          "App\\Events\\Calls\\IncomingCall",
+          "App\\Helpers\\CallHelper",
+          "App\\Http\\Resources\\SeekerResource",
+          "App\\Models\\Branch",
+          "App\\Models\\Call",
+          "App\\Models\\ContactPerson",
+          "App\\Models\\Customer",
+          "App\\Models\\Reference\\Position",
+          "App\\Models\\Seeker",
+          "App\\Models\\User"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Traits/sendSmsTrait.php",
+        "sha256": "4c4e2ff9bcd3ce7396a7d022b23e306aef43a01f14fe56322bf6f60228d368d1",
+        "imports": [
+          "App\\Http\\Controllers\\QtsmsSms\\Qtsms",
+          "App\\Models\\Branch"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/CompletedOrderFinancialGuard.php",
+        "sha256": "09d4eeaeabad0b71331bed26afde17d6163d13016ca57715345ae1b67d80473a",
+        "imports": [
+          "App\\Models\\Order",
+          "App\\Models\\Planning",
+          "App\\Models\\ReportCard"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/CompletedOrderStaffGuard.php",
+        "sha256": "bbfb0c941a6de521b797373f2f02133f6015a5b741c378503ba4ecef9c3ec947",
+        "imports": [
+          "App\\Models\\Order",
+          "App\\Models\\Planning"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/LogistEditAccess.php",
+        "sha256": "76ac66049bcf477553a5804967209dcbe2ded7987077ef4717f3147bdd554466",
+        "imports": [
+          "App\\Models\\Order"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Models/Order.php",
+        "sha256": "ab1f8076ab4317033b0c59f56b1ea3169c440c05401b482b3e88dd4a02f93f92",
+        "imports": [
+          "App\\Models\\Documents\\DocumentLink",
+          "App\\Models\\Documents\\DocumentLinkService",
+          "App\\Models\\Reference\\Car",
+          "App\\Models\\Reference\\Tariff",
+          "App\\Models\\Reference\\MetroStation"
+        ],
+        "env_names": []
+      }
+    ],
+    "candidate": [
+      {
+        "file": "app/Services/WebKlexMailClient.php",
+        "sha256": "bc0da3356d7bb0ab83bd8da61dafdfec670b28ced7911d47f105ec94bc008af8",
+        "imports": [
+          "App\\Exports\\MailExport",
+          "App\\Mail\\DocumentMail",
+          "App\\Mail\\SendClientAndManagerMail",
+          "App\\Mail\\VerificationMail",
+          "App\\Models\\Branch",
+          "App\\Models\\Documents\\DocumentLink"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Mails/MailService.php",
+        "sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+        "imports": [
+          "App\\Mail\\MailClientMessage",
+          "App\\Models\\Mails\\MailMessage",
+          "App\\Models\\Mails\\MailSetting",
+          "App\\Models\\User"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Mail/MailService.php",
+        "sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Banking/BankingService.php",
+        "sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+        "imports": [
+          "App\\Events\\Calls\\IncomingCall",
+          "App\\Helpers\\CallHelper",
+          "App\\Http\\Resources\\SeekerResource",
+          "App\\Models\\Branch",
+          "App\\Models\\Call",
+          "App\\Models\\ContactPerson",
+          "App\\Models\\Customer",
+          "App\\Models\\Reference\\Position",
+          "App\\Models\\Seeker",
+          "App\\Models\\User"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Traits/sendSmsTrait.php",
+        "sha256": "d39c63e82f830220dbf5540baac55ae4983428457d5b0ef0596a0a1381ed815f",
+        "imports": [
+          "App\\Http\\Controllers\\QtsmsSms\\Qtsms",
+          "App\\Models\\Branch"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/GpmAppOrderSync.php",
+        "sha256": "6a6737a913c51d1f1a2ca63f846a2492280cdf951737d77bec7ef5f13db2a080",
+        "imports": [
+          "App\\Models\\Order",
+          "App\\Models\\Reference\\MetroStation"
+        ],
+        "env_names": [
+          "GPM_APP_API_TOKEN",
+          "GPM_APP_API_URL",
+          "GPM_APP_ORDER_SYNC_ENABLED"
+        ]
+      },
+      {
+        "file": "app/Services/Order/GpmAppOrderPublisher.php",
+        "sha256": "906dacd8a5a1366ada2ad842878305c2d3c7916b9d6f9c05544996ac27668f95",
+        "imports": [
+          "App\\Models\\Order"
+        ],
+        "env_names": [
+          "GPM_APP_API_TOKEN",
+          "GPM_APP_API_URL"
+        ]
+      },
+      {
+        "file": "app/Services/Order/GpmLogistOrderGuard.php",
+        "sha256": "4a5cbaf6c49b34a200ac782768d31d8afc31857512f47c1dadc0e79a959487a7",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/GpmWorkerRateRules.php",
+        "sha256": "2e9cc2dbfbb5fb60738b13ceb09553375290d894d0a4d9e83f89e6c948f05031",
+        "imports": [],
+        "env_names": []
+      },
+      {
+        "file": "app/Http/Controllers/Order/GpmWorkerRateController.php",
+        "sha256": "12427a9d30de7bdf55a4f0a5fab17ce6992c2a33f2e940d191332814fff8171b",
+        "imports": [
+          "App\\Http\\Controllers\\Controller",
+          "App\\Models\\Branch",
+          "App\\Models\\Order",
+          "App\\Services\\Order\\GpmWorkerRateRules",
+          "App\\Services\\Order\\HistoryOrderService"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/CompletedOrderFinancialGuard.php",
+        "sha256": "09d4eeaeabad0b71331bed26afde17d6163d13016ca57715345ae1b67d80473a",
+        "imports": [
+          "App\\Models\\Order",
+          "App\\Models\\Planning",
+          "App\\Models\\ReportCard"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/CompletedOrderStaffGuard.php",
+        "sha256": "bbfb0c941a6de521b797373f2f02133f6015a5b741c378503ba4ecef9c3ec947",
+        "imports": [
+          "App\\Models\\Order",
+          "App\\Models\\Planning"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Services/Order/LogistEditAccess.php",
+        "sha256": "76ac66049bcf477553a5804967209dcbe2ded7987077ef4717f3147bdd554466",
+        "imports": [
+          "App\\Models\\Order"
+        ],
+        "env_names": []
+      },
+      {
+        "file": "app/Models/Order.php",
+        "sha256": "ab1f8076ab4317033b0c59f56b1ea3169c440c05401b482b3e88dd4a02f93f92",
+        "imports": [
+          "App\\Models\\Documents\\DocumentLink",
+          "App\\Models\\Documents\\DocumentLinkService",
+          "App\\Models\\Reference\\Car",
+          "App\\Models\\Reference\\Tariff",
+          "App\\Models\\Reference\\MetroStation"
+        ],
+        "env_names": []
+      }
+    ]
+  }
+}
