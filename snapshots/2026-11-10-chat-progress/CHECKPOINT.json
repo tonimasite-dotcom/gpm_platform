@@ -1,0 +1,104 @@
+{
+  "base_commit": "890efbd",
+  "audit_code_commit": "f93b13f",
+  "created_for": "new-chat continuation",
+  "server": {
+    "client_date_moscow": "2026-11-10",
+    "snapshot_read_only": true,
+    "live_main_accessed": false,
+    "live_ts_accessed": false,
+    "candidate_files_verified": 1391,
+    "candidate_manifest_sha256": "f47de6309adb543870d844b043529124720fe1501d32fb447a74a3c908855548",
+    "candidate_env_not_exported": true,
+    "private_mysql": [
+      {
+        "path": "/root/gpm-ts-update/20261106-baseline-01/rehearsal-mysql",
+        "data_exists": true,
+        "running": false,
+        "socket_exists": false
+      },
+      {
+        "path": "/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109/rehearsal-mysql",
+        "data_exists": true,
+        "running": false,
+        "socket_exists": false
+      },
+      {
+        "path": "/root/gpm-ts-update/20261109-switch-01/mysql-old",
+        "data_exists": true,
+        "running": false,
+        "socket_exists": false
+      },
+      {
+        "path": "/root/gpm-ts-update/20261109-switch-01/mysql-new",
+        "data_exists": true,
+        "running": false,
+        "socket_exists": false
+      },
+      {
+        "path": "/root/gpm-ts-update/20261109-switch-01/mysql-new-failed-after-timeout",
+        "data_exists": true,
+        "running": false,
+        "socket_exists": false
+      },
+      {
+        "path": "/root/gpm-ts-update/20261109-switch-01/mysql-new-timeout-evidence",
+        "data_exists": true,
+        "running": false,
+        "socket_exists": false
+      }
+    ],
+    "runtime_version": "old",
+    "next_version": "new",
+    "next_generation": "final",
+    "free_bytes": 20756430848,
+    "original_baseline_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+    "original_checker_sha256": "0934ffda332a82cad3c5525945009313580a56aea7da1ad8d22eb8a1914b4259"
+  },
+  "local": {
+    "local_encrypted_backups": [
+      {
+        "file": "ts-files.tar.gz.age",
+        "bytes": 1785435811,
+        "sha256": "61c8d7ecdeb95016ee46bff482dbd893d4e4a73552fa7c8ea28d8528ae71a25a",
+        "verified": true
+      },
+      {
+        "file": "ts-mysql.sql.gz.age",
+        "bytes": 55778125,
+        "sha256": "fa2149e8b84bc8a7eadfffbe19942b0e9335ad3a3105cf9606f12a25bdf5ecd4",
+        "verified": true
+      },
+      {
+        "file": "ts-manifest.json.age",
+        "bytes": 4697281,
+        "sha256": "aad15269ff34bfb2d2dbcf1d5c28bd58137fc1713c1e3739cdc244a00b6eedb6",
+        "verified": true
+      }
+    ],
+    "ssh_private_key_exists": true,
+    "age_identity_exists": true,
+    "private_keys_copied_into_snapshot": false,
+    "code_checkpoint": {
+      "encrypted_checkpoint": "server-code-checkpoint.tar.gz.age",
+      "bytes": 8544853,
+      "sha256": "632dcd2861fd2b38183835a7e57ea93ce660cadc69729ee82e2cb5dee1eff6a4",
+      "decryption_and_tar_stream_verified": true,
+      "candidate_code_files_verified": 1391,
+      "archived_files": 4122,
+      "database_datadirs_or_keys_included": false,
+      "env_files_included": false
+    },
+    "transcript": {
+      "thread_id": "01a1bf64-9861-7f20-b2b6-3f4076dacbe2",
+      "last_record_timestamp": "2026-11-09T22:19:21.377Z",
+      "user_messages": 29,
+      "assistant_messages": 122,
+      "full_source_journal_copied": false,
+      "visible_dialogue_exported": true,
+      "raw_service_records_included": false
+    },
+    "user_images": 4,
+    "original_attachments": 2
+  }
+}
