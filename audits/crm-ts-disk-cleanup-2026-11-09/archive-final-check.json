@@ -1,0 +1,43 @@
+{
+  "all_private_instances": [
+    {
+      "directory": "/root/gpm-ts-update/20261106-baseline-01/rehearsal-mysql",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109/rehearsal-mysql",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-old",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new-failed-after-timeout",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new-timeout-evidence",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    }
+  ],
+  "free_bytes": 20740853760,
+  "df": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1       157G  136G   20G  88% /\n",
+  "live_crm_accessed": false
+}

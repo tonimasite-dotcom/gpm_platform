@@ -1,5 +1,5 @@
 {
-  "status": "AWAITING_EXPLICIT_APPROVAL",
+  "status": "EXECUTED_WITH_EXPLICIT_APPROVAL",
   "server_directory": "/root/gpm-ts-update/20261106-baseline-01/backup-preparation-20261109",
   "local_directory": "C:/Users/Acer/gpm_platform/.tmp/crm-recovery-20261109/backup",
   "files": {
@@ -27,5 +27,8 @@
   ],
   "impact": "Restoring this exact encrypted snapshot would require upload from the Acer computer; other server snapshots and restored copies remain.",
   "recovery": "Re-upload the same files from the verified local directory and recheck SHA-256.",
-  "executed": false
+  "executed": true,
+  "approval": "User explicitly approved deletion of only the three server duplicates in this conversation.",
+  "result": "archive-removal.json",
+  "local_archives_preserved": true
 }

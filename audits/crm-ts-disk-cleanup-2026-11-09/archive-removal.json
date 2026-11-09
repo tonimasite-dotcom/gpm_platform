@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "user_explicitly_approved_only_three_server_duplicates": true,
+  "completed_utc": "2026-11-09T20:47:02.642479+00:00",
+  "removed_server_directory": "/root/gpm-ts-update/20261106-baseline-01/backup-preparation-20261109",
+  "removed_files": {
+    "ts-files.tar.gz.age": {
+      "bytes": 1785435811,
+      "sha256": "61c8d7ecdeb95016ee46bff482dbd893d4e4a73552fa7c8ea28d8528ae71a25a"
+    },
+    "ts-mysql.sql.gz.age": {
+      "bytes": 55778125,
+      "sha256": "fa2149e8b84bc8a7eadfffbe19942b0e9335ad3a3105cf9606f12a25bdf5ecd4"
+    },
+    "ts-manifest.json.age": {
+      "bytes": 4697281,
+      "sha256": "aad15269ff34bfb2d2dbcf1d5c28bd58137fc1713c1e3739cdc244a00b6eedb6"
+    }
+  },
+  "archive_bytes_removed": 1845911217,
+  "local_files_revalidated_before_removal": true,
+  "server_sha256_revalidated_before_removal": true,
+  "open_file_check_passed": true,
+  "other_entries_in_directory_preserved": true,
+  "retained_entries": [
+    "verification.json"
+  ],
+  "local_archives_or_key_modified": false,
+  "live_crm_accessed": false,
+  "database_or_runtime_tree_removed": false,
+  "free_bytes_before": 18894831616,
+  "free_bytes_after": 20740730880
+}
