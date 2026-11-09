@@ -44,9 +44,9 @@ class GpmWorkerRateController extends Controller
                 abort($error->getCode(), $error->getMessage());
             }
             if ($current->workers_cost === null || (int) $current->workers_cost !== $rate) {
-                app(HistoryOrderService::class)->addUpdatedHistory($current, [
+                app(HistoryOrderService::class)->addUpdatedHistory($current, array_replace($current->toArray(), [
                     'work_type_id' => $current->work_type_id, 'workers_cost' => $rate,
-                ]);
+                ]), ['workers_cost' => 'Ставка рабочего']);
                 $current->workers_cost = $rate;
                 $current->save();
             }

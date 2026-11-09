@@ -1,0 +1,115 @@
+{
+  "live_crm_changed": false,
+  "main_crm_accessed": false,
+  "php_lint": {
+    "candidate_files": 834,
+    "failed_paths": [],
+    "success": true
+  },
+  "gpm_regressions": {
+    "sync_plan_test.php": {
+      "success": true,
+      "summary": "GPM sync planner: 11 scenarios passed"
+    },
+    "sync_service_test.php": {
+      "success": true,
+      "summary": "GPM sync service: 16 scenarios passed"
+    },
+    "worker_rate_test.php": {
+      "success": true,
+      "summary": "GPM worker rate: 35 scenarios passed"
+    }
+  },
+  "runtime_reports": {
+    "runtime-adaptations-20261109.json": {
+      "private_runtime_support_added": true,
+      "live_files_changed": false,
+      "production_path_or_app_url_spoofed": false,
+      "files": {
+        "app/Http/Controllers/Order/GpmWorkerRateController.php": {
+          "before_sha256": "e02e7bce9b7724a8eb4834c11be981743013c6d7c9b404d336ad6d9e9a99bd9a",
+          "after_sha256": "d4d779bcf702dc66dac86bc0feae83d312fa79e735f88cfa3426a7c9d9d862f9"
+        },
+        "app/Http/Controllers/Auth/LoginController.php": {
+          "before_sha256": "39a163875b3e46d96fc69684e1a3c298ca7dde5fb3ae6c3606bfdaea37c55f7b",
+          "after_sha256": "ec9ca15851aa35c814c2b440a9d4e3f5f497bf988e4b0b342febc357b810c1ac"
+        },
+        "app/Providers/AppServiceProvider.php": {
+          "before_sha256": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+          "after_sha256": "f015c30ff0de4011f24f29b3b2738618c92e825be993e0d53e8c777c81aa7c9d"
+        }
+      }
+    },
+    "runtime-login-fix-20261109.json": {
+      "private_candidate_only": true,
+      "live_auth_changed": false,
+      "jwt_missing_remember_fix": true,
+      "before_sha256": "ec9ca15851aa35c814c2b440a9d4e3f5f497bf988e4b0b342febc357b810c1ac",
+      "after_sha256": "a8b9b1bd885716792a2c7ab19ddcd38df6dd9c0bbeab66bf9cfa6b503f6402c2"
+    },
+    "runtime-rate-history-fix-20261109.json": {
+      "private_candidate_only": true,
+      "live_files_changed": false,
+      "rate_history_full_snapshot_fix": true,
+      "before_sha256": "d4d779bcf702dc66dac86bc0feae83d312fa79e735f88cfa3426a7c9d9d862f9",
+      "after_sha256": "12427a9d30de7bdf55a4f0a5fab17ce6992c2a33f2e940d191332814fff8171b",
+      "explicit_rate_history_label": true
+    },
+    "functional-acceptance-20261109.json": {
+      "success": true,
+      "scenarios_passed": 40,
+      "scenarios": [
+        "new_order_defaults_to_calculation_v2",
+        "standard_logist_and_head_permissions_resolve",
+        "active_synthetic_login_returns_jwt_without_mail_code",
+        "wrong_password_rejected",
+        "login_remember_false_returns_jwt",
+        "login_remember_true_returns_jwt",
+        "missing_captcha_rejected",
+        "inactive_synthetic_account_rejected",
+        "owned_order_rate_updates_and_records_history",
+        "stale_rate_rejected_409_and_newer_value_preserved",
+        "repeated_rate_request_does_not_duplicate_history",
+        "different_city_logist_cannot_edit_order",
+        "same_city_owned_order_remains_accessible",
+        "private_context_refuses_missing_rehearsal_marker",
+        "rate_payload_cannot_edit_address",
+        "loader_cannot_use_rate_controller",
+        "foreign_logist_cannot_edit_order",
+        "model_guard_rejects_logist_address",
+        "model_guard_rejects_logist_customer_cost",
+        "model_guard_rejects_logist_min_cost",
+        "head_can_change_open_order_address",
+        "closed_status_3_blocks_rate",
+        "closed_status_4_blocks_rate",
+        "closed_status_5_blocks_rate",
+        "logist_cannot_grant_own_completed_order_access",
+        "head_opens_exactly_24_hours_without_changing_status_or_amounts",
+        "stale_access_toggle_returns_409_without_extra_history",
+        "open_24_hour_window_does_not_unlock_client_price_or_address",
+        "access_expires_at_server_deadline_without_cron",
+        "legacy_access_flag_without_deadline_is_closed",
+        "head_can_close_access_early",
+        "http_rate_route_requires_authentication",
+        "http_rate_route_enforces_read_permission",
+        "http_rate_route_updates_owned_order_through_middleware",
+        "http_rate_route_preserves_revision_conflict",
+        "http_logist_cannot_grant_completed_order_access",
+        "http_head_access_toggle_checks_permission_and_stale_state",
+        "v1_does_not_gain_v2_expense_rule",
+        "submitted_profit_uses_worker_and_transport_totals",
+        "v2_revenue_change_does_not_rewrite_accrual_rows"
+      ],
+      "real_candidate_controllers_and_model_events_used": true,
+      "synthetic_fixtures_only": true,
+      "all_fixture_transactions_rolled_back": true,
+      "captcha_external_verification_stubbed": true,
+      "http_auth_permission_and_finance_middleware_tested": true,
+      "private_maintenance_middleware_substituted": true,
+      "browser_acceptance_completed": false,
+      "live_crm_changed": false,
+      "elapsed_seconds": 1.579
+    }
+  },
+  "original_baseline_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec"
+}
