@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "server_directory": "/root/gpm-ts-update/chat-snapshot-20261110",
+  "directory_mode": "0700",
+  "source_commit": "fac190566b60d16d0e7620f1f65d8ed0d703ed22",
+  "archives": [
+    {
+      "file": "GPM_RESUME_SAFE_20261110.zip",
+      "bytes": 708094,
+      "sha256": "35a2bcd941273216a21648f03b4ddd04e3a840c0e6dfd162cc03def56ff8c711",
+      "verified": true
+    },
+    {
+      "file": "GPM_FULL_CHAT_PRIVATE_20261110.zip.age",
+      "bytes": 32297547,
+      "sha256": "17a0641b3615d9110ba5bfbcf0fe41db84543fbe4f9dd8f084fe816424f0bd94",
+      "verified": true
+    }
+  ],
+  "prompt_present": true,
+  "private_zip_encrypted_before_upload": true,
+  "keys_or_env_uploaded": false,
+  "live_crm_changed": false
+}

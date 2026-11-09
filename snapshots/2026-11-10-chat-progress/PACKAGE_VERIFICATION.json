@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "source_commit": "fac190566b60d16d0e7620f1f65d8ed0d703ed22",
+  "safe_package": {
+    "file": "GPM_RESUME_SAFE_20261110.zip",
+    "bytes": 708094,
+    "sha256": "35a2bcd941273216a21648f03b4ddd04e3a840c0e6dfd162cc03def56ff8c711",
+    "entries": 211,
+    "crc_and_all_file_sha256_verified": true
+  },
+  "private_package": {
+    "file": "GPM_FULL_CHAT_PRIVATE_20261110.zip",
+    "bytes": 32289475,
+    "sha256": "07c6bb0d3a088fca7de9f5e72698adce5290bb2c168f2fe040d5f228d88603d4",
+    "entries": 432,
+    "crc_and_all_file_sha256_verified": true
+  },
+  "git_bundle": {
+    "file": "branch-progress.bundle",
+    "bytes": 391137,
+    "sha256": "c7de94770c0bf273b4b3bf4ffd7a8dafd1306b88ae04d328a5c11456c546e7e9",
+    "verified": true,
+    "base_prerequisite": "c5d042a"
+  },
+  "encrypted_code_checkpoint_verified": true,
+  "private_keys_or_env_in_packages": false,
+  "backups_and_datadirs_not_duplicated": true,
+  "free_local_bytes_after": 2721325056
+}

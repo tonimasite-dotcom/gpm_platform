@@ -1,5 +1,14 @@
 # Состав и проверка пакета продолжения
 
+Пакеты успешно собраны из commit fac190566b60d16d0e7620f1f65d8ed0d703ed22.
+Safe ZIP: 708094 байта / 211 entries; private ZIP: 32289475 байт / 432 entries.
+CRC и SHA всех entries проверены, incremental Git bundle verified.
+Квитанции PACKAGE_VERIFICATION.json и ENCRYPTED_PACKAGE_VERIFICATION.json рядом.
+Резервная копия safe ZIP, зашифрованного private ZIP и промпта сохранена в
+/root/gpm-ts-update/chat-snapshot-20261110, каталог 0700. Хеши после upload проверены,
+квитанция SERVER_COPY_VERIFICATION.json. Ключи туда не загружались.
+Новые квитанции добавлены отдельным commit после снимка и не меняют его содержимое.
+
 Верхняя точка входа: PROJECT_HANDOFF_2026-11-10_FULL_CHAT_SNAPSHOT.md в корне.
 Промпт: CONTINUE_PROJECT_PROMPT_2026-11-10_FULL_CHAT_SNAPSHOT.md.
 Полный операционный контекст: PROJECT_SNAPSHOT_2026-11-10_CHAT_AND_PROGRESS.md.

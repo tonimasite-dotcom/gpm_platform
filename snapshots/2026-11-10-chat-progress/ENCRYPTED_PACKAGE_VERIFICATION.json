@@ -1,0 +1,8 @@
+{
+  "encrypted_file": "GPM_FULL_CHAT_PRIVATE_20261110.zip.age",
+  "bytes": 32297547,
+  "sha256": "17a0641b3615d9110ba5bfbcf0fe41db84543fbe4f9dd8f084fe816424f0bd94",
+  "decrypted_zip_sha256_matches": true,
+  "secret_key_copied": false,
+  "server_destination": "/root/gpm-ts-update/chat-snapshot-20261110"
+}
