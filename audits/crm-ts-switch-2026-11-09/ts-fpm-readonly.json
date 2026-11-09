@@ -1,0 +1,30 @@
+{
+  "read_only": true,
+  "master_config": "/opt/php74/etc/php-fpm.conf",
+  "configured_pool_count": 3,
+  "ts_pool": [
+    {
+      "config": "/opt/php74/etc/php-fpm.d/ts.workstaffcrm.ru.conf",
+      "sha256": "f93a4b1c0ea537abaa01646e2381918de6ea93d71199dacfd1250424ecf00c84",
+      "settings": [
+        "[ts.workstaffcrm.ru]",
+        "user = gruzpiter",
+        "group = gruzpiter",
+        "listen = /var/run/ts.workstaffcrm.ru.sock",
+        "listen.owner = gruzpiter",
+        "listen.group = www-data",
+        "listen.mode = 0660",
+        "pm = dynamic",
+        "pm.max_children = 2",
+        "pm.min_spare_servers = 1",
+        "pm.max_spare_servers = 2",
+        "pm.max_requests = 1000",
+        "php_admin_value[opcache.blacklist_filename] = \"/opt/opcache-blacklists/opcache-*.blacklist\"",
+        "php_admin_value[opcache.max_accelerated_files] = \"100000\""
+      ]
+    }
+  ],
+  "opcache_ini_file_settings": [],
+  "effective_fpm_phpinfo_not_requested": true,
+  "no_reload_or_restart": true
+}

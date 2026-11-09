@@ -1,0 +1,17 @@
+{
+  "private_checker_root_binding_fixed": true,
+  "guards_removed": false,
+  "application_or_database_changed": false,
+  "changes": [
+    {
+      "file": "new_data_check.php",
+      "before_sha256": "71cc79605a095f2c30801b8df870c9f0b9b22f77187ff7a9ed5b5cb3133562b3",
+      "after_sha256": "6089f7b110c6655cc0b20405e27e0946ed0502d30808a07b249524792f024058"
+    },
+    {
+      "file": "final_new_data_check.php",
+      "before_sha256": "c1cc04795639751beb3992ca24be759bbb4d0d6ec6c5a3c4cd453973eef3b407",
+      "after_sha256": "03592577994ba047c875268c3390463a47e64c22707db76845a1973abad9b158"
+    }
+  ]
+}

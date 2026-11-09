@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "files": [
+    "adapt_switch.py",
+    "build_check_tools.py",
+    "check_final_state_and_email.py",
+    "continue_after_timeout.py",
+    "export_safe_report.py",
+    "fix_check_root.py",
+    "fix_email_code_binding.py",
+    "init_rehearsal.py",
+    "prepare_fresh_upgrade_database.py",
+    "prepare_switch.py",
+    "resume_final_acceptance.py",
+    "resume_private_mysql.py",
+    "run_final_full.py",
+    "run_fresh_switch.py",
+    "run_switch.py",
+    "stop_private_mysql.py",
+    "stop_switch_mysql.py"
+  ],
+  "mode": "ast_parse_no_execution"
+}

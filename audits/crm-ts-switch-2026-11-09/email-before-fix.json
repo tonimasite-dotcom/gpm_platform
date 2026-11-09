@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "failed_scenario": "other_users_email_code_is_rejected",
+  "scenarios_passed": 4,
+  "other_user_code_returned_jwt": true,
+  "exception_type": "RuntimeException",
+  "raw_details_withheld": true,
+  "live_crm_changed": false
+}

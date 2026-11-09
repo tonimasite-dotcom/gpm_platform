@@ -1,0 +1,17 @@
+{
+  "instances": [
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new",
+      "shutdown_verified": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-old",
+      "shutdown_verified": true,
+      "data_files_preserved": true
+    }
+  ],
+  "old_runtime_restored": true,
+  "saved_previous_instances_not_accessed": true,
+  "live_mysql_accessed": false
+}

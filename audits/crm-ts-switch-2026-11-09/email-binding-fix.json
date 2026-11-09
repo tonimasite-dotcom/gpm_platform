@@ -1,0 +1,10 @@
+{
+  "candidate_only": true,
+  "live_crm_changed": false,
+  "email_code_setting_changed": false,
+  "verification_scoped_to_requested_email": true,
+  "login_controller_before_sha256": "a8b9b1bd885716792a2c7ab19ddcd38df6dd9c0bbeab66bf9cfa6b503f6402c2",
+  "login_controller_after_sha256": "49954cf62fb3eb87d7de69ec455785f30020bfb79bbb2d91350fbc4491f1b8d5",
+  "candidate_files": 1391,
+  "candidate_manifest_sha256": "51cc81a6b5fe049b81296c7cb3c2fc9059e2d5d507b771c94d95bd5ae9a397cf"
+}

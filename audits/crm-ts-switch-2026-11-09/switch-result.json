@@ -1,0 +1,458 @@
+{
+  "success": true,
+  "resumed_after_harness_failures": true,
+  "single_uninterrupted_run": false,
+  "release_ready": false,
+  "public_fpm_switch_tested": false,
+  "production_downtime_measured": false,
+  "live_crm_changed": false,
+  "phases": {
+    "switch_seconds": 0.000519,
+    "email": {
+      "result": {
+        "success": true,
+        "scenarios_passed": 8,
+        "scenarios": [
+          "missing_setting_defaults_to_email_challenge",
+          "enabled_setting_requires_email_code_and_returns_no_jwt",
+          "wrong_password_does_not_send_email_or_issue_token",
+          "nonexistent_email_code_is_rejected",
+          "other_users_email_code_is_rejected",
+          "own_email_code_verifies_and_returns_jwt",
+          "used_email_code_cannot_be_reused",
+          "explicitly_disabled_setting_keeps_existing_no_code_login"
+        ],
+        "email_delivery_process_double": true,
+        "real_login_and_verify_used": true,
+        "all_synthetic_transactions_rolled_back": true,
+        "real_email_sent": false,
+        "live_crm_changed": false
+      },
+      "elapsed_seconds": 0.935
+    },
+    "new_data": {
+      "result": {
+        "diagnosis_completed": true,
+        "private_rehearsal_only": true,
+        "database_transaction_read_only": true,
+        "laravel_bootstrapped": false,
+        "migrations_run": false,
+        "baseline_file_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+        "baseline_file_unchanged": true,
+        "tables_checked": 72,
+        "original_data_unchanged": false,
+        "audit_log_diagnosis": {
+          "original_prefix_rows": 79656,
+          "original_prefix_hash_unchanged": true,
+          "additional_rows": [
+            {
+              "causer_present": false,
+              "subject_present": false,
+              "property_sections": [
+                "cash_source"
+              ],
+              "log_name": "finance",
+              "description": "cash_source_captured",
+              "attributes_keys": [],
+              "old_keys": [],
+              "legacy_cash_capture_verified": true
+            }
+          ],
+          "frozen_cash_source_count": 1,
+          "cash_source_migration_recorded": true,
+          "one_to_one_source_mapping": true
+        },
+        "all_original_rows_preserved": true,
+        "expected_new_cash_audit_verified": true,
+        "post_migration_invariants": {
+          "table_count_112": true,
+          "migration_history_count_217": true,
+          "all_legacy_orders_version_1": true,
+          "new_order_default_version_2": true,
+          "deleted_email_values_not_populated": true,
+          "old_orders_not_opened_for_logist": true,
+          "bank_card_data_migration_not_recorded": true,
+          "email_data_migration_not_recorded": true
+        },
+        "saved_rehearsal_data_acceptance_passed": true,
+        "release_ready": false
+      },
+      "elapsed_seconds": 22.891
+    },
+    "smoke": {
+      "result": {
+        "success": true,
+        "version": "new",
+        "scenarios_passed": 5,
+        "scenarios": [
+          "real_jwt_login_with_remember_returns_token",
+          "ts_only_worker_rate_controller_active",
+          "stale_rate_preserves_current_value",
+          "ts_only_model_guard_rejects_logist_address",
+          "active_schema_matches_version"
+        ],
+        "known_saved_old_issues": [],
+        "worker_rate_feature_accepted": true,
+        "real_ts_only_context_active": true,
+        "synthetic_transactions_rolled_back": true,
+        "live_crm_changed": false
+      },
+      "elapsed_seconds": 0.675
+    },
+    "forms": {
+      "result": {
+        "success": true,
+        "harness_completed": true,
+        "checks_completed": 42,
+        "accepted_scenarios": 42,
+        "scenarios": [
+          "head_creation_requires_auth",
+          "head_creation_rejects_loader_without_existing_permission",
+          "head_validation_branch_id",
+          "head_validation_contact_person",
+          "head_validation_customer_cost",
+          "head_validation_foreign_contact",
+          "head_creates_order_via_real_validation_and_controller",
+          "head_edits_open_order_and_records_history",
+          "head_update_rejects_loader_without_existing_permission",
+          "manager_cannot_use_leader_create_or_update_permissions",
+          "head_completed_order_rejects_address_and_status_edit",
+          "manager_creation_requires_auth",
+          "manager_creation_rejects_loader_without_existing_permission",
+          "manager_validation_branch_id",
+          "manager_validation_contact_person",
+          "manager_validation_customer_cost",
+          "manager_validation_foreign_contact",
+          "manager_creates_order_via_real_validation_and_controller",
+          "manager_edits_open_order_and_records_history",
+          "manager_update_rejects_loader_without_existing_permission",
+          "logist_existing_manager_permission_does_not_unlock_client_price",
+          "manager_completed_order_rejects_address_and_status_edit",
+          "multiple_details_create_distinct_order_numbers",
+          "v1_completion_rejects_old_form_without_status",
+          "v1_completion_rejects_stale_calculation_token",
+          "v1_completion_rejects_forged_profit",
+          "v1_completion_saves_exact_accrual_profit_and_report",
+          "v1_completion_stale_status_cannot_become_correction",
+          "v1_correction_requires_reason_before_money_changes",
+          "v1_correction_appends_delta_and_repeat_does_not_duplicate",
+          "v1_paid_worker_cannot_be_repriced_by_logist",
+          "v1_head_correction_preserves_paid_rows_and_appends_delta",
+          "v1_document_blocks_client_total_correction_for_head",
+          "v2_completion_rejects_old_form_without_status",
+          "v2_completion_rejects_stale_calculation_token",
+          "v2_completion_saves_exact_accrual_profit_and_report",
+          "v2_completion_stale_status_cannot_become_correction",
+          "v2_correction_requires_reason_before_money_changes",
+          "v2_correction_appends_delta_and_repeat_does_not_duplicate",
+          "v2_paid_worker_cannot_be_repriced_by_logist",
+          "v2_head_correction_preserves_paid_rows_and_appends_delta",
+          "v2_document_blocks_client_total_correction_for_head"
+        ],
+        "existing_permission_matrix": {
+          "head": {
+            "create_manager_orders": true,
+            "read_manager_orders": true,
+            "update_manager_orders": true,
+            "delete_manager_orders": true,
+            "create_leader_orders": true,
+            "read_leader_orders": true,
+            "update_leader_orders": true,
+            "delete_leader_orders": true
+          },
+          "manager": {
+            "create_manager_orders": true,
+            "read_manager_orders": true,
+            "update_manager_orders": true,
+            "delete_manager_orders": true,
+            "create_leader_orders": false,
+            "read_leader_orders": false,
+            "update_leader_orders": false,
+            "delete_leader_orders": false
+          },
+          "logist": {
+            "create_manager_orders": true,
+            "read_manager_orders": true,
+            "update_manager_orders": true,
+            "delete_manager_orders": true,
+            "create_leader_orders": false,
+            "read_leader_orders": false,
+            "update_leader_orders": false,
+            "delete_leader_orders": false
+          },
+          "loader": {
+            "create_manager_orders": false,
+            "read_manager_orders": false,
+            "update_manager_orders": false,
+            "delete_manager_orders": false,
+            "create_leader_orders": false,
+            "read_leader_orders": false,
+            "update_leader_orders": false,
+            "delete_leader_orders": false
+          }
+        },
+        "order_form_acceptance_passed": true,
+        "release_ready": false,
+        "legacy_pre_worker_boundary": false,
+        "real_http_form_validation_and_middleware": true,
+        "geocoder_process_double": true,
+        "all_synthetic_transactions_rolled_back": true,
+        "live_crm_changed": false,
+        "browser_acceptance_completed": false,
+        "elapsed_seconds": 6.923
+      },
+      "elapsed_seconds": 6.988
+    },
+    "functional": {
+      "result": {
+        "success": true,
+        "scenarios_passed": 40,
+        "scenarios": [
+          "new_order_defaults_to_calculation_v2",
+          "standard_logist_and_head_permissions_resolve",
+          "active_synthetic_login_returns_jwt_without_mail_code",
+          "wrong_password_rejected",
+          "login_remember_false_returns_jwt",
+          "login_remember_true_returns_jwt",
+          "missing_captcha_rejected",
+          "inactive_synthetic_account_rejected",
+          "owned_order_rate_updates_and_records_history",
+          "stale_rate_rejected_409_and_newer_value_preserved",
+          "repeated_rate_request_does_not_duplicate_history",
+          "different_city_logist_cannot_edit_order",
+          "same_city_owned_order_remains_accessible",
+          "private_context_refuses_missing_rehearsal_marker",
+          "rate_payload_cannot_edit_address",
+          "loader_cannot_use_rate_controller",
+          "foreign_logist_cannot_edit_order",
+          "model_guard_rejects_logist_address",
+          "model_guard_rejects_logist_customer_cost",
+          "model_guard_rejects_logist_min_cost",
+          "head_can_change_open_order_address",
+          "closed_status_3_blocks_rate",
+          "closed_status_4_blocks_rate",
+          "closed_status_5_blocks_rate",
+          "logist_cannot_grant_own_completed_order_access",
+          "head_opens_exactly_24_hours_without_changing_status_or_amounts",
+          "stale_access_toggle_returns_409_without_extra_history",
+          "open_24_hour_window_does_not_unlock_client_price_or_address",
+          "access_expires_at_server_deadline_without_cron",
+          "legacy_access_flag_without_deadline_is_closed",
+          "head_can_close_access_early",
+          "http_rate_route_requires_authentication",
+          "http_rate_route_enforces_read_permission",
+          "http_rate_route_updates_owned_order_through_middleware",
+          "http_rate_route_preserves_revision_conflict",
+          "http_logist_cannot_grant_completed_order_access",
+          "http_head_access_toggle_checks_permission_and_stale_state",
+          "v1_does_not_gain_v2_expense_rule",
+          "submitted_profit_uses_worker_and_transport_totals",
+          "v2_revenue_change_does_not_rewrite_accrual_rows"
+        ],
+        "real_candidate_controllers_and_model_events_used": true,
+        "synthetic_fixtures_only": true,
+        "all_fixture_transactions_rolled_back": true,
+        "captcha_external_verification_stubbed": true,
+        "http_auth_permission_and_finance_middleware_tested": true,
+        "private_maintenance_middleware_substituted": true,
+        "browser_acceptance_completed": false,
+        "live_crm_changed": false,
+        "elapsed_seconds": 1.24
+      },
+      "elapsed_seconds": 1.298
+    },
+    "negative_context": {
+      "result": {
+        "success": true,
+        "scenarios_passed": 6,
+        "scenarios": [
+          "wrong_database_rejected_before_connection",
+          "wrong_username_rejected_before_connection",
+          "wrong_unix_socket_rejected_before_connection",
+          "missing_switch_marker_rejected",
+          "foreign_root_rejected_before_connection",
+          "isolated_old_and_new_datadirs_are_distinct"
+        ],
+        "live_crm_changed": false
+      },
+      "elapsed_seconds": 0.206
+    },
+    "new_data_after_tests": {
+      "result": {
+        "diagnosis_completed": true,
+        "private_rehearsal_only": true,
+        "database_transaction_read_only": true,
+        "laravel_bootstrapped": false,
+        "migrations_run": false,
+        "baseline_file_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+        "baseline_file_unchanged": true,
+        "tables_checked": 72,
+        "original_data_unchanged": false,
+        "audit_log_diagnosis": {
+          "original_prefix_rows": 79656,
+          "original_prefix_hash_unchanged": true,
+          "additional_rows": [
+            {
+              "causer_present": false,
+              "subject_present": false,
+              "property_sections": [
+                "cash_source"
+              ],
+              "log_name": "finance",
+              "description": "cash_source_captured",
+              "attributes_keys": [],
+              "old_keys": [],
+              "legacy_cash_capture_verified": true
+            }
+          ],
+          "frozen_cash_source_count": 1,
+          "cash_source_migration_recorded": true,
+          "one_to_one_source_mapping": true
+        },
+        "all_original_rows_preserved": true,
+        "expected_new_cash_audit_verified": true,
+        "post_migration_invariants": {
+          "table_count_112": true,
+          "migration_history_count_217": true,
+          "all_legacy_orders_version_1": true,
+          "new_order_default_version_2": true,
+          "deleted_email_values_not_populated": true,
+          "old_orders_not_opened_for_logist": true,
+          "bank_card_data_migration_not_recorded": true,
+          "email_data_migration_not_recorded": true
+        },
+        "saved_rehearsal_data_acceptance_passed": true,
+        "release_ready": false
+      },
+      "elapsed_seconds": 20.14
+    },
+    "rollback_exchange_seconds": 0.000593,
+    "rollback_data": {
+      "result": {
+        "success": true,
+        "original_tables_checked": 72,
+        "all_original_rows_preserved": true,
+        "changed_tables": [],
+        "private_old_database_only": true
+      },
+      "elapsed_seconds": 22.489
+    },
+    "rollback_smoke": {
+      "result": {
+        "success": true,
+        "version": "old",
+        "scenarios_passed": 5,
+        "scenarios": [
+          "real_jwt_login_with_remember_returns_token",
+          "ts_only_worker_rate_controller_active",
+          "stale_rate_preserves_current_value",
+          "ts_only_model_guard_rejects_logist_address",
+          "active_schema_matches_version"
+        ],
+        "known_saved_old_issues": [
+          "SAVED_OLD_RATE_HISTORY_STATUS_ID_ERROR"
+        ],
+        "worker_rate_feature_accepted": false,
+        "real_ts_only_context_active": true,
+        "synthetic_transactions_rolled_back": true,
+        "live_crm_changed": false
+      },
+      "elapsed_seconds": 0.547
+    }
+  },
+  "post_acceptance_failure_injected": true,
+  "private_upgrade_acceptance_and_rollback_passed": true,
+  "old_file_contents_modes_owners_restored": true,
+  "old_original_rows_preserved": true,
+  "new_activation_state_preserved": true,
+  "rollback_verification_seconds": 36.281,
+  "acceptance_and_rollback_segment_seconds": 89.421,
+  "all_private_instances_off": [
+    {
+      "directory": "/root/gpm-ts-update/20261106-baseline-01/rehearsal-mysql",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109/rehearsal-mysql",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-old",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new-failed-after-timeout",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261109-switch-01/mysql-new-timeout-evidence",
+      "process_absent": true,
+      "socket_absent": true,
+      "data_files_preserved": true
+    }
+  ],
+  "completed_upgrade": {
+    "success": true,
+    "applied_this_pass": 37,
+    "total_planned_migrations": 37,
+    "migration_history_count": 217,
+    "table_count": 112,
+    "worker_boundary_matches_database": true,
+    "planning_day_boundary_locally_activated": true,
+    "old_orders_remain_v1": true,
+    "elapsed_seconds": 136.856,
+    "live_crm_changed": false
+  },
+  "earlier_completed_upgrade": {
+    "success": true,
+    "applied_this_pass": 37,
+    "total_planned_migrations": 37,
+    "migration_history_count": 217,
+    "table_count": 112,
+    "worker_boundary_matches_database": true,
+    "planning_day_boundary_locally_activated": true,
+    "old_orders_remain_v1": true,
+    "elapsed_seconds": 133.872,
+    "live_crm_changed": false
+  },
+  "separate_logical_restore_seconds": 113.737,
+  "private_buffer_pool_bytes": 536870912,
+  "initial_injected_migration_failure": {
+    "expected_failure_injected": true,
+    "applied_before_failure": 3,
+    "migration_history_count": 183,
+    "elapsed_seconds": 0.305,
+    "live_crm_changed": false
+  },
+  "initial_rollback_original_data": {
+    "success": true,
+    "original_tables_checked": 72,
+    "all_original_rows_preserved": true,
+    "changed_tables": [],
+    "private_old_database_only": true
+  },
+  "original_old_slot_files": 24858,
+  "remaining_disk_bytes": 2023899136,
+  "failed_runs_disclosed": [
+    "Initial preparation Python 3.7 copytree compatibility error, resumed before DB setup.",
+    "Initial 300-second upgrade timeout on finance-source ALTER, old slot restored.",
+    "Resume of timed-out private InnoDB copy failed with missing plannings in engine; copies preserved offline.",
+    "Fresh upgrade completed but wrapper rejected informational console lines; old slot restored.",
+    "Final upgrade completed but checker used candidate instead of runtime root; old slot restored.",
+    "Checker binding fixed without removing identity guards; acceptance resumed on completed final database."
+  ]
+}

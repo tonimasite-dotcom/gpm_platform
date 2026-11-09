@@ -73,6 +73,8 @@ def main():
             }
 """
     text = one(text, anchor, own_login + anchor)
+    text = one(text, "'max:255', 'exists:users,remember_token'",
+               "'max:255', \\Illuminate\\Validation\\Rule::exists('users', 'remember_token')->where('email', (string) $request->input('email'))")
     save(name, text, 'Upstream account checks plus existing ts-only mail-code setting; no credential changes')
 
     name = 'app/Http/Controllers/Order/ManagerOrderController.php'

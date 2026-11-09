@@ -1,0 +1,78 @@
+{
+  "all_passed": true,
+  "php_files_checked": 18,
+  "checks": [
+    {
+      "file": "GpmTsRehearsal.php",
+      "passed": true
+    },
+    {
+      "file": "GpmTsRuntimeContext.php",
+      "passed": true
+    },
+    {
+      "file": "GpmTsSwitchContext.php",
+      "passed": true
+    },
+    {
+      "file": "OriginalDataAcceptance.php",
+      "passed": true
+    },
+    {
+      "file": "context_negative.php",
+      "passed": true
+    },
+    {
+      "file": "email_code_acceptance.php",
+      "passed": true
+    },
+    {
+      "file": "final_new_data_check.php",
+      "passed": true
+    },
+    {
+      "file": "final_pristine_data_check.php",
+      "passed": true
+    },
+    {
+      "file": "functional_acceptance.php",
+      "passed": true
+    },
+    {
+      "file": "new_data_check.php",
+      "passed": true
+    },
+    {
+      "file": "new_pristine_data_check.php",
+      "passed": true
+    },
+    {
+      "file": "old_data_check.php",
+      "passed": true
+    },
+    {
+      "file": "order_form_acceptance.php",
+      "passed": true
+    },
+    {
+      "file": "private_runtime_bootstrap.php",
+      "passed": true
+    },
+    {
+      "file": "run_final_upgrade.php",
+      "passed": true
+    },
+    {
+      "file": "run_upgrade.php",
+      "passed": true
+    },
+    {
+      "file": "runtime_smoke.php",
+      "passed": true
+    },
+    {
+      "file": "candidate/LoginController.php",
+      "passed": true
+    }
+  ]
+}

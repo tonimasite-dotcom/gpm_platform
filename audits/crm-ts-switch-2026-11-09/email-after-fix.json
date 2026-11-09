@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "scenarios_passed": 8,
+  "scenarios": [
+    "missing_setting_defaults_to_email_challenge",
+    "enabled_setting_requires_email_code_and_returns_no_jwt",
+    "wrong_password_does_not_send_email_or_issue_token",
+    "nonexistent_email_code_is_rejected",
+    "other_users_email_code_is_rejected",
+    "own_email_code_verifies_and_returns_jwt",
+    "used_email_code_cannot_be_reused",
+    "explicitly_disabled_setting_keeps_existing_no_code_login"
+  ],
+  "email_delivery_process_double": true,
+  "real_login_and_verify_used": true,
+  "all_synthetic_transactions_rolled_back": true,
+  "real_email_sent": false,
+  "live_crm_changed": false
+}
