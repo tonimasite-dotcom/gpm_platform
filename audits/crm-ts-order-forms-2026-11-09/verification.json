@@ -1,0 +1,659 @@
+{
+  "checks_passed": true,
+  "order_forms": {
+    "success": true,
+    "harness_completed": true,
+    "checks_completed": 42,
+    "accepted_scenarios": 42,
+    "scenarios": [
+      "head_creation_requires_auth",
+      "head_creation_rejects_loader_without_existing_permission",
+      "head_validation_branch_id",
+      "head_validation_contact_person",
+      "head_validation_customer_cost",
+      "head_validation_foreign_contact",
+      "head_creates_order_via_real_validation_and_controller",
+      "head_edits_open_order_and_records_history",
+      "head_update_rejects_loader_without_existing_permission",
+      "manager_cannot_use_leader_create_or_update_permissions",
+      "head_completed_order_rejects_address_and_status_edit",
+      "manager_creation_requires_auth",
+      "manager_creation_rejects_loader_without_existing_permission",
+      "manager_validation_branch_id",
+      "manager_validation_contact_person",
+      "manager_validation_customer_cost",
+      "manager_validation_foreign_contact",
+      "manager_creates_order_via_real_validation_and_controller",
+      "manager_edits_open_order_and_records_history",
+      "manager_update_rejects_loader_without_existing_permission",
+      "logist_existing_manager_permission_does_not_unlock_client_price",
+      "manager_completed_order_rejects_address_and_status_edit",
+      "multiple_details_create_distinct_order_numbers",
+      "v1_completion_rejects_old_form_without_status",
+      "v1_completion_rejects_stale_calculation_token",
+      "v1_completion_rejects_forged_profit",
+      "v1_completion_saves_exact_accrual_profit_and_report",
+      "v1_completion_stale_status_cannot_become_correction",
+      "v1_correction_requires_reason_before_money_changes",
+      "v1_correction_appends_delta_and_repeat_does_not_duplicate",
+      "v1_paid_worker_cannot_be_repriced_by_logist",
+      "v1_head_correction_preserves_paid_rows_and_appends_delta",
+      "v1_document_blocks_client_total_correction_for_head",
+      "v2_completion_rejects_old_form_without_status",
+      "v2_completion_rejects_stale_calculation_token",
+      "v2_completion_saves_exact_accrual_profit_and_report",
+      "v2_completion_stale_status_cannot_become_correction",
+      "v2_correction_requires_reason_before_money_changes",
+      "v2_correction_appends_delta_and_repeat_does_not_duplicate",
+      "v2_paid_worker_cannot_be_repriced_by_logist",
+      "v2_head_correction_preserves_paid_rows_and_appends_delta",
+      "v2_document_blocks_client_total_correction_for_head"
+    ],
+    "existing_permission_matrix": {
+      "head": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": true,
+        "read_leader_orders": true,
+        "update_leader_orders": true,
+        "delete_leader_orders": true
+      },
+      "manager": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      },
+      "logist": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      },
+      "loader": {
+        "create_manager_orders": false,
+        "read_manager_orders": false,
+        "update_manager_orders": false,
+        "delete_manager_orders": false,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      }
+    },
+    "order_form_acceptance_passed": true,
+    "release_ready": false,
+    "real_http_form_validation_and_middleware": true,
+    "geocoder_process_double": true,
+    "all_synthetic_transactions_rolled_back": true,
+    "live_crm_changed": false,
+    "browser_acceptance_completed": false,
+    "elapsed_seconds": 7.916
+  },
+  "previous_functional": {
+    "success": true,
+    "scenarios_passed": 40,
+    "scenarios": [
+      "new_order_defaults_to_calculation_v2",
+      "standard_logist_and_head_permissions_resolve",
+      "active_synthetic_login_returns_jwt_without_mail_code",
+      "wrong_password_rejected",
+      "login_remember_false_returns_jwt",
+      "login_remember_true_returns_jwt",
+      "missing_captcha_rejected",
+      "inactive_synthetic_account_rejected",
+      "owned_order_rate_updates_and_records_history",
+      "stale_rate_rejected_409_and_newer_value_preserved",
+      "repeated_rate_request_does_not_duplicate_history",
+      "different_city_logist_cannot_edit_order",
+      "same_city_owned_order_remains_accessible",
+      "private_context_refuses_missing_rehearsal_marker",
+      "rate_payload_cannot_edit_address",
+      "loader_cannot_use_rate_controller",
+      "foreign_logist_cannot_edit_order",
+      "model_guard_rejects_logist_address",
+      "model_guard_rejects_logist_customer_cost",
+      "model_guard_rejects_logist_min_cost",
+      "head_can_change_open_order_address",
+      "closed_status_3_blocks_rate",
+      "closed_status_4_blocks_rate",
+      "closed_status_5_blocks_rate",
+      "logist_cannot_grant_own_completed_order_access",
+      "head_opens_exactly_24_hours_without_changing_status_or_amounts",
+      "stale_access_toggle_returns_409_without_extra_history",
+      "open_24_hour_window_does_not_unlock_client_price_or_address",
+      "access_expires_at_server_deadline_without_cron",
+      "legacy_access_flag_without_deadline_is_closed",
+      "head_can_close_access_early",
+      "http_rate_route_requires_authentication",
+      "http_rate_route_enforces_read_permission",
+      "http_rate_route_updates_owned_order_through_middleware",
+      "http_rate_route_preserves_revision_conflict",
+      "http_logist_cannot_grant_completed_order_access",
+      "http_head_access_toggle_checks_permission_and_stale_state",
+      "v1_does_not_gain_v2_expense_rule",
+      "submitted_profit_uses_worker_and_transport_totals",
+      "v2_revenue_change_does_not_rewrite_accrual_rows"
+    ],
+    "real_candidate_controllers_and_model_events_used": true,
+    "synthetic_fixtures_only": true,
+    "all_fixture_transactions_rolled_back": true,
+    "captcha_external_verification_stubbed": true,
+    "http_auth_permission_and_finance_middleware_tested": true,
+    "private_maintenance_middleware_substituted": true,
+    "browser_acceptance_completed": false,
+    "live_crm_changed": false,
+    "elapsed_seconds": 1.387
+  },
+  "original_data": {
+    "diagnosis_completed": true,
+    "private_rehearsal_only": true,
+    "database_transaction_read_only": true,
+    "laravel_bootstrapped": false,
+    "migrations_run": false,
+    "baseline_file_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+    "baseline_file_unchanged": true,
+    "tables_checked": 72,
+    "original_data_unchanged": false,
+    "changed_tables": {
+      "activity_log": {
+        "rows_before": 79656,
+        "rows_after": 79657,
+        "rows_unchanged": false,
+        "hash_unchanged": false
+      }
+    },
+    "table_checks": {
+      "activity_log": {
+        "rows_before": 79656,
+        "rows_after": 79657,
+        "rows_unchanged": false,
+        "hash_unchanged": false
+      },
+      "additional_loaders": {
+        "rows_before": 14,
+        "rows_after": 14,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "advantage_loaders": {
+        "rows_before": 25,
+        "rows_after": 25,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "application_documents": {
+        "rows_before": 1464,
+        "rows_after": 1464,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "articles": {
+        "rows_before": 2,
+        "rows_after": 2,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "banking_settings": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "branches": {
+        "rows_before": 26,
+        "rows_after": 26,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "calls": {
+        "rows_before": 99510,
+        "rows_after": 99510,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_comments": {
+        "rows_before": 9,
+        "rows_after": 9,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_communication_types": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_scripts": {
+        "rows_before": 5,
+        "rows_after": 5,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_statuses": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "carables": {
+        "rows_before": 6,
+        "rows_after": 6,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "cars": {
+        "rows_before": 4,
+        "rows_after": 4,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "cities": {
+        "rows_before": 5,
+        "rows_after": 5,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "contact_persons": {
+        "rows_before": 5386,
+        "rows_after": 5386,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "contact_person_mails": {
+        "rows_before": 2215,
+        "rows_after": 2215,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "contact_person_phones": {
+        "rows_before": 5422,
+        "rows_after": 5422,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "coordinates": {
+        "rows_before": 417,
+        "rows_after": 417,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "countries": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customers": {
+        "rows_before": 2146,
+        "rows_after": 2146,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customer_debts": {
+        "rows_before": 2077,
+        "rows_after": 2077,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customer_debt_logs": {
+        "rows_before": 8518,
+        "rows_after": 8518,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customer_tariffs": {
+        "rows_before": 4,
+        "rows_after": 4,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "documents": {
+        "rows_before": 49,
+        "rows_after": 49,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_linkables": {
+        "rows_before": 33283,
+        "rows_after": 33283,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_links": {
+        "rows_before": 16371,
+        "rows_after": 16371,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_link_services": {
+        "rows_before": 35512,
+        "rows_after": 35512,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_orders": {
+        "rows_before": 36,
+        "rows_after": 36,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_templates": {
+        "rows_before": 11,
+        "rows_after": 11,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "expenses": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "failed_jobs": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "history_customers": {
+        "rows_before": 2129,
+        "rows_after": 2129,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "history_orders": {
+        "rows_before": 114907,
+        "rows_after": 114907,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "jobs": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "leads": {
+        "rows_before": 31,
+        "rows_after": 31,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "logistics_balances": {
+        "rows_before": 8,
+        "rows_after": 8,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "mail_messages": {
+        "rows_before": 24,
+        "rows_after": 24,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "mail_settings": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "main_settings": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "media": {
+        "rows_before": 12900,
+        "rows_after": 12900,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "metro_stations": {
+        "rows_before": 480,
+        "rows_after": 480,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "migrations": {
+        "rows_before": 180,
+        "rows_after": 180,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "model_has_permissions": {
+        "rows_before": 97,
+        "rows_after": 97,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "model_has_roles": {
+        "rows_before": 5301,
+        "rows_after": 5301,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "note_orders": {
+        "rows_before": 35,
+        "rows_after": 35,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "notifications": {
+        "rows_before": 1810019,
+        "rows_after": 1810019,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "oauth_providers": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "orders": {
+        "rows_before": 32681,
+        "rows_after": 32681,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "order_user": {
+        "rows_before": 170640,
+        "rows_after": 170640,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "parse_emails": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "parse_walks": {
+        "rows_before": 288,
+        "rows_after": 288,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "password_resets": {
+        "rows_before": 8,
+        "rows_after": 8,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "payments": {
+        "rows_before": 13934,
+        "rows_after": 13934,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "penalty_scheduler": {
+        "rows_before": 23688,
+        "rows_after": 23688,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "permissions": {
+        "rows_before": 150,
+        "rows_after": 150,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "phones": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "plannings": {
+        "rows_before": 838839,
+        "rows_after": 838839,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "positions": {
+        "rows_before": 6,
+        "rows_after": 6,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "report_cards": {
+        "rows_before": 67633,
+        "rows_after": 67633,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "roles": {
+        "rows_before": 11,
+        "rows_after": 11,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "role_has_permissions": {
+        "rows_before": 451,
+        "rows_after": 451,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "seekers": {
+        "rows_before": 39,
+        "rows_after": 39,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "sms_settings": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "statement_requests": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "tariffs": {
+        "rows_before": 30,
+        "rows_after": 30,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "tasks": {
+        "rows_before": 9,
+        "rows_after": 9,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "terms": {
+        "rows_before": 6,
+        "rows_after": 6,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "type_documents": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "users": {
+        "rows_before": 13091,
+        "rows_after": 13091,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "websockets_statistics_entries": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "work_types": {
+        "rows_before": 10,
+        "rows_after": 10,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      }
+    },
+    "audit_log_diagnosis": {
+      "original_prefix_rows": 79656,
+      "original_prefix_hash_unchanged": true,
+      "additional_rows": [
+        {
+          "causer_present": false,
+          "subject_present": false,
+          "property_sections": [
+            "cash_source"
+          ],
+          "log_name": "finance",
+          "description": "cash_source_captured",
+          "attributes_keys": [],
+          "old_keys": [],
+          "legacy_cash_capture_verified": true
+        }
+      ],
+      "frozen_cash_source_count": 1,
+      "cash_source_migration_recorded": true,
+      "one_to_one_source_mapping": true
+    },
+    "all_original_rows_preserved": true,
+    "expected_new_cash_audit_verified": true,
+    "post_migration_invariants": {
+      "table_count_112": true,
+      "migration_history_count_217": true,
+      "all_legacy_orders_version_1": true,
+      "new_order_default_version_2": true,
+      "deleted_email_values_not_populated": true,
+      "old_orders_not_opened_for_logist": true,
+      "bank_card_data_migration_not_recorded": true,
+      "email_data_migration_not_recorded": true
+    },
+    "saved_rehearsal_data_acceptance_passed": true,
+    "release_ready": false
+  },
+  "php_lint": {
+    "candidate_files": 834,
+    "acceptance_files": 10,
+    "success": true
+  },
+  "gpm_regressions": {
+    "sync_plan_test.php": "GPM sync planner: 11 scenarios passed",
+    "sync_service_test.php": "GPM sync service: 16 scenarios passed",
+    "worker_rate_test.php": "GPM worker rate: 35 scenarios passed"
+  },
+  "main_crm_accessed": false,
+  "live_crm_changed": false,
+  "release_ready": false
+}

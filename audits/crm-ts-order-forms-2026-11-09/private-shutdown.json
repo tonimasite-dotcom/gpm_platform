@@ -1,0 +1,18 @@
+{
+  "instances": [
+    {
+      "directory": "/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109/rehearsal-mysql",
+      "shutdown_verified": true,
+      "already_stopped": true,
+      "data_files_preserved": true
+    },
+    {
+      "directory": "/root/gpm-ts-update/20261106-baseline-01/rehearsal-mysql",
+      "shutdown_verified": true,
+      "data_files_preserved": true
+    }
+  ],
+  "live_mysql_accessed": false,
+  "original_baseline_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+  "original_checker_sha256": "0934ffda332a82cad3c5525945009313580a56aea7da1ad8d22eb8a1914b4259"
+}

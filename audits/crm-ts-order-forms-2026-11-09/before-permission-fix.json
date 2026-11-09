@@ -1,0 +1,128 @@
+{
+    "success": false,
+    "harness_completed": true,
+    "checks_completed": 40,
+    "accepted_scenarios": 36,
+    "permission_probes": 4,
+    "scenarios": [
+        "head_creation_requires_auth",
+        "head_creation_permission_probe",
+        "head_validation_branch_id",
+        "head_validation_contact_person",
+        "head_validation_customer_cost",
+        "head_validation_foreign_contact",
+        "head_creates_order_via_real_validation_and_controller",
+        "head_edits_open_order_and_records_history",
+        "head_update_permission_probe",
+        "head_completed_order_rejects_address_and_status_edit",
+        "manager_creation_requires_auth",
+        "manager_creation_permission_probe",
+        "manager_validation_branch_id",
+        "manager_validation_contact_person",
+        "manager_validation_customer_cost",
+        "manager_validation_foreign_contact",
+        "manager_creates_order_via_real_validation_and_controller",
+        "manager_edits_open_order_and_records_history",
+        "manager_update_permission_probe",
+        "manager_completed_order_rejects_address_and_status_edit",
+        "multiple_details_create_distinct_order_numbers",
+        "v1_completion_rejects_old_form_without_status",
+        "v1_completion_rejects_stale_calculation_token",
+        "v1_completion_rejects_forged_profit",
+        "v1_completion_saves_exact_accrual_profit_and_report",
+        "v1_completion_stale_status_cannot_become_correction",
+        "v1_correction_requires_reason_before_money_changes",
+        "v1_correction_appends_delta_and_repeat_does_not_duplicate",
+        "v1_paid_worker_cannot_be_repriced_by_logist",
+        "v1_head_correction_preserves_paid_rows_and_appends_delta",
+        "v1_document_blocks_client_total_correction_for_head",
+        "v2_completion_rejects_old_form_without_status",
+        "v2_completion_rejects_stale_calculation_token",
+        "v2_completion_saves_exact_accrual_profit_and_report",
+        "v2_completion_stale_status_cannot_become_correction",
+        "v2_correction_requires_reason_before_money_changes",
+        "v2_correction_appends_delta_and_repeat_does_not_duplicate",
+        "v2_paid_worker_cannot_be_repriced_by_logist",
+        "v2_head_correction_preserves_paid_rows_and_appends_delta",
+        "v2_document_blocks_client_total_correction_for_head"
+    ],
+    "existing_permission_matrix": {
+        "head": {
+            "create_manager_orders": true,
+            "read_manager_orders": true,
+            "update_manager_orders": true,
+            "delete_manager_orders": true,
+            "create_leader_orders": true,
+            "read_leader_orders": true,
+            "update_leader_orders": true,
+            "delete_leader_orders": true
+        },
+        "manager": {
+            "create_manager_orders": true,
+            "read_manager_orders": true,
+            "update_manager_orders": true,
+            "delete_manager_orders": true,
+            "create_leader_orders": false,
+            "read_leader_orders": false,
+            "update_leader_orders": false,
+            "delete_leader_orders": false
+        },
+        "logist": {
+            "create_manager_orders": true,
+            "read_manager_orders": true,
+            "update_manager_orders": true,
+            "delete_manager_orders": true,
+            "create_leader_orders": false,
+            "read_leader_orders": false,
+            "update_leader_orders": false,
+            "delete_leader_orders": false
+        },
+        "loader": {
+            "create_manager_orders": false,
+            "read_manager_orders": false,
+            "update_manager_orders": false,
+            "delete_manager_orders": false,
+            "create_leader_orders": false,
+            "read_leader_orders": false,
+            "update_leader_orders": false,
+            "delete_leader_orders": false
+        }
+    },
+    "acceptance_passed": false,
+    "release_blockers": [
+        {
+            "code": "LOADER_CAN_CREATE_ORDER",
+            "route": "leader_orders",
+            "status": 200,
+            "expected_status": 403,
+            "preexisting_in_saved_sources": true
+        },
+        {
+            "code": "LOADER_CAN_UPDATE_ORDER",
+            "route": "leader_orders",
+            "status": 200,
+            "expected_status": 403,
+            "preexisting_in_saved_sources": true
+        },
+        {
+            "code": "LOADER_CAN_CREATE_ORDER",
+            "route": "manager_orders",
+            "status": 200,
+            "expected_status": 403,
+            "preexisting_in_saved_sources": true
+        },
+        {
+            "code": "LOADER_CAN_UPDATE_ORDER",
+            "route": "manager_orders",
+            "status": 200,
+            "expected_status": 403,
+            "preexisting_in_saved_sources": true
+        }
+    ],
+    "real_http_form_validation_and_middleware": true,
+    "geocoder_process_double": true,
+    "all_synthetic_transactions_rolled_back": true,
+    "live_crm_changed": false,
+    "browser_acceptance_completed": false,
+    "elapsed_seconds": 10.64
+}

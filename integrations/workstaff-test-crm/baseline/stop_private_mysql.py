@@ -56,12 +56,18 @@ def stop(directory):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime-report', action='store_true')
+    parser.add_argument('--order-form-report', action='store_true')
     options = parser.parse_args()
+    if options.runtime_report and options.order_form_report:
+        parser.error('Choose one report stage')
+    filename = ('order-form-final-status-20261109.json' if options.order_form_report else
+        'runtime-final-status-20261109.json' if options.runtime_report else 'resume-final-status-20261109.json')
+    if (WORK / filename).exists():
+        raise RuntimeError('REPORT_ALREADY_EXISTS_CHOOSE_NEW_STAGE')
     report = {'instances': [stop(WORK / 'sql-recovery-20261109/rehearsal-mysql'),
         stop(WORK / 'rehearsal-mysql')], 'live_mysql_accessed': False,
         'original_baseline_sha256': hashlib.sha256((WORK / 'original-data-checks.json').read_bytes()).hexdigest(),
         'original_checker_sha256': hashlib.sha256((WORK / 'rehearse_migrations.php').read_bytes()).hexdigest()}
-    filename = 'runtime-final-status-20261109.json' if options.runtime_report else 'resume-final-status-20261109.json'
     with (WORK / filename).open('x') as output:
         output.write(json.dumps(report, indent=2))
     print(json.dumps(report))

@@ -1,0 +1,18 @@
+{
+  "candidate_only": true,
+  "existing_permissions_enforced": true,
+  "role_assignments_changed": false,
+  "live_crm_changed": false,
+  "files": [
+    {
+      "file": "app/Http/Controllers/Order/ManagerOrderController.php",
+      "before_sha256": "da801abd4422067facb67be26cdafc3bdf91a36d9bb10f3b13e37516440d2555",
+      "after_sha256": "f1708d2e1df483ddf3ddb71bfa84b19b58f6144b73c545f5fe42cdc9bbd317fe"
+    },
+    {
+      "file": "app/Http/Controllers/Order/LeaderOrderController.php",
+      "before_sha256": "178e200a65a2ad677df247c5fc2a78fbea4119f1dd71c2861e8cce70ab24cd28",
+      "after_sha256": "bfbd6d64eb882a86bff4b651ed3ffc4a9c10735948b70e365d6ae2593e9f3df2"
+    }
+  ]
+}
