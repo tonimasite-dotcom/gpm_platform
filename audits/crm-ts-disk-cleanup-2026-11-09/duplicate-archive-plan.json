@@ -1,0 +1,31 @@
+{
+  "status": "AWAITING_EXPLICIT_APPROVAL",
+  "server_directory": "/root/gpm-ts-update/20261106-baseline-01/backup-preparation-20261109",
+  "local_directory": "C:/Users/Acer/gpm_platform/.tmp/crm-recovery-20261109/backup",
+  "files": {
+    "ts-files.tar.gz.age": {
+      "bytes": 1785435811,
+      "sha256": "61c8d7ecdeb95016ee46bff482dbd893d4e4a73552fa7c8ea28d8528ae71a25a"
+    },
+    "ts-mysql.sql.gz.age": {
+      "bytes": 55778125,
+      "sha256": "fa2149e8b84bc8a7eadfffbe19942b0e9335ad3a3105cf9606f12a25bdf5ecd4"
+    },
+    "ts-manifest.json.age": {
+      "bytes": 4697281,
+      "sha256": "aad15269ff34bfb2d2dbcf1d5c28bd58137fc1713c1e3739cdc244a00b6eedb6"
+    }
+  },
+  "total_bytes": 1845911217,
+  "local_and_server_sha256_equal": true,
+  "action": "Remove only three server duplicates after approval and immediate revalidation; keep existing local encrypted copies.",
+  "preserve": [
+    "all live CRM files and databases",
+    "all private databases and runtime trees",
+    "all other backup directories and verification reports",
+    "local backup archives and decryption key"
+  ],
+  "impact": "Restoring this exact encrypted snapshot would require upload from the Acer computer; other server snapshots and restored copies remain.",
+  "recovery": "Re-upload the same files from the verified local directory and recheck SHA-256.",
+  "executed": false
+}

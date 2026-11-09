@@ -1,0 +1,25 @@
+{
+  "apply": true,
+  "directories": [
+    {
+      "path": "/root/gpm-ts-update/20261106-baseline-01/candidate/node_modules/.cache/terser-webpack-plugin",
+      "files": 2822,
+      "bytes": 341992245,
+      "allocated_file_bytes": 349749248
+    },
+    {
+      "path": "/root/gpm-ts-update/20261106-baseline-01/candidate/node_modules/.cache/babel-loader",
+      "files": 2268,
+      "bytes": 6462387,
+      "allocated_file_bytes": 11943936
+    }
+  ],
+  "candidate_code_files_verified": 1391,
+  "live_crm_accessed": false,
+  "backups_or_databases_removed": false,
+  "rebuild_dependency_downloads_required": false,
+  "candidate_code_files_verified_after": 1391,
+  "all_cache_targets_removed": true,
+  "free_bytes_before": 18519777280,
+  "free_bytes_after": 18895179776
+}
