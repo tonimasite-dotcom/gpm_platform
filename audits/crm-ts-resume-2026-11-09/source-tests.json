@@ -1,0 +1,35 @@
+{
+  "source_comparison": {
+    "main": {
+      "files_checked": 1367,
+      "changed_paths": [
+        "app/Services/Order/AccountantOrderService.php",
+        "app/Traits/sendSmsTrait.php",
+        "config/qt_sms.php"
+      ]
+    },
+    "ts": {
+      "files_checked": 1194,
+      "changed_paths": []
+    }
+  },
+  "php_lint": {
+    "files": 833,
+    "failures": []
+  },
+  "gpm_tests": {
+    "sync_plan_test.php": {
+      "success": true,
+      "summary": "GPM sync planner: 11 scenarios passed"
+    },
+    "sync_service_test.php": {
+      "success": true,
+      "summary": "GPM sync service: 16 scenarios passed"
+    },
+    "worker_rate_test.php": {
+      "success": true,
+      "summary": "GPM worker rate: 35 scenarios passed"
+    }
+  },
+  "live_changed": false
+}

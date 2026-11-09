@@ -1,0 +1,10 @@
+{
+  "restore_completed": true,
+  "table_count": 72,
+  "all_table_row_counts_match_dump": true,
+  "decrypted_sql_hash_verified": true,
+  "drop_table_statements_filtered": 72,
+  "live_database_accessed": false,
+  "new_private_instance_only": true,
+  "old_rehearsal_preserved": true
+}

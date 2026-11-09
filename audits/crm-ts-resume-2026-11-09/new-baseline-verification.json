@@ -1,0 +1,9 @@
+{
+  "private_recovery_only": true,
+  "tables_checked": 72,
+  "matches_original_november_6_baseline": true,
+  "changed_tables": [],
+  "original_checksum_algorithm_used": true,
+  "original_files_unchanged": true,
+  "live_database_accessed": false
+}

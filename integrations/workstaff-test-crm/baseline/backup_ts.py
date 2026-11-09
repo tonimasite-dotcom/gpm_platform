@@ -6,6 +6,7 @@ The source tree includes sensitive ts settings; all archive/manifest outputs are
 encrypted in memory streams. Public output contains aggregate metadata only.
 """
 from pathlib import Path
+import argparse
 import datetime
 import gzip
 import hashlib
@@ -22,11 +23,12 @@ TS = Path('/var/www/gruzpiter/data/www/ts.workstaffcrm.ru')
 WORK = Path('/root/gpm-ts-update/20261106-baseline-01')
 SEAL = Path('/root/gpm-snapshots/20261015-before-sync')
 DEST = WORK / 'backup-preparation-02'
+RECIPIENT = None
 
 
 def age_writer(filename):
     return subprocess.Popen([str(SEAL / 'age'), '--encrypt', '--recipient',
-                             (SEAL / 'age-recipient.txt').read_text().strip(),
+                             RECIPIENT or (SEAL / 'age-recipient.txt').read_text().strip(),
                              '--output', str(DEST / filename)],
                             stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
@@ -65,9 +67,22 @@ class DigestReader:
 
 
 def main():
+    global DEST, RECIPIENT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--destination-name', default='backup-preparation-02')
+    parser.add_argument('--recipient')
+    options = parser.parse_args()
+    if not re.fullmatch(r'backup-preparation-[a-z0-9-]+', options.destination_name):
+        raise RuntimeError('Invalid private backup directory name')
+    if options.recipient and not re.fullmatch(r'age1[0-9a-z]{58}', options.recipient):
+        raise RuntimeError('Invalid age X25519 recipient')
+    DEST = WORK / options.destination_name
+    RECIPIENT = options.recipient
     os.umask(0o077)
     if TS.resolve() != TS or TS.is_symlink() or WORK.resolve() != WORK:
         raise RuntimeError('Unexpected root')
+    if DEST.resolve() != DEST:
+        raise RuntimeError('Unexpected backup destination')
     DEST.mkdir(mode=0o700, exist_ok=False)
     start = time.monotonic();env = get_ts_environment()
     backup = {'kind': 'online_preparation_not_release_checkpoint',

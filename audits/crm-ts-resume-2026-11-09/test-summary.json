@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-09",
+  "php_candidate_lint_files": 833,
+  "php_candidate_lint_success": true,
+  "gpm_planner_scenarios_passed": 11,
+  "gpm_sync_scenarios_passed": 16,
+  "gpm_worker_rate_scenarios_passed": 35,
+  "original_data_acceptance_scenarios_passed": 16,
+  "file_recovery_safety_scenarios_passed": 10,
+  "reinitialization_of_existing_recovery_refused": true,
+  "restore_to_nonempty_private_database_refused": true,
+  "frontend_rebuilt_today": false,
+  "frontend_build_previously_passed_on": "2026-11-06",
+  "full_crm_functional_acceptance_completed": false,
+  "live_apply_and_rollback_rehearsed": false,
+  "ci_or_deployment_started": false,
+  "live_crm_updated": false,
+  "release_ready": false
+}

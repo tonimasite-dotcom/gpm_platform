@@ -1,0 +1,8 @@
+{
+  "candidate_code_and_manifest_assets_files": 1390,
+  "manifest_sha256": "9a7a45f65b7fa301b5d8432d70cb9a44b21419b91c3398ea0d28fab4b6631f92",
+  "frontend_manifest_entries": 2,
+  "candidate_deployable": false,
+  "private_migration_guards_only": true,
+  "excludes_env_storage_vendor_node_modules": true
+}

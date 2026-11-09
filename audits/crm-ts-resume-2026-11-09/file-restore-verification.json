@@ -1,0 +1,14 @@
+{
+  "regular_files_restored": 24853,
+  "regular_file_bytes": 2057226824,
+  "all_regular_file_hashes_and_modes_verified": true,
+  "archive_entries_checked": 24862,
+  "symlink_metadata_preserved": 9,
+  "external_symlinks_activated": false,
+  "live_crm_changed": false,
+  "runtime_bootstrapped": false,
+  "full_production_restore_rehearsed": false,
+  "private_tree": "/root/gpm-ts-update/20261106-baseline-01/file-recovery-20261109/tree",
+  "new_local_key_decryption_verified": true,
+  "all_ciphertext_hashes_verified": true
+}

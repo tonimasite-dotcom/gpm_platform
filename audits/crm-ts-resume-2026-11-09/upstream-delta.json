@@ -1,0 +1,38 @@
+[
+  {
+    "file": "app/Services/Order/AccountantOrderService.php",
+    "current_sha256": "cd6ab3c38c0b4735b537ab8674a0c68ba82380191bfa2301650b4e8ff2a31eb5",
+    "source_snapshot_sha256": "cbc001e8205aacd56a21fac2363d9f685376b98638a54216e55d191db8d2b9d8",
+    "identical_after_line_ending_normalization": false,
+    "identical_ignoring_final_newline": false,
+    "candidate_equals_ts": false,
+    "direct_sensitive_literals_in_candidate_match_ts": true,
+    "direct_sensitive_literal_count": 2,
+    "only_redacted_sensitive_literals_differ": true,
+    "sanitized_diff": ""
+  },
+  {
+    "file": "app/Traits/sendSmsTrait.php",
+    "current_sha256": "4de789132e78e83eb8048fe14ca271b6a1d81f44641bee736717be135258a96c",
+    "source_snapshot_sha256": "4c4e2ff9bcd3ce7396a7d022b23e306aef43a01f14fe56322bf6f60228d368d1",
+    "identical_after_line_ending_normalization": false,
+    "identical_ignoring_final_newline": false,
+    "candidate_equals_ts": true,
+    "direct_sensitive_literals_in_candidate_match_ts": true,
+    "direct_sensitive_literal_count": 2,
+    "only_redacted_sensitive_literals_differ": true,
+    "sanitized_diff": ""
+  },
+  {
+    "file": "config/qt_sms.php",
+    "current_sha256": "5500f94bcf72d3dc9a26c0a517dfd59ba631cb900432ee7b059fb7495977c915",
+    "source_snapshot_sha256": "344c9544cc781b9b4f097b59ee98f1347a6b00e54c46613e1dfed58ce555df3b",
+    "identical_after_line_ending_normalization": false,
+    "identical_ignoring_final_newline": false,
+    "candidate_equals_ts": true,
+    "direct_sensitive_literals_in_candidate_match_ts": true,
+    "direct_sensitive_literal_count": 0,
+    "only_redacted_sensitive_literals_differ": true,
+    "sanitized_diff": ""
+  }
+]
