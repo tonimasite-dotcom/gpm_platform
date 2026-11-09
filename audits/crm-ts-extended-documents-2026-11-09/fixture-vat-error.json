@@ -1,0 +1,11 @@
+{
+  "success": false,
+  "failed_stage": "org1_unchanged_invoice_preserves_code_and_files",
+  "scenarios_passed": 4,
+  "exception_type": "Illuminate\\Validation\\ValidationException",
+  "raw_details_withheld": true,
+  "live_crm_changed": false,
+  "validation_fields": [
+    "nds"
+  ]
+}

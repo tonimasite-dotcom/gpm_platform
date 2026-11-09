@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "forms_scenarios": 42,
+  "functional_scenarios": 40,
+  "original_data": {
+    "diagnosis_completed": true,
+    "private_rehearsal_only": true,
+    "database_transaction_read_only": true,
+    "laravel_bootstrapped": false,
+    "migrations_run": false,
+    "baseline_file_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+    "baseline_file_unchanged": true,
+    "tables_checked": 72,
+    "original_data_unchanged": false,
+    "audit_log_diagnosis": {
+      "original_prefix_rows": 79656,
+      "original_prefix_hash_unchanged": true,
+      "additional_rows": [
+        {
+          "causer_present": false,
+          "subject_present": false,
+          "property_sections": [
+            "cash_source"
+          ],
+          "log_name": "finance",
+          "description": "cash_source_captured",
+          "attributes_keys": [],
+          "old_keys": [],
+          "legacy_cash_capture_verified": true
+        }
+      ],
+      "frozen_cash_source_count": 1,
+      "cash_source_migration_recorded": true,
+      "one_to_one_source_mapping": true
+    },
+    "all_original_rows_preserved": true,
+    "expected_new_cash_audit_verified": true,
+    "post_migration_invariants": {
+      "table_count_112": true,
+      "migration_history_count_217": true,
+      "all_legacy_orders_version_1": true,
+      "new_order_default_version_2": true,
+      "deleted_email_values_not_populated": true,
+      "old_orders_not_opened_for_logist": true,
+      "bank_card_data_migration_not_recorded": true,
+      "email_data_migration_not_recorded": true
+    },
+    "saved_rehearsal_data_acceptance_passed": true,
+    "release_ready": false
+  },
+  "changed_php_files_lint_passed": 2,
+  "candidate_files_verified": 1391,
+  "candidate_manifest_sha256": "f47de6309adb543870d844b043529124720fe1501d32fb447a74a3c908855548",
+  "candidate_next_switch_slot_not_updated": true,
+  "live_crm_changed": false,
+  "release_ready": false
+}

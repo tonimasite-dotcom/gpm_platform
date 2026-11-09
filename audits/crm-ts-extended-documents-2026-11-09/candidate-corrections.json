@@ -1,0 +1,23 @@
+{
+  "private_candidate_only": true,
+  "live_crm_changed": false,
+  "original_template_snapshot_unchanged": true,
+  "act_vat_uses_prepared_document_rate": true,
+  "act_amount_column_widened": true,
+  "ip_application_uses_current_document_fields": true,
+  "code_before_sha256": "f964f36c4d61fe33c04aba8c0cc6bb1c009d3c0246e7bb49a0f8a26108ed01c7",
+  "code_after_sha256": "94a3dea24c5ad15dab90fd67cce2eeceb23add1a0bb8105dd5c3f7d91963b88d",
+  "templates": [
+    {
+      "relative": "act.docx",
+      "source_sha256": "3f4b4733a691adbecee86e59731c137904ec69db206513f794683020404e2915",
+      "overlay_sha256": "1772ac42b722cd715b4b46e476e2dd76f74c3dfd85adf16f631d4a4093236368"
+    },
+    {
+      "relative": "contract/ip/application2.docx",
+      "source_sha256": "27ef3081be9378e0788ada35b3305866083c7ab0314926304d7ff5ee40c88727",
+      "overlay_sha256": "9a9ca28bd1161a4769195bcd8bea0bb649e34717b0f3e51ab1ff9a10ea49a764"
+    }
+  ],
+  "candidate_manifest_sha256": "f47de6309adb543870d844b043529124720fe1501d32fb447a74a3c908855548"
+}

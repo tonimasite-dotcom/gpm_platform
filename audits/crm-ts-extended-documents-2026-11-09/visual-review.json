@@ -1,0 +1,127 @@
+{
+  "pdfs_checked": 40,
+  "pages_rendered": 82,
+  "unique_page_renders": 50,
+  "review_sheets": [
+    "sheet-00.png",
+    "sheet-01.png",
+    "sheet-02.png",
+    "sheet-03.png",
+    "sheet-04.png",
+    "sheet-05.png"
+  ],
+  "unresolved_placeholders": 0,
+  "outside_page_blocks": 0,
+  "all_pages_have_text": true,
+  "visual_review_completed": true,
+  "contains_private_requisites": true,
+  "all_unique_page_renders_reviewed": 50,
+  "all_documents_business_accepted": false,
+  "corrected_findings_pdf_checks": [
+    {
+      "case": "org1-type2-noimg",
+      "kind": "pdf",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org1-type2-noimg",
+      "kind": "pdf_noimg",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org1-type2-img",
+      "kind": "pdf",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org1-type2-img",
+      "kind": "pdf_noimg",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org1-contract",
+      "kind": "pdf",
+      "checks": {
+        "old_contract_number_absent": true,
+        "old_year_absent": true,
+        "current_contract_number_in_both_references": true
+      }
+    },
+    {
+      "case": "org1-contract",
+      "kind": "pdf_noimg",
+      "checks": {
+        "old_contract_number_absent": true,
+        "old_year_absent": true,
+        "current_contract_number_in_both_references": true
+      }
+    },
+    {
+      "case": "org2-type2-noimg",
+      "kind": "pdf",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org2-type2-noimg",
+      "kind": "pdf_noimg",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org2-type2-img",
+      "kind": "pdf",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    },
+    {
+      "case": "org2-type2-img",
+      "kind": "pdf_noimg",
+      "checks": {
+        "vat_summary_present": true,
+        "incorrect_exempt_phrase_absent": true,
+        "expected_tax_amount_present": true,
+        "line_total_and_grand_total_not_split": true
+      }
+    }
+  ],
+  "remaining_findings": [
+    "Contract representative wording uses an existing numeric TS setting; source data unchanged and requires review.",
+    "Final contract list item is separated across a page break; no text clipping, pagination remains for review.",
+    "UPD spans two landscape pages; local files checked, external EDO and legal acceptance not performed."
+  ],
+  "live_crm_changed": false,
+  "release_ready": false
+}

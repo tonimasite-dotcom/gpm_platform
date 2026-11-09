@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "failed_stage": "org1_contract_and_three_applications",
+  "scenarios_passed": 10,
+  "exception_type": "RuntimeException",
+  "raw_details_withheld": true,
+  "live_crm_changed": false
+}

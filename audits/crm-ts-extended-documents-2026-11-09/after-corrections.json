@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "scenarios_passed": 26,
+  "scenarios": [
+    "act_zero_vat_data_remains_exempt",
+    "org1_invoice_real_generation",
+    "org1_invoice_code_reserved_once",
+    "org1_type2_generation_and_source_links",
+    "org1_type3_generation_and_source_links",
+    "org1_unchanged_invoice_preserves_code_and_files",
+    "org1_existing_invoice_vat_change_refused",
+    "org1_missing_seal_refused_before_render",
+    "org1_type1_with_restored_images",
+    "org1_type2_with_restored_images",
+    "org1_type3_with_restored_images",
+    "org1_contract_and_three_applications",
+    "org2_invoice_real_generation",
+    "org2_invoice_code_reserved_once",
+    "org2_type2_generation_and_source_links",
+    "org2_type3_generation_and_source_links",
+    "org2_unchanged_invoice_preserves_code_and_files",
+    "org2_existing_invoice_vat_change_refused",
+    "org2_missing_seal_refused_before_render",
+    "org2_type1_with_restored_images",
+    "org2_type2_with_restored_images",
+    "org2_type3_with_restored_images",
+    "org2_contract_and_three_applications",
+    "cross_customer_source_refused",
+    "cross_organization_source_refused",
+    "existing_document_type_change_refused"
+  ],
+  "template_files_restored": 14,
+  "document_files_verified": 80,
+  "reviewed_template_overlays_applied": true,
+  "restored_media": {
+    "org1": {
+      "restored_images_available": true,
+      "collections_copied": [
+        "seals",
+        "signatures"
+      ]
+    },
+    "org2": {
+      "restored_images_available": true,
+      "collections_copied": [
+        "seals",
+        "signatures"
+      ]
+    }
+  },
+  "all_synthetic_transactions_rolled_back": true,
+  "real_generators_and_libreoffice_used": true,
+  "existing_issuer_read_only": true,
+  "external_delivery_used": false,
+  "private_outputs_contain_ts_requisites": true,
+  "visual_acceptance_completed": false,
+  "live_crm_changed": false,
+  "release_ready": false
+}

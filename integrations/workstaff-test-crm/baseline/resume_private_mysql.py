@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Resume ONLY the existing, network-isolated rehearsal; never initialize it."""
 import json
+import argparse
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -12,6 +14,14 @@ MYSQL = WORK / 'rehearsal-mysql'
 
 def main():
     os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--report-name', default='resume-20261109.json')
+    options = parser.parse_args()
+    if not re.fullmatch(r'resume-[a-z0-9-]+\.json', options.report_name):
+        raise RuntimeError('SAFE_RESUME_REPORT_NAME_REQUIRED')
+    report_path = MYSQL / options.report_name
+    if report_path.exists():
+        raise RuntimeError('NEW_RESUME_REPORT_REQUIRED')
     data = MYSQL / 'data'
     socket = MYSQL / 'mysql.sock'
     for path in (WORK, MYSQL, data, data / 'ibdata1', MYSQL / 'identity.json'):
@@ -61,7 +71,8 @@ def main():
                 report = {'existing_private_mysql_resumed': True, 'initialized': False,
                     'dump_restored': False, 'network_disabled': True, 'pid': pid,
                     'network_namespace': namespace, 'live_mysql_accessed': False}
-                (MYSQL / 'resume-20261109.json').write_text(json.dumps(report, indent=2))
+                with report_path.open('x') as stream:
+                    stream.write(json.dumps(report, indent=2))
                 print(json.dumps(report))
                 return
         time.sleep(0.25)
