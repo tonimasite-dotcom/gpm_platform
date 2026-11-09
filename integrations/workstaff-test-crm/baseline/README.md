@@ -1,5 +1,17 @@
 # Подготовка общей базы CRM — WIP
 
+Следующая приемка 09.11: legacy-ветка order_form_acceptance.php запускается с
+GPM_TS_ACCEPTANCE_VARIANT=legacy-pre-boundary, прошли 9 финансовых сценариев
+на свободном ID до worker boundary без осиротевших order_id-ссылок.
+activation_acceptance.php: 16 сценариев реальных классов на отдельных marker-fixtures;
+активации кандидата не менялись. document_acceptance.php через
+run_document_acceptance.py проверил реальную генерацию счета по восстановленному
+шаблону ts и LibreOffice в отдельных cwd/storage/public/XDG/TMPDIR.
+Документы содержат реквизиты ts и остаются private; в Git только безопасные отчеты.
+verify_activation_documents.py завершил проверку данных и повтор 42 сценариев форм.
+БД выключены через --activation-document-report; этот отчет уже существует.
+Далее читать PROJECT_HANDOFF_2026-11-09_TS_ACTIVATION_DOCUMENTS.md.
+
 Актуально после приемки форм 09.11.2026: 42 новых API-сценария passed,
 40 прежних функциональных и 62 GPM-регрессии passed. В двух контроллерах
 частного кандидата добавлены can:create_*/update_* проверки существующих прав;

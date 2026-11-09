@@ -57,10 +57,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime-report', action='store_true')
     parser.add_argument('--order-form-report', action='store_true')
+    parser.add_argument('--activation-document-report', action='store_true')
     options = parser.parse_args()
-    if options.runtime_report and options.order_form_report:
+    if sum([options.runtime_report, options.order_form_report, options.activation_document_report]) > 1:
         parser.error('Choose one report stage')
-    filename = ('order-form-final-status-20261109.json' if options.order_form_report else
+    filename = ('activation-document-final-status-20261109.json' if options.activation_document_report else
+        'order-form-final-status-20261109.json' if options.order_form_report else
         'runtime-final-status-20261109.json' if options.runtime_report else 'resume-final-status-20261109.json')
     if (WORK / filename).exists():
         raise RuntimeError('REPORT_ALREADY_EXISTS_CHOOSE_NEW_STAGE')

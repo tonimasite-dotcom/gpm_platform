@@ -10,6 +10,8 @@ $current = 'bootstrap';
 $app = null;
 $started = microtime(true);
 $privateRoot = '/root/gpm-ts-update/20261106-baseline-01';
+$legacyVariant = getenv('GPM_TS_ACCEPTANCE_VARIANT') === 'legacy-pre-boundary';
+$reportName = $legacyVariant ? 'legacy-financial-acceptance-20261109.json' : 'order-form-acceptance-20261109.json';
 
 function orderAssert($condition): void {
     if (!$condition) throw new RuntimeException('ORDER_FORM_ASSERTION_FAILED');
@@ -94,6 +96,7 @@ try {
         'payment_type_id' => array_key_first(Order::PAYMENTTYPES), 'branch_id' => $branchId,
         'customer_id' => $customerId, 'details' => [$detail]];
     $baseCount = DB::table('orders')->count();
+    if (!$legacyVariant) {
     foreach (['head' => 'leader_orders', 'manager' => 'manager_orders'] as $role => $route) {
         orderCheck($role . '_creation_requires_auth', static function () use ($route, $payload) {
             orderAssert(orderHttp('POST', $route, $payload)->getStatusCode() === 401);
@@ -174,11 +177,36 @@ try {
         orderAssert(DB::table('orders')->where('customer_id', $customerId)->count() === $before + 2);
         orderAssert($orders[0]->order_number !== $orders[1]->order_number);
     });
-    foreach ([1, 2] as $version) {
+    }
+    $legacyId = null;
+    if ($legacyVariant) {
+        $boundary = App\Services\Order\WorkerCalculationActivation::boundary();
+        $gaps = DB::select('SELECT o.id + 1 AS candidate FROM orders o LEFT JOIN orders n ON n.id=o.id+1
+            WHERE n.id IS NULL AND o.id+1 <= ? ORDER BY o.id LIMIT 1000', [$boundary]);
+        $firstId = (int)DB::table('orders')->min('id');
+        $candidateIds = array_fill_keys(array_map(static function ($gap) { return (int)$gap->candidate; }, $gaps), true);
+        if ($firstId > 1) foreach (range(1, min(10000, $firstId - 1, $boundary)) as $available) {
+            $candidateIds[$available] = true;
+        }
+        // A removed order may still have orphaned references. Do not reuse such an ID.
+        $references = DB::select("SELECT TABLE_NAME AS t FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=DATABASE() AND COLUMN_NAME='order_id'");
+        foreach ($references as $reference) {
+            orderAssert(preg_match('/^[a-zA-Z0-9_]+$/D', $reference->t) === 1);
+            foreach (array_chunk(array_keys($candidateIds), 1000) as $batch) {
+                foreach (DB::table($reference->t)->whereIn('order_id', $batch)->distinct()->pluck('order_id') as $used) {
+                    unset($candidateIds[(int)$used]);
+                }
+            }
+        }
+        if ($candidateIds) $legacyId = (int)array_key_first($candidateIds);
+        orderAssert($legacyId !== null && $legacyId > 0 && $legacyId <= $boundary);
+    }
+    foreach ($legacyVariant ? [1] : [1, 2] as $version) {
         // Financial fixtures are synthetic; the real completion HTTP route performs all writes.
         $nds = (float)DB::table('branches')->where('id', $branchId)->value('nds');
         $divisor = $nds > 0 ? (100 + $nds) / 100 : 1;
-        $id = DB::table('orders')->insertGetId(['status_id' => 2, 'calculation_version' => $version,
+        $fixture = ['status_id' => 2, 'calculation_version' => $version,
             'work_type_id' => $workTypeId, 'source_id' => array_key_first(Order::SOURCES),
             'payment_type_id' => Order::NON_CASH_PAYMENT, 'workers_cost' => 600, 'brigadier_cost' => 600,
             'customer_cost' => 1000, 'min_cost' => 4000, 'min_time' => 2, 'profit' => 2800,
@@ -188,27 +216,32 @@ try {
             'customer_id' => $customerId, 'contact_person_id' => $contactId, 'loader_count' => 1,
             'max_loader_count' => 1, 'address' => 'Synthetic financial form ' . $tag,
             'order_number' => 'PRIVATE-FIN-' . $version . '-' . $tag, 'completion_date' => now(),
-            'created_at' => now(), 'updated_at' => now()]);
+            'created_at' => now(), 'updated_at' => now()];
+        if ($legacyVariant) $fixture['id'] = $legacyId;
+        $id = DB::table('orders')->insertGetId($fixture);
         DB::table('order_user')->insert(['order_id' => $id, 'user_id' => $actors['loader']->id, 'brigadier' => 0]);
+        orderAssert((new App\Services\Order\WorkerCalculationState(Order::findOrFail($id)))->enabled() === !$legacyVariant);
         $calculation = static function (int $status, float $pay = 1200) use ($id, $actors) {
             $order = Order::findOrFail($id);
             $state = new App\Services\Order\WorkerCalculationState($order);
             $intent = $state->state($actors['loader']->id);
-            return ['order_id' => $id, 'expected_status_id' => $status, 'sum' => 4000,
+            $request = ['order_id' => $id, 'expected_status_id' => $status, 'sum' => 4000,
                 'min_cost' => 4000, 'profit' => 4000 - $pay, 'min_time' => 2,
                 'car_total_hours' => '00:00', 'loader_total_hours' => '02:00', 'coefficient' => 1,
                 'total_add_cost' => null, 'items' => [['id' => $actors['loader']->id,
                     'pay' => $pay, 'amount_to_be_issued' => $pay, 'prize' => 0, 'penalty' => 0,
                     'rate' => 600, 'working_time' => ['working_time_from' => '10:00', 'working_time_to' => '12:00'],
                     'calculation' => ['mode' => $pay === 1200.0 ? 'auto' : 'manual',
-                        'token' => $intent['token'], 'client_minimum' => true]]]];
+                        'token' => $intent['token'] ?? null, 'client_minimum' => true]]]];
+            if (!$state->enabled()) unset($request['items'][0]['calculation']);
+            return $request;
         };
         $route = 'logist_orders/change_status_to_done';
         orderCheck('v' . $version . '_completion_rejects_old_form_without_status', static function () use ($route, $calculation, $actors) {
             $bad = $calculation(2); unset($bad['expected_status_id']);
             orderAssert(orderHttp('POST', $route, $bad, $actors['logist'])->getStatusCode() === 422);
         });
-        orderCheck('v' . $version . '_completion_rejects_stale_calculation_token', static function () use ($route, $calculation, $actors, $id) {
+        if (!$legacyVariant) orderCheck('v' . $version . '_completion_rejects_stale_calculation_token', static function () use ($route, $calculation, $actors, $id) {
             $bad = $calculation(2); $bad['items'][0]['calculation']['token'] = str_repeat('0', 64);
             orderAssert(orderHttp('POST', $route, $bad, $actors['logist'])->getStatusCode() === 422);
             orderAssert((int)DB::table('orders')->where('id', $id)->value('status_id') === 2);
@@ -292,10 +325,11 @@ try {
         'checks_completed' => count($checks), 'accepted_scenarios' => count($checks),
         'scenarios' => $checks, 'existing_permission_matrix' => $matrix,
         'order_form_acceptance_passed' => true, 'release_ready' => false,
+        'legacy_pre_worker_boundary' => $legacyVariant,
         'real_http_form_validation_and_middleware' => true, 'geocoder_process_double' => true,
         'all_synthetic_transactions_rolled_back' => true, 'live_crm_changed' => false,
         'browser_acceptance_completed' => false, 'elapsed_seconds' => round(microtime(true)-$started, 3)];
-    file_put_contents($privateRoot . '/order-form-acceptance-20261109.json', json_encode($report, JSON_PRETTY_PRINT));
+    file_put_contents($privateRoot . '/' . $reportName, json_encode($report, JSON_PRETTY_PRINT));
     echo json_encode($report) . PHP_EOL;
 } catch (Throwable $error) {
     if ($app) while (DB::transactionLevel() > 0) DB::rollBack();

@@ -1,0 +1,731 @@
+{
+  "checks_passed": true,
+  "form_regression": {
+    "success": true,
+    "harness_completed": true,
+    "checks_completed": 42,
+    "accepted_scenarios": 42,
+    "scenarios": [
+      "head_creation_requires_auth",
+      "head_creation_rejects_loader_without_existing_permission",
+      "head_validation_branch_id",
+      "head_validation_contact_person",
+      "head_validation_customer_cost",
+      "head_validation_foreign_contact",
+      "head_creates_order_via_real_validation_and_controller",
+      "head_edits_open_order_and_records_history",
+      "head_update_rejects_loader_without_existing_permission",
+      "manager_cannot_use_leader_create_or_update_permissions",
+      "head_completed_order_rejects_address_and_status_edit",
+      "manager_creation_requires_auth",
+      "manager_creation_rejects_loader_without_existing_permission",
+      "manager_validation_branch_id",
+      "manager_validation_contact_person",
+      "manager_validation_customer_cost",
+      "manager_validation_foreign_contact",
+      "manager_creates_order_via_real_validation_and_controller",
+      "manager_edits_open_order_and_records_history",
+      "manager_update_rejects_loader_without_existing_permission",
+      "logist_existing_manager_permission_does_not_unlock_client_price",
+      "manager_completed_order_rejects_address_and_status_edit",
+      "multiple_details_create_distinct_order_numbers",
+      "v1_completion_rejects_old_form_without_status",
+      "v1_completion_rejects_stale_calculation_token",
+      "v1_completion_rejects_forged_profit",
+      "v1_completion_saves_exact_accrual_profit_and_report",
+      "v1_completion_stale_status_cannot_become_correction",
+      "v1_correction_requires_reason_before_money_changes",
+      "v1_correction_appends_delta_and_repeat_does_not_duplicate",
+      "v1_paid_worker_cannot_be_repriced_by_logist",
+      "v1_head_correction_preserves_paid_rows_and_appends_delta",
+      "v1_document_blocks_client_total_correction_for_head",
+      "v2_completion_rejects_old_form_without_status",
+      "v2_completion_rejects_stale_calculation_token",
+      "v2_completion_saves_exact_accrual_profit_and_report",
+      "v2_completion_stale_status_cannot_become_correction",
+      "v2_correction_requires_reason_before_money_changes",
+      "v2_correction_appends_delta_and_repeat_does_not_duplicate",
+      "v2_paid_worker_cannot_be_repriced_by_logist",
+      "v2_head_correction_preserves_paid_rows_and_appends_delta",
+      "v2_document_blocks_client_total_correction_for_head"
+    ],
+    "existing_permission_matrix": {
+      "head": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": true,
+        "read_leader_orders": true,
+        "update_leader_orders": true,
+        "delete_leader_orders": true
+      },
+      "manager": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      },
+      "logist": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      },
+      "loader": {
+        "create_manager_orders": false,
+        "read_manager_orders": false,
+        "update_manager_orders": false,
+        "delete_manager_orders": false,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      }
+    },
+    "order_form_acceptance_passed": true,
+    "release_ready": false,
+    "legacy_pre_worker_boundary": false,
+    "real_http_form_validation_and_middleware": true,
+    "geocoder_process_double": true,
+    "all_synthetic_transactions_rolled_back": true,
+    "live_crm_changed": false,
+    "browser_acceptance_completed": false,
+    "elapsed_seconds": 8.327
+  },
+  "legacy": {
+    "success": true,
+    "harness_completed": true,
+    "checks_completed": 9,
+    "accepted_scenarios": 9,
+    "scenarios": [
+      "v1_completion_rejects_old_form_without_status",
+      "v1_completion_rejects_forged_profit",
+      "v1_completion_saves_exact_accrual_profit_and_report",
+      "v1_completion_stale_status_cannot_become_correction",
+      "v1_correction_requires_reason_before_money_changes",
+      "v1_correction_appends_delta_and_repeat_does_not_duplicate",
+      "v1_paid_worker_cannot_be_repriced_by_logist",
+      "v1_head_correction_preserves_paid_rows_and_appends_delta",
+      "v1_document_blocks_client_total_correction_for_head"
+    ],
+    "existing_permission_matrix": {
+      "head": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": true,
+        "read_leader_orders": true,
+        "update_leader_orders": true,
+        "delete_leader_orders": true
+      },
+      "manager": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      },
+      "logist": {
+        "create_manager_orders": true,
+        "read_manager_orders": true,
+        "update_manager_orders": true,
+        "delete_manager_orders": true,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      },
+      "loader": {
+        "create_manager_orders": false,
+        "read_manager_orders": false,
+        "update_manager_orders": false,
+        "delete_manager_orders": false,
+        "create_leader_orders": false,
+        "read_leader_orders": false,
+        "update_leader_orders": false,
+        "delete_leader_orders": false
+      }
+    },
+    "order_form_acceptance_passed": true,
+    "release_ready": false,
+    "legacy_pre_worker_boundary": true,
+    "real_http_form_validation_and_middleware": true,
+    "geocoder_process_double": true,
+    "all_synthetic_transactions_rolled_back": true,
+    "live_crm_changed": false,
+    "browser_acceptance_completed": false,
+    "elapsed_seconds": 1.78
+  },
+  "activation": {
+    "success": true,
+    "scenarios_passed": 16,
+    "scenarios": [
+      "missing_planning_marker_retains_legacy_rule",
+      "missing_worker_marker_fails_closed",
+      "worker_marker_publishes_and_reads_same_boundary",
+      "planning_marker_publishes_and_reads_same_boundary",
+      "worker_duplicate_publish_preserves_existing_bytes",
+      "planning_duplicate_publish_preserves_existing_bytes",
+      "at_boundary_order_uses_utc_day",
+      "after_boundary_order_uses_next_local_day",
+      "copied_worker_marker_rejects_different_database_identity",
+      "copied_planning_marker_rejects_different_database_identity",
+      "worker_marker_rejects_different_environment",
+      "planning_marker_rejects_different_environment",
+      "worker_boundary_tamper_fails_signature",
+      "planning_boundary_tamper_fails_signature",
+      "byte_restore_reads_under_original_identity",
+      "real_candidate_markers_unchanged"
+    ],
+    "unmodified_activation_and_day_rule_classes": true,
+    "synthetic_storage_only": true,
+    "candidate_activation_markers_unchanged": true,
+    "fixture_evidence_preserved": true,
+    "database_writes_performed": false,
+    "foreign_identity_sql_connections": false,
+    "full_switch_and_rollback_rehearsed": false,
+    "live_crm_changed": false,
+    "release_ready": false
+  },
+  "document": {
+    "success": true,
+    "real_invoice_generator_used": true,
+    "real_restored_ts_template_used": true,
+    "local_libreoffice_used": true,
+    "existing_ts_issuer_read_only": true,
+    "synthetic_customer_and_services": true,
+    "four_document_files_verified": {
+      "word": {
+        "bytes": 56311,
+        "sha256": "f243013ac1232192369deb9dbb449b6127de29edef723bbac1c3b5fd2ef21763"
+      },
+      "pdf": {
+        "bytes": 48244,
+        "sha256": "a381ebb8f3b2ab66447e1782bbcf00f46ff894add18122a11dc92421994ac877"
+      },
+      "word_noimg": {
+        "bytes": 56311,
+        "sha256": "0bc10978f16ef93916f30825572e468dfcb6986edd6e93854985615ae76f75c4"
+      },
+      "pdf_noimg": {
+        "bytes": 48244,
+        "sha256": "5edc3e81d70477fa588565e96a4e7be1e3611259b17c766bf9dd7aa807e310fc"
+      }
+    },
+    "payment_code_reserved_once": true,
+    "all_synthetic_database_transactions_rolled_back": true,
+    "files_contain_private_ts_requisites_and_remain_private": true,
+    "mail_or_external_api_called": false,
+    "live_crm_changed": false,
+    "browser_acceptance_completed": false,
+    "release_ready": false,
+    "elapsed_seconds": 4.917
+  },
+  "original_data": {
+    "diagnosis_completed": true,
+    "private_rehearsal_only": true,
+    "database_transaction_read_only": true,
+    "laravel_bootstrapped": false,
+    "migrations_run": false,
+    "baseline_file_sha256": "b490e05bab6aec9c520130d66b607aa78ca4d3247c4e71034fb059f2a1cc50ec",
+    "baseline_file_unchanged": true,
+    "tables_checked": 72,
+    "original_data_unchanged": false,
+    "changed_tables": {
+      "activity_log": {
+        "rows_before": 79656,
+        "rows_after": 79657,
+        "rows_unchanged": false,
+        "hash_unchanged": false
+      }
+    },
+    "table_checks": {
+      "activity_log": {
+        "rows_before": 79656,
+        "rows_after": 79657,
+        "rows_unchanged": false,
+        "hash_unchanged": false
+      },
+      "additional_loaders": {
+        "rows_before": 14,
+        "rows_after": 14,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "advantage_loaders": {
+        "rows_before": 25,
+        "rows_after": 25,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "application_documents": {
+        "rows_before": 1464,
+        "rows_after": 1464,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "articles": {
+        "rows_before": 2,
+        "rows_after": 2,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "banking_settings": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "branches": {
+        "rows_before": 26,
+        "rows_after": 26,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "calls": {
+        "rows_before": 99510,
+        "rows_after": 99510,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_comments": {
+        "rows_before": 9,
+        "rows_after": 9,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_communication_types": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_scripts": {
+        "rows_before": 5,
+        "rows_after": 5,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "call_statuses": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "carables": {
+        "rows_before": 6,
+        "rows_after": 6,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "cars": {
+        "rows_before": 4,
+        "rows_after": 4,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "cities": {
+        "rows_before": 5,
+        "rows_after": 5,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "contact_persons": {
+        "rows_before": 5386,
+        "rows_after": 5386,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "contact_person_mails": {
+        "rows_before": 2215,
+        "rows_after": 2215,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "contact_person_phones": {
+        "rows_before": 5422,
+        "rows_after": 5422,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "coordinates": {
+        "rows_before": 417,
+        "rows_after": 417,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "countries": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customers": {
+        "rows_before": 2146,
+        "rows_after": 2146,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customer_debts": {
+        "rows_before": 2077,
+        "rows_after": 2077,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customer_debt_logs": {
+        "rows_before": 8518,
+        "rows_after": 8518,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "customer_tariffs": {
+        "rows_before": 4,
+        "rows_after": 4,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "documents": {
+        "rows_before": 49,
+        "rows_after": 49,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_linkables": {
+        "rows_before": 33283,
+        "rows_after": 33283,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_links": {
+        "rows_before": 16371,
+        "rows_after": 16371,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_link_services": {
+        "rows_before": 35512,
+        "rows_after": 35512,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_orders": {
+        "rows_before": 36,
+        "rows_after": 36,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "document_templates": {
+        "rows_before": 11,
+        "rows_after": 11,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "expenses": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "failed_jobs": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "history_customers": {
+        "rows_before": 2129,
+        "rows_after": 2129,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "history_orders": {
+        "rows_before": 114907,
+        "rows_after": 114907,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "jobs": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "leads": {
+        "rows_before": 31,
+        "rows_after": 31,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "logistics_balances": {
+        "rows_before": 8,
+        "rows_after": 8,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "mail_messages": {
+        "rows_before": 24,
+        "rows_after": 24,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "mail_settings": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "main_settings": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "media": {
+        "rows_before": 12900,
+        "rows_after": 12900,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "metro_stations": {
+        "rows_before": 480,
+        "rows_after": 480,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "migrations": {
+        "rows_before": 180,
+        "rows_after": 180,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "model_has_permissions": {
+        "rows_before": 97,
+        "rows_after": 97,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "model_has_roles": {
+        "rows_before": 5301,
+        "rows_after": 5301,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "note_orders": {
+        "rows_before": 35,
+        "rows_after": 35,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "notifications": {
+        "rows_before": 1810019,
+        "rows_after": 1810019,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "oauth_providers": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "orders": {
+        "rows_before": 32681,
+        "rows_after": 32681,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "order_user": {
+        "rows_before": 170640,
+        "rows_after": 170640,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "parse_emails": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "parse_walks": {
+        "rows_before": 288,
+        "rows_after": 288,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "password_resets": {
+        "rows_before": 8,
+        "rows_after": 8,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "payments": {
+        "rows_before": 13934,
+        "rows_after": 13934,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "penalty_scheduler": {
+        "rows_before": 23688,
+        "rows_after": 23688,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "permissions": {
+        "rows_before": 150,
+        "rows_after": 150,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "phones": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "plannings": {
+        "rows_before": 838839,
+        "rows_after": 838839,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "positions": {
+        "rows_before": 6,
+        "rows_after": 6,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "report_cards": {
+        "rows_before": 67633,
+        "rows_after": 67633,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "roles": {
+        "rows_before": 11,
+        "rows_after": 11,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "role_has_permissions": {
+        "rows_before": 451,
+        "rows_after": 451,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "seekers": {
+        "rows_before": 39,
+        "rows_after": 39,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "sms_settings": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "statement_requests": {
+        "rows_before": 1,
+        "rows_after": 1,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "tariffs": {
+        "rows_before": 30,
+        "rows_after": 30,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "tasks": {
+        "rows_before": 9,
+        "rows_after": 9,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "terms": {
+        "rows_before": 6,
+        "rows_after": 6,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "type_documents": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "users": {
+        "rows_before": 13091,
+        "rows_after": 13091,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "websockets_statistics_entries": {
+        "rows_before": 0,
+        "rows_after": 0,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      },
+      "work_types": {
+        "rows_before": 10,
+        "rows_after": 10,
+        "rows_unchanged": true,
+        "hash_unchanged": true
+      }
+    },
+    "audit_log_diagnosis": {
+      "original_prefix_rows": 79656,
+      "original_prefix_hash_unchanged": true,
+      "additional_rows": [
+        {
+          "causer_present": false,
+          "subject_present": false,
+          "property_sections": [
+            "cash_source"
+          ],
+          "log_name": "finance",
+          "description": "cash_source_captured",
+          "attributes_keys": [],
+          "old_keys": [],
+          "legacy_cash_capture_verified": true
+        }
+      ],
+      "frozen_cash_source_count": 1,
+      "cash_source_migration_recorded": true,
+      "one_to_one_source_mapping": true
+    },
+    "all_original_rows_preserved": true,
+    "expected_new_cash_audit_verified": true,
+    "post_migration_invariants": {
+      "table_count_112": true,
+      "migration_history_count_217": true,
+      "all_legacy_orders_version_1": true,
+      "new_order_default_version_2": true,
+      "deleted_email_values_not_populated": true,
+      "old_orders_not_opened_for_logist": true,
+      "bank_card_data_migration_not_recorded": true,
+      "email_data_migration_not_recorded": true
+    },
+    "saved_rehearsal_data_acceptance_passed": true,
+    "release_ready": false
+  },
+  "changed_php_payloads_lint_passed": 3,
+  "candidate_code_unchanged_this_stage": true,
+  "candidate_code_manifest_sha256": "dce57370efff2615fafde248addfb7808f13a0560254f2fb4e3982fd7a661b5d",
+  "main_crm_accessed": false,
+  "live_crm_changed": false,
+  "release_ready": false
+}

@@ -1,0 +1,30 @@
+{
+  "pdf_content_and_render_checks": [
+    {
+      "pdf_number": 0,
+      "pages": 1,
+      "synthetic_service_present": true,
+      "unresolved_placeholders": false,
+      "amount_present": true,
+      "rendered": true
+    },
+    {
+      "pdf_number": 1,
+      "pages": 1,
+      "synthetic_service_present": true,
+      "unresolved_placeholders": false,
+      "amount_present": true,
+      "rendered": true
+    }
+  ],
+  "private_requisites_not_output": true,
+  "layout_visual_review_pending": false,
+  "visual_review": {
+    "both_pdf_renders_pixel_identical": true,
+    "single_page_a4": true,
+    "text_readable": true,
+    "table_and_totals_not_clipped": true,
+    "synthetic_template_placeholders_resolved": true,
+    "scope": "invoice_without_signature_only"
+  }
+}
