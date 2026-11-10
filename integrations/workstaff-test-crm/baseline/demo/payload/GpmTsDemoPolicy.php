@@ -10,8 +10,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 final class GpmTsDemoPolicy
 {
     public const LIVE = '/var/www/gruzpiter/data/www/ts.workstaffcrm.ru';
-    public const PRIVATE_ROOT = '/root/gpm-ts-update/20261110-demo-04/runtime';
-    public const VERSION = 'ts-demo-20261110-04';
+    public const PRIVATE_ROOT = '/root/gpm-ts-update/20261110-demo-05/runtime';
+    public const VERSION = 'ts-demo-20261110-05';
     public const URL = 'https://ts.workstaffcrm.ru';
     private const CHANNELS = ['daily_mail', 'mail', 'imap', 'sms', 'bank', 'calls', 'dadata', 'geocode', 'background', 'login_code_local'];
 

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-$root = '/root/gpm-ts-update/20261110-demo-04/runtime';
+$root = '/root/gpm-ts-update/20261110-demo-05/runtime';
 $database = '/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109/rehearsal-mysql';
 $app = null; $checks = []; $current = 'preflight'; $before = null;
 function authAssert($value): void { if (!$value) { throw new RuntimeException('PRIVATE_AUTH_ASSERTION_FAILED'); } }

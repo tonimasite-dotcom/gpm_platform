@@ -6,7 +6,7 @@ import os
 import re
 import subprocess
 
-RUNTIME = Path('/root/gpm-ts-update/20261110-demo-04/runtime')
+RUNTIME = Path('/root/gpm-ts-update/20261110-demo-05/runtime')
 DEST = RUNTIME.parent / 'regression-fixtures'
 
 

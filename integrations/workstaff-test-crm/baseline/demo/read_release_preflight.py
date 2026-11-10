@@ -9,7 +9,7 @@ import shutil
 import subprocess
 
 TS = Path('/var/www/gruzpiter/data/www/ts.workstaffcrm.ru')
-PRIVATE = Path('/root/gpm-ts-update/20261110-demo-04')
+PRIVATE = Path('/root/gpm-ts-update/20261110-demo-05')
 SAVED = Path('/root/gpm-ts-update/20261106-baseline-01/source-ts')
 
 

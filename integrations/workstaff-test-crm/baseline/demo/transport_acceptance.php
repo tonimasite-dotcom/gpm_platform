@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
-$root = '/root/gpm-ts-update/20261110-demo-04/runtime';
+$root = '/root/gpm-ts-update/20261110-demo-05/runtime';
 if (PHP_SAPI !== 'cli' || getenv('GPM_TS_DEMO_REHEARSAL') !== '1'
     || readlink('/proc/self/ns/net') === readlink('/proc/1/ns/net')
     || realpath($root) !== $root || !is_file($root . '/PRIVATE_DEMO_NO_DATABASE') || is_file($root . '/.env')) {

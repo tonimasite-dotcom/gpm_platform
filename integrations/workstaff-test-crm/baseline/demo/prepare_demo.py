@@ -9,7 +9,7 @@ import shutil
 import subprocess
 
 SOURCE = Path('/root/gpm-ts-update/20261106-baseline-01/source-ts')
-TARGET = Path('/root/gpm-ts-update/20261110-demo-04')
+TARGET = Path('/root/gpm-ts-update/20261110-demo-05')
 POLICY = r'\App\Services\Release\GpmTsDemoPolicy'
 
 
@@ -139,4 +139,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit('USE_REBASE_AFTER_DEBT_OFF_TO_PRESERVE_DEPLOYED_GUARDS')

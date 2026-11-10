@@ -7,8 +7,8 @@ import subprocess
 import time
 
 TS = Path('/var/www/gruzpiter/data/www/ts.workstaffcrm.ru')
-PRIVATE = Path('/root/gpm-ts-update/20261110-demo-04')
-BACKUP = Path('/root/gpm-ts-update/20261110-demo-04/code-backup')
+PRIVATE = Path('/root/gpm-ts-update/20261110-demo-05')
+BACKUP = Path('/root/gpm-ts-update/20261110-demo-05/code-backup')
 
 
 def sha(path):
@@ -57,13 +57,20 @@ def main():
         rows.append({'file': row['file'], 'new_file': observed is None,
                      'before_sha256': observed, 'after_sha256': row['after_sha256']})
     reports = {}
-    for label, file in [('auth', 'login-acceptance-02.json'), ('transport', 'transport-acceptance.json'),
+    for label, file in [('auth_code_equivalence', 'auth-equivalence.json'), ('gpm_code_equivalence', 'gpm-equivalence.json'), ('transport', 'transport-acceptance.json'),
                         ('installation', 'install-rehearsal.json')]:
         reports[label] = json.loads((PRIVATE / file).read_text()).get('passed', False)
     if not all(reports.values()):
         raise RuntimeError('PRIVATE_ACCEPTANCE_NOT_COMPLETE')
+    equivalence = json.loads((PRIVATE / 'auth-equivalence.json').read_text())
+    if sha(Path(equivalence['source_auth_report'])) != equivalence['source_auth_report_sha256']:
+        raise RuntimeError('PRIOR_AUTH_EVIDENCE_CHANGED')
+    gpm = json.loads((PRIVATE / 'gpm-equivalence.json').read_text())
+    if sha(Path(gpm['source_report'])) != gpm['source_report_sha256']:
+        raise RuntimeError('PRIOR_GPM_EVIDENCE_CHANGED')
     report = {'dry_run_passed': True, 'manifest_sha256': sha(path), 'files': rows,
               'private_acceptance': reports,
+              'auth_execution_evidence_reused_by_code_equivalence': True,
               'fresh_targeted_encrypted_backup_restored': True,
               'database_backup_needed_for_this_code_only_package': False,
               'apply_implemented': True, 'live_files_changed': False,

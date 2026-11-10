@@ -5,8 +5,8 @@ import json
 import shutil
 from apply_code import install, sha
 
-PRIVATE = Path('/root/gpm-ts-update/20261110-demo-04')
-SOURCE = Path('/root/gpm-ts-update/20261106-baseline-01/source-ts')
+PRIVATE = Path('/root/gpm-ts-update/20261110-demo-05')
+SOURCE = PRIVATE / 'source-current'
 
 
 def main():
@@ -16,6 +16,9 @@ def main():
     parent.mkdir(mode=0o700)
     rows = json.loads((PRIVATE / 'manifest.json').read_text())['files']
     checks = []
+    def debt_off(target):
+        files = ['app/Console/Commands/CheckDebit.php', 'app/Console/Commands/CheckCustomerDebit.php', 'app/Services/WebKlexMailClient.php']
+        return sum((target / name).read_bytes().count(b'GPM_TS_DEBT_AUTOMATION_DISABLED_20261110') for name in files) == 4
     def fresh(name):
         folder = parent / name
         target = folder / 'site'
@@ -43,11 +46,13 @@ def main():
         except RuntimeError as error:
             assert str(error) == 'INJECTED_INSTALL_FAILURE'
         assert (target / 'storage/framework/down').is_file()
+        assert debt_off(target)
         assert json.loads(state_path.read_text())['maintenance_held'] is True
         (folder / 'preserved-failure-state.json').write_bytes(state_path.read_bytes())
         completed = install(target, PRIVATE / 'runtime', rows, state_path, invalidation, probe, resume=True)
         assert completed['complete'] and not (target / 'storage/framework/down').exists()
         assert all(sha(target / row['file']) == row['after_sha256'] for row in rows)
+        assert debt_off(target)
         checks.append('failure_%02d_holds_maintenance_and_resumes_exact_manifest' % boundary)
     folder, target = fresh('failed-runtime-probe')
     state_path = folder / 'state.json'
@@ -78,7 +83,8 @@ def main():
     assert all(sha(target / row['file']) == row['after_sha256'] for row in rows)
     checks.append('failed_post_release_http_restores_own_maintenance_and_keeps_guards')
     report = {'passed': True, 'checks': checks, 'real_fpm_used': False, 'live_files_changed': False,
-              'database_accessed': False, 'all_fixtures_preserved': True}
+              'database_accessed': False, 'all_fixtures_preserved': True,
+              'debt_guards_retained_in_every_partial_and_completed_state': True}
     (PRIVATE / 'install-rehearsal.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
 

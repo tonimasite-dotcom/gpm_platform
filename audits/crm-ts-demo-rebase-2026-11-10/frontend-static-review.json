@@ -1,0 +1,13 @@
+{
+  "kind": "static_review_not_browser_acceptance",
+  "live_source_sha256": {
+    "resources/js/pages/app/orders/manager_orders/ManagerOrderForm.vue": "a8efc15746b35bac7deb1025be444bc67e7f48737b52e13d9e9dff4b3156e5c7",
+    "resources/js/pages/app/orders/leader_orders/LeaderOrderForm.vue": "57571806de6c3c5f2a244be5b6b75ec7b187cd860580b7e0b8146ed676b8a63f",
+    "resources/js/components/DadataCombobox.vue": "a97a52b8aa943d350dacd82721bd5054990246ffb5e73b2e0e4168455055ce4c"
+  },
+  "typed_address_forwarded_by_combobox": true,
+  "save_not_gated_by_map_display_flags": true,
+  "geocoder_requested_only_by_explicit_button": true,
+  "frontend_changes_added": false,
+  "live_files_changed": false
+}

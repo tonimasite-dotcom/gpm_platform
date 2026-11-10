@@ -14,7 +14,7 @@ try {
     $app = require $root . '/bootstrap/app.php';
     $app->make(Illuminate\Contracts\Http\Kernel::class)->bootstrap();
     App\Services\Release\GpmTsDemoPolicy::assertContext();
-    $pass = App\Services\Release\GpmTsDemoPolicy::VERSION === 'ts-demo-20261110-04'
+    $pass = App\Services\Release\GpmTsDemoPolicy::VERSION === 'ts-demo-20261110-05'
         && config('mail.default') === 'gpm_ts_demo' && config('mail.driver') === 'gpm_ts_demo'
         && config('broadcasting.default') === 'null' && config('auth.login_email_code_enabled') === true
         && config('database.connections.mysql.database') === $environment['DB_DATABASE']

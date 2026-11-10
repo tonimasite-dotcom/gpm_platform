@@ -19,13 +19,13 @@ def main():
     original = git_directory.resolve().parent
     age = original / '.tmp/full-project-snapshot-20261015/tools/age.exe'
     key = original / '.tmp/production-backup-20261015/age-identity.txt'
-    private = root / '.tmp/demo-code-backup-04'
+    private = root / '.tmp/demo-code-backup-05'
     if private.exists() or not key.is_file() or not age.is_file():
         raise RuntimeError('NEW_PRIVATE_RESTORE_AND_EXISTING_KEY_REQUIRED')
     ssh = ['ssh', '-i', str(Path.home() / '.ssh/id_ed25519'), '-o', 'BatchMode=yes',
            '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(original / '.tmp/test-crm-known-hosts'),
            'root@5.183.191.222']
-    server = '/root/gpm-ts-update/20261110-demo-04/code-backup/'
+    server = '/root/gpm-ts-update/20261110-demo-05/code-backup/'
     receipt = subprocess.run(ssh + ['cat ' + server + 'verification.json'], capture_output=True, check=True)
     report = json.loads(receipt.stdout)
     encrypted = subprocess.run(ssh + ['cat ' + server + 'ts-demo-code-before.tar.gz.age'], capture_output=True, check=True).stdout
@@ -65,9 +65,9 @@ def main():
             'new_files_absence_recorded': sum(not row['existed'] for row in report['files']),
             'all_restored_sha256_match': True, 'key_stayed_separate': True,
             'database_backup_included': False, 'live_files_changed': False,
-            'local_encrypted_backup': '.tmp/demo-code-backup-04/ts-demo-code-before.tar.gz.age',
+            'local_encrypted_backup': '.tmp/demo-code-backup-05/ts-demo-code-before.tar.gz.age',
             'key_location': 'original-checkout/.tmp/production-backup-20261015/age-identity.txt'}
-    destination = root / 'audits/crm-ts-demo-2026-11-10/code-backup-restore.json'
+    destination = root / 'audits/crm-ts-demo-rebase-2026-11-10/code-backup-restore.json'
     destination.write_text(json.dumps(safe, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(safe))
 

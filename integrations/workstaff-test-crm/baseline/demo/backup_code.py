@@ -10,7 +10,7 @@ import subprocess
 import tarfile
 
 TS = Path('/var/www/gruzpiter/data/www/ts.workstaffcrm.ru')
-PRIVATE = Path('/root/gpm-ts-update/20261110-demo-04')
+PRIVATE = Path('/root/gpm-ts-update/20261110-demo-05')
 SEAL = Path('/root/gpm-snapshots/20261015-before-sync')
 DEST = PRIVATE / 'code-backup'
 

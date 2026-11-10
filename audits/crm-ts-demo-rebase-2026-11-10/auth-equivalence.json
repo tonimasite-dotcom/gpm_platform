@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "kind": "code_equivalence_not_a_new_auth_execution",
+  "source_auth_report": "/root/gpm-ts-update/20261110-demo-04/login-acceptance-02.json",
+  "source_auth_report_sha256": "9dbf11ac4ca902e70d224253ad22d34ee032305d165f42c602cfa0097fe1abb2",
+  "auth_files_byte_identical": [
+    "app/Http/Controllers/Auth/LoginController.php",
+    "app/Services/Release/GpmTsDemoLoginInbox.php",
+    "app/Services/Release/GpmTsDemoTransport.php"
+  ],
+  "gpm_files_byte_identical": [
+    "app/Services/Order/GpmAppOrderSync.php",
+    "app/Services/Order/GpmAppOrderPublisher.php",
+    "app/Services/Order/GpmOrderSyncPlan.php",
+    "app/Services/Order/GpmWorkerRateRules.php",
+    "app/Services/Order/GpmLogistOrderGuard.php",
+    "app/Http/Controllers/Order/GpmWorkerRateController.php"
+  ],
+  "webklex_diff_only_retained_debt_guard": true,
+  "policy_diff_only_private_profile_and_version": true,
+  "auth_scenarios_reused": 14,
+  "gpm_scenarios_reused": [
+    11,
+    16,
+    35
+  ],
+  "private_mysql_started": false,
+  "live_files_changed": false
+}

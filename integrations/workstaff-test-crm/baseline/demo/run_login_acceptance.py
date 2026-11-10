@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 
-PRIVATE = Path('/root/gpm-ts-update/20261110-demo-04')
+PRIVATE = Path('/root/gpm-ts-update/20261110-demo-05')
 RUNTIME = PRIVATE / 'runtime'
 RECOVERY = Path('/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109')
 MYSQL = RECOVERY / 'rehearsal-mysql'

@@ -21,7 +21,7 @@ def fetch_codes():
                '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
                '-o', 'UserKnownHostsFile=' + str(original / '.tmp/test-crm-known-hosts'),
                'root@5.183.191.222',
-               '/opt/php74/bin/php /root/gpm-ts-update/demo-tools-20261110/read_login_inbox.php']
+               '/opt/php74/bin/php /root/gpm-ts-update/demo-tools-20261110-v05/read_login_inbox.php']
     result = subprocess.run(command, capture_output=True, timeout=15)
     if result.returncode:
         raise RuntimeError('PRIVATE_INBOX_UNAVAILABLE')

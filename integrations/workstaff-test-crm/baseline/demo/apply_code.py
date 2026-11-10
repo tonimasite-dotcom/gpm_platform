@@ -16,7 +16,7 @@ import tempfile
 import time
 
 TS = Path('/var/www/gruzpiter/data/www/ts.workstaffcrm.ru')
-PRIVATE = Path('/root/gpm-ts-update/20261110-demo-04')
+PRIVATE = Path('/root/gpm-ts-update/20261110-demo-05')
 
 
 def sha(path):
@@ -173,9 +173,9 @@ def main():
     if args.approved_manifest != sha(manifest_path):
         raise RuntimeError('EXACT_OWNER_REVIEWED_MANIFEST_REQUIRED')
     manifest = json.loads(manifest_path.read_text())
-    auth_reports = sorted(PRIVATE.glob('login-acceptance-*.json'))
-    if not auth_reports or not json.loads(auth_reports[-1].read_text()).get('passed'):
-        raise RuntimeError('PRIVATE_AUTH_ACCEPTANCE_REQUIRED')
+    auth_evidence = json.loads((PRIVATE / 'auth-equivalence.json').read_text())
+    if not auth_evidence.get('passed') or sha(Path(auth_evidence['source_auth_report'])) != auth_evidence['source_auth_report_sha256']:
+        raise RuntimeError('PINNED_AUTH_ACCEPTANCE_AND_EQUIVALENCE_REQUIRED')
     rehearsal = json.loads((PRIVATE / 'install-rehearsal.json').read_text())
     transport = json.loads((PRIVATE / 'transport-acceptance.json').read_text())
     if not rehearsal.get('passed') or not transport.get('passed'):
@@ -197,7 +197,7 @@ def main():
                 'SCRIPT_NAME': '/index.php', 'REQUEST_URI': uri, 'HTTP_ACCEPT': 'application/json' if uri.startswith('/api/') else 'text/html',
                 'HTTPS': 'on', 'SERVER_PORT': '443', 'REQUEST_SCHEME': 'https'}, metadata_only=True)
             result[uri] = response
-            if response['status'] != expected or response['demo_marker'] != 'ts-demo-20261110-04':
+            if response['status'] != expected or response['demo_marker'] != 'ts-demo-20261110-05':
                 return {'passed': False, 'responses': result}
         return {'passed': True, 'responses': result}
     state = install(TS, PRIVATE / 'runtime', manifest['files'], PRIVATE / 'live-install-state.json',
