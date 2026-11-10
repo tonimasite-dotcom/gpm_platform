@@ -8,8 +8,8 @@ SUCCESS; deployment PASS (2,274 сек), maintenance снят. 79 transport/emai
 29 install/resume PASS; PHP 7.4 lint 25+4, свежий code backup восстановлен (23 файла).
 Рабочий FPM и внешний HTTPS: /200, /api/user401, marker ts-demo-20261110-06.
 Без миграций/правок БД/общих reload; основную CRM и соседний test не трогали.
-Ручной остаток: реальное получение email и вход владельца, сквозная тестовая заявка
-TS ↔ приложение. Это еще не выполненная браузерная/сквозная приемка.
+Владелец подтвердил получение кода входа на email. Ручной остаток: сквозная
+тестовая заявка TS ↔ приложение; эта приемка еще не выполнена.
 [Текущий handoff](PROJECT_HANDOFF_2026-11-10_TS_EMAIL_DEMO_DEPLOYED.md).
 [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-10_TS_EMAIL_DEMO_DEPLOYED.md).
 [Состав](integrations/workstaff-test-crm/baseline/demo-email/README.md),
