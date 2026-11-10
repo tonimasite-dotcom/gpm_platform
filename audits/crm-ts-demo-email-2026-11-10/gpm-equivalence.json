@@ -1,0 +1,53 @@
+{
+  "passed": true,
+  "kind": "code_equivalence_not_new_gpm_execution",
+  "source_report": "/root/gpm-ts-update/20261110-demo-04/gpm-regression.json",
+  "source_report_sha256": "6979c49fc7e2f4eb1f5b10e7b72d811271b2c1f8c678fe13c95af37c6ae1dfc4",
+  "tests_reused": [
+    {
+      "test": "sync_plan_test.php",
+      "result": "GPM sync planner: 11 scenarios passed",
+      "actual_overlay_sources": true
+    },
+    {
+      "test": "sync_service_test.php",
+      "result": "GPM sync service: 16 scenarios passed",
+      "actual_overlay_sources": true
+    },
+    {
+      "test": "worker_rate_test.php",
+      "result": "GPM worker rate: 35 scenarios passed",
+      "actual_overlay_sources": true
+    }
+  ],
+  "byte_identical_files": [
+    {
+      "file": "app/Services/Order/GpmAppOrderSync.php",
+      "sha256": "6a6737a913c51d1f1a2ca63f846a2492280cdf951737d77bec7ef5f13db2a080"
+    },
+    {
+      "file": "app/Services/Order/GpmAppOrderPublisher.php",
+      "sha256": "906dacd8a5a1366ada2ad842878305c2d3c7916b9d6f9c05544996ac27668f95"
+    },
+    {
+      "file": "app/Services/Order/GpmOrderSyncPlan.php",
+      "sha256": "eec40e1c549b65d28a6a9b801c2f70aa41442b623cd96d5b4d5509ca499903a4"
+    },
+    {
+      "file": "app/Services/Order/GpmWorkerRateRules.php",
+      "sha256": "2e9cc2dbfbb5fb60738b13ceb09553375290d894d0a4d9e83f89e6c948f05031"
+    },
+    {
+      "file": "app/Services/Order/GpmLogistOrderGuard.php",
+      "sha256": "4a5cbaf6c49b34a200ac782768d31d8afc31857512f47c1dadc0e79a959487a7"
+    },
+    {
+      "file": "app/Http/Controllers/Order/GpmWorkerRateController.php",
+      "sha256": "e02e7bce9b7724a8eb4834c11be981743013c6d7c9b404d336ad6d9e9a99bd9a"
+    }
+  ],
+  "php74_helpers_linted": 13,
+  "live_sync_executed": false,
+  "database_accessed": false,
+  "live_files_changed": false
+}

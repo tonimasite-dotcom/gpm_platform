@@ -1,0 +1,237 @@
+{
+  "files": [
+    {
+      "file": "app/Console/Commands/CheckCustomerDebit.php",
+      "sha256": "cf629abb50f6866868599e237f4c20734714db5320d38215bad82309510c963b",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Console/Commands/CheckDebit.php",
+      "sha256": "63947d0016dc66dab044d89a843d5d2a3b0a33fe3705d8a233dc943cd9b9e5af",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Console/Commands/CheckWorkerIsActive.php",
+      "sha256": "96664e83806c169902d3097b2c78323367544b7582f8928c005c8934abecde72",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Console/Commands/ParseEmailLead.php",
+      "sha256": "0d545e4897046b43f78c10c10da4d7a662a3d20fb34032fc9a917cf056a73702",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Console/Commands/RefreshBankingToken.php",
+      "sha256": "c17ccc9020baa3937464d53dcebf3257371117a81b657ab6aa450de6f02e451d",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Console/Commands/setStatementsAndGetTransactionsFromApi.php",
+      "sha256": "b7c2a219ede9f5889d767983423efcefddb1eb7525c13f76a15fde80c086099b",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+      "sha256": "68c2a070f61b47fe78c39df89e12b3ab099f35144aa97ca6a1dc7f013a0ed047",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Http/Controllers/QtsmsSms/Src/SmsClient.php",
+      "sha256": "d5468fcbdf21fd5ef94e4ecff1475cd6ddc0735e8d557dc6905db4c2833ffe3a",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Jobs/ParseMailBox.php",
+      "sha256": "9c69f87024a6fd8adcbf518f6231ad1a69515802b78c9b793d6ad04f23c7a0f5",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Providers/AppServiceProvider.php",
+      "sha256": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Banking/BankingService.php",
+      "sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Calls/CallService.php",
+      "sha256": "e5cd4257c16d6c5ad8e8ae45138c7de9bb48a7aec10d216d5b53c15502795998",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Dadata/ClientBase.php",
+      "sha256": "61cd6f7732d4f0408a37c1e8452f9dd7cc9292492d497fba384d56ec9ddbf42c",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Mail/MailService.php",
+      "sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Mail/ParseEmailService.php",
+      "sha256": "e243492ecb848c85537bf4b3d343cdfdad467b78804c1fb36a70e6dcaf8048c0",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Mails/MailService.php",
+      "sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Mails/ParsedMailService.php",
+      "sha256": "6578da160f44bbcf7d97c9e088160a025cf66383378feeef1a8954652ea5c95c",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/MapDataService.php",
+      "sha256": "1db8b608b3a2e3f09572c13f96c6a33929992de496490971b67b3dd8d2b22b1b",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Payment/ManagerPaymentService.php",
+      "sha256": "3ef955a8e000ce7c12cedee04d5bfa1531c4c1a43c5c71af2d13d7c072bfd06c",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoPolicy.php",
+      "sha256": null,
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoTransport.php",
+      "sha256": null,
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Settings/BankingSettingsService.php",
+      "sha256": "addfcaa9a67831967ba46b460ead8cc03b43b030574ab09578074ffd0f6cc5c8",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/WebKlexMailClient.php",
+      "sha256": "50fad970e3bca51c6d7e04fb67afe6c6e46e6a721572caa0b61578cd3cde3c4a",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Traits/getCoordinateTrait.php",
+      "sha256": "dae6430ef2443b36ca8fd6ea6a72d03e834206f8914e73ae559ce7a847a99778",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Traits/sendSmsTrait.php",
+      "sha256": "d39c63e82f830220dbf5540baac55ae4983428457d5b0ef0596a0a1381ed815f",
+      "matches_saved_baseline": true
+    }
+  ],
+  "protected_files": [
+    {
+      "file": "app/Services/Order/GpmAppOrderSync.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Order/GpmAppOrderPublisher.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Order/GpmWorkerRateRules.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Services/Order/GpmLogistOrderGuard.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Http/Controllers/Order/GpmWorkerRateController.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginController.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "app/Console/Kernel.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "routes/api.php",
+      "matches_saved_baseline": true
+    },
+    {
+      "file": "config/auth.php",
+      "matches_saved_baseline": true
+    }
+  ],
+  "immutable_original_baseline_preserved": true,
+  "immutable_original_checker_preserved": true,
+  "all_live_targets_match_saved_baseline": true,
+  "all_protected_files_match_saved_baseline": true,
+  "ts_environment_flags": {
+    "APP_ENV": "production",
+    "APP_URL": "https://ts.workstaffcrm.ru",
+    "BROADCAST_DRIVER": "pusher",
+    "CACHE_DRIVER": "file",
+    "QUEUE_CONNECTION": "sync",
+    "SESSION_DRIVER": "file",
+    "MAIL_MAILER": "smtp",
+    "LOGIN_EMAIL_CODE_ENABLED": "true",
+    "GPM_APP_ORDER_SYNC_ENABLED": "true"
+  },
+  "private_databases": [
+    {
+      "path": "/root/gpm-ts-update/20261106-baseline-01/rehearsal-mysql",
+      "datadir_present": true,
+      "mysql_socket_present": false
+    },
+    {
+      "path": "/root/gpm-ts-update/20261106-baseline-01/sql-recovery-20261109/rehearsal-mysql",
+      "datadir_present": true,
+      "mysql_socket_present": false
+    },
+    {
+      "path": "/root/gpm-ts-update/20261109-switch-01/mysql-new",
+      "datadir_present": true,
+      "mysql_socket_present": false
+    },
+    {
+      "path": "/root/gpm-ts-update/20261109-switch-01/mysql-new-failed-after-timeout",
+      "datadir_present": true,
+      "mysql_socket_present": false
+    },
+    {
+      "path": "/root/gpm-ts-update/20261109-switch-01/mysql-new-timeout-evidence",
+      "datadir_present": true,
+      "mysql_socket_present": false
+    },
+    {
+      "path": "/root/gpm-ts-update/20261109-switch-01/mysql-old",
+      "datadir_present": true,
+      "mysql_socket_present": false
+    }
+  ],
+  "private_mysql_process_count": 0,
+  "ts_long_running_or_scheduled_workers": [],
+  "composer_classmap_authoritative": false,
+  "ts_systemd_units": [],
+  "ts_fpm_pool_metadata": [
+    {
+      "file": "/opt/php74/etc/php-fpm.d/ts.workstaffcrm.ru.conf",
+      "selected_directives": [
+        "listen = /var/run/ts.workstaffcrm.ru.sock"
+      ]
+    }
+  ],
+  "fpm_socket_present": true,
+  "cgi_fcgi_available": false,
+  "existing_sync_cron_sha256": "113d98c6d51bc04f4d8f8dfc12814402bec01b061127445f394b4afbf60c2365",
+  "free_bytes": 20595314688,
+  "effective_fpm_opcache_verified": false,
+  "fresh_release_backup_verified": false,
+  "main_crm_accessed": false,
+  "database_connected": false,
+  "laravel_bootstrapped": false,
+  "live_files_changed": false,
+  "release_ready": false
+}

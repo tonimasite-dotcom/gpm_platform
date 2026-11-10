@@ -1,0 +1,256 @@
+{
+  "base": "/root/gpm-ts-update/20261110-demo-06/source-current",
+  "target": "/root/gpm-ts-update/20261110-demo-06/runtime",
+  "live_files_changed": false,
+  "schema_changes": false,
+  "database_accessed": false,
+  "guards": {
+    "app/Console/Commands/CheckDebit.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('daily_mail'); return 0;",
+      "sendMail": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('daily_mail'); return;"
+    },
+    "app/Console/Commands/CheckCustomerDebit.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('background'); return 0;"
+    },
+    "app/Console/Commands/ParseEmailLead.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('background'); return 0;"
+    },
+    "app/Console/Commands/RefreshBankingToken.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('background'); return 0;"
+    },
+    "app/Console/Commands/CheckWorkerIsActive.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('background'); return 0;"
+    },
+    "app/Console/Commands/setStatementsAndGetTransactionsFromApi.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('background'); return 0;"
+    },
+    "app/Services/WebKlexMailClient.php": {
+      "sendDebitMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('daily_mail'); return;",
+      "connectClient": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "setSmtpConfig": "return \\App\\Services\\Release\\GpmTsDemoPolicy::installNullMailer();"
+    },
+    "app/Services/Mail/MailService.php": {
+      "connectImapServer": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "deleteMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "moveMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "draft": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "sendMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('mail');",
+      "setSmtpConfig": "return \\App\\Services\\Release\\GpmTsDemoPolicy::installNullMailer();",
+      "getMessages": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "getMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "getCountUnseenMessages": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');"
+    },
+    "app/Services/Mails/MailService.php": {
+      "connectImapServer": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "deleteMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "moveMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "draft": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "sendMessage": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('mail');",
+      "setSmtpConfig": "return \\App\\Services\\Release\\GpmTsDemoPolicy::installNullMailer();",
+      "parseMessages": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "getMessageOld": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "send": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "getCountUnseenMessages": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');"
+    },
+    "app/Services/Mails/ParsedMailService.php": {
+      "parse": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "parseFolder": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');"
+    },
+    "app/Services/Mail/ParseEmailService.php": {
+      "parse": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');",
+      "configureAndTry": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('imap');"
+    },
+    "app/Jobs/ParseMailBox.php": {
+      "handle": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('imap'); return 0;"
+    },
+    "app/Traits/sendSmsTrait.php": {
+      "sendSms": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('sms');"
+    },
+    "app/Http/Controllers/QtsmsSms/Src/SmsClient.php": {
+      "sendRequest": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('sms');"
+    },
+    "app/Services/Dadata/ClientBase.php": {
+      "get": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('dadata');",
+      "post": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('dadata');"
+    },
+    "app/Services/MapDataService.php": {
+      "getNearMetroId": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('geocode');",
+      "getLocation": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('geocode');"
+    },
+    "app/Traits/getCoordinateTrait.php": {
+      "getGeoResponse": "\\App\\Services\\Release\\GpmTsDemoPolicy::suppress('geocode'); return false;"
+    },
+    "app/Services/Calls/CallService.php": {
+      "makeCall": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('calls');"
+    },
+    "app/Services/Banking/BankingService.php": {
+      "getRedirectingUrl": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getJWTLink": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');"
+    },
+    "app/Services/Settings/BankingSettingsService.php": {
+      "getRedirectingUrl": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getJWTLink": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "saveCode": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "refreshToken": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');"
+    },
+    "app/Services/Payment/ManagerPaymentService.php": {
+      "createStatementOOOOnApi": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "createStatementIPOnApi": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "addStatementFromApi": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getAllTochkaPayments": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getAllAlfaPayments": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getToken": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getAllTinkoffPayments": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');"
+    },
+    "app/Http/Controllers/Payment/TinkofWebhookController.php": {
+      "webhook": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "alfaWebhook": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "tochkaWebhook": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getAllTinkoffPayments": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getAllAlfaPayments": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "getToken": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');",
+      "addStatementFromApi": "\\App\\Services\\Release\\GpmTsDemoPolicy::deny('bank');"
+    },
+    "app/Providers/AppServiceProvider.php": {
+      "boot": "\\App\\Services\\Release\\GpmTsDemoPolicy::register($this->app);"
+    }
+  },
+  "files": [
+    {
+      "file": "app/Console/Commands/CheckCustomerDebit.php",
+      "before_sha256": "cf629abb50f6866868599e237f4c20734714db5320d38215bad82309510c963b",
+      "after_sha256": "703d4591c1fd68620e0b8824ad9aeeba4b52e73a49b1532680622df5cdfd7537"
+    },
+    {
+      "file": "app/Console/Commands/CheckDebit.php",
+      "before_sha256": "63947d0016dc66dab044d89a843d5d2a3b0a33fe3705d8a233dc943cd9b9e5af",
+      "after_sha256": "5a7c95f82030d2e248c48eaa56ef9ab5347bf0d348c7d57a6375ffbb05558b53"
+    },
+    {
+      "file": "app/Console/Commands/CheckWorkerIsActive.php",
+      "before_sha256": "96664e83806c169902d3097b2c78323367544b7582f8928c005c8934abecde72",
+      "after_sha256": "d3d7658524d3c4b6cdaff43edd007758147a76178b844c4f0a724d523b962359"
+    },
+    {
+      "file": "app/Console/Commands/ParseEmailLead.php",
+      "before_sha256": "0d545e4897046b43f78c10c10da4d7a662a3d20fb34032fc9a917cf056a73702",
+      "after_sha256": "4fd563ada91ff16e6c8a78e52ebc4072a377bada82bc4d4c88035fc989369f04"
+    },
+    {
+      "file": "app/Console/Commands/RefreshBankingToken.php",
+      "before_sha256": "c17ccc9020baa3937464d53dcebf3257371117a81b657ab6aa450de6f02e451d",
+      "after_sha256": "1a3c8d9f542890b2157d4113a105c6f165fddd68af639a225fbac8a88fde7ca8"
+    },
+    {
+      "file": "app/Console/Commands/setStatementsAndGetTransactionsFromApi.php",
+      "before_sha256": "b7c2a219ede9f5889d767983423efcefddb1eb7525c13f76a15fde80c086099b",
+      "after_sha256": "ec3f65b1e974d6fae9240cfe6abf682946791b0648d7d7d2052bc65159f5ee43"
+    },
+    {
+      "file": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+      "before_sha256": "68c2a070f61b47fe78c39df89e12b3ab099f35144aa97ca6a1dc7f013a0ed047",
+      "after_sha256": "dff052014dffebf875ce682e7198ce4d443b3bad75d2a6bee88ba078b1890e53"
+    },
+    {
+      "file": "app/Http/Controllers/QtsmsSms/Src/SmsClient.php",
+      "before_sha256": "d5468fcbdf21fd5ef94e4ecff1475cd6ddc0735e8d557dc6905db4c2833ffe3a",
+      "after_sha256": "ea5e5ba74b888af03d8676e0600d51ea0f236dbc9689c6b17d5940d187f7429e"
+    },
+    {
+      "file": "app/Jobs/ParseMailBox.php",
+      "before_sha256": "9c69f87024a6fd8adcbf518f6231ad1a69515802b78c9b793d6ad04f23c7a0f5",
+      "after_sha256": "fb81169effef061152ef78315323bfae536859f95c62c95bda65b10ef7a0f09e"
+    },
+    {
+      "file": "app/Providers/AppServiceProvider.php",
+      "before_sha256": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+      "after_sha256": "b4f1dc38dc0fe1e2f6fae22dd2bbb25570045c7792da999cb2e5e3edbdc707b3"
+    },
+    {
+      "file": "app/Services/Banking/BankingService.php",
+      "before_sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+      "after_sha256": "3544b182478568cdfa02599d1a2588a4c7236a708b31cbc031672107f74abc2a"
+    },
+    {
+      "file": "app/Services/Calls/CallService.php",
+      "before_sha256": "e5cd4257c16d6c5ad8e8ae45138c7de9bb48a7aec10d216d5b53c15502795998",
+      "after_sha256": "cb934a65b44b97012ba315604dd430b464d40d2b6b47566a01d8ad68055302f3"
+    },
+    {
+      "file": "app/Services/Dadata/ClientBase.php",
+      "before_sha256": "61cd6f7732d4f0408a37c1e8452f9dd7cc9292492d497fba384d56ec9ddbf42c",
+      "after_sha256": "de07f80d8ab0c6b1d176014259c11a5febc8fc3bb8b617eabf8de887249c597c"
+    },
+    {
+      "file": "app/Services/Mail/MailService.php",
+      "before_sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+      "after_sha256": "d0bd0e1297d5a84b8212f8795014ef6a6dbad3dbfd54b726cd480a94df841103"
+    },
+    {
+      "file": "app/Services/Mail/ParseEmailService.php",
+      "before_sha256": "e243492ecb848c85537bf4b3d343cdfdad467b78804c1fb36a70e6dcaf8048c0",
+      "after_sha256": "c27835bf6ef0b72a6b91679dfbce76ee54318cc7576528c95af86263cb6dee0c"
+    },
+    {
+      "file": "app/Services/Mails/MailService.php",
+      "before_sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+      "after_sha256": "846bf6881d3b668d7f0ad4f81215ac265c4ddd1ea513a0b043335832b1ac246e"
+    },
+    {
+      "file": "app/Services/Mails/ParsedMailService.php",
+      "before_sha256": "6578da160f44bbcf7d97c9e088160a025cf66383378feeef1a8954652ea5c95c",
+      "after_sha256": "a0528c8afc6ae1291bea0d0cc359d772b896848c8f3bf95ce7d3d4cc8a8e1dc8"
+    },
+    {
+      "file": "app/Services/MapDataService.php",
+      "before_sha256": "1db8b608b3a2e3f09572c13f96c6a33929992de496490971b67b3dd8d2b22b1b",
+      "after_sha256": "7ee380097a15691883c97bebcbba0cd286a8c2760ba1d351f153237805db2d8e"
+    },
+    {
+      "file": "app/Services/Payment/ManagerPaymentService.php",
+      "before_sha256": "3ef955a8e000ce7c12cedee04d5bfa1531c4c1a43c5c71af2d13d7c072bfd06c",
+      "after_sha256": "d2a7dd9d1db0a69a5c89135fa17fb23aea253a7e64324807847925000db9b807"
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoPolicy.php",
+      "before_sha256": null,
+      "after_sha256": "6a9257a303047f6c559b06143388bc79590d85c676a1cce9a5970fbd51b3c355"
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoTransport.php",
+      "before_sha256": null,
+      "after_sha256": "252874a6753e8e6045552b6d9306a11072f9ee2602033ff9c760f1d0fd84f700"
+    },
+    {
+      "file": "app/Services/Settings/BankingSettingsService.php",
+      "before_sha256": "addfcaa9a67831967ba46b460ead8cc03b43b030574ab09578074ffd0f6cc5c8",
+      "after_sha256": "552150225637ea4dadde8c4570309e4e15dac681e79140ac23253b72b6d3a7c4"
+    },
+    {
+      "file": "app/Services/WebKlexMailClient.php",
+      "before_sha256": "50fad970e3bca51c6d7e04fb67afe6c6e46e6a721572caa0b61578cd3cde3c4a",
+      "after_sha256": "dafe7303dc6ac8439048157a46e79a8e9d7b65dcac3f46a6966f326833de874d"
+    },
+    {
+      "file": "app/Traits/getCoordinateTrait.php",
+      "before_sha256": "dae6430ef2443b36ca8fd6ea6a72d03e834206f8914e73ae559ce7a847a99778",
+      "after_sha256": "4390dad9efc086ec252680f9968e90da379901f62fdf40d9bf357dde563151a3"
+    },
+    {
+      "file": "app/Traits/sendSmsTrait.php",
+      "before_sha256": "d39c63e82f830220dbf5540baac55ae4983428457d5b0ef0596a0a1381ed815f",
+      "after_sha256": "6ab711f3e401af8498104e7ec7bfebffac7738aaf816c7101bcdada28e2b5ba7"
+    }
+  ],
+  "auth_changes": [],
+  "all_other_saved_ts_files_unchanged": true,
+  "rebased_from_manifest_sha256": "b99e16ea5017191df337537018d1c28ae2b9f160984bf7a4d2c2ca73f855adac",
+  "standalone_debt_guards_retained": {
+    "app/Console/Commands/CheckDebit.php": 2,
+    "app/Console/Commands/CheckCustomerDebit.php": 1,
+    "app/Services/WebKlexMailClient.php": 1
+  },
+  "nonselected_source_is_saved_reference": true,
+  "login_delivery": "original email view and branch SMTP via isolated mailer; no controller changes",
+  "local_inbox_installed": false
+}

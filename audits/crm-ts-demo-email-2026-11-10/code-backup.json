@@ -1,0 +1,230 @@
+{
+  "encrypted": true,
+  "kind": "targeted_code_backup_no_database",
+  "files": [
+    {
+      "file": "app/Console/Commands/CheckCustomerDebit.php",
+      "existed": true,
+      "sha256": "cf629abb50f6866868599e237f4c20734714db5320d38215bad82309510c963b",
+      "bytes": 2013,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Console/Commands/CheckDebit.php",
+      "existed": true,
+      "sha256": "63947d0016dc66dab044d89a843d5d2a3b0a33fe3705d8a233dc943cd9b9e5af",
+      "bytes": 4339,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Console/Commands/CheckWorkerIsActive.php",
+      "existed": true,
+      "sha256": "96664e83806c169902d3097b2c78323367544b7582f8928c005c8934abecde72",
+      "bytes": 2249,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Console/Commands/ParseEmailLead.php",
+      "existed": true,
+      "sha256": "0d545e4897046b43f78c10c10da4d7a662a3d20fb34032fc9a917cf056a73702",
+      "bytes": 862,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Console/Commands/RefreshBankingToken.php",
+      "existed": true,
+      "sha256": "c17ccc9020baa3937464d53dcebf3257371117a81b657ab6aa450de6f02e451d",
+      "bytes": 875,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Console/Commands/setStatementsAndGetTransactionsFromApi.php",
+      "existed": true,
+      "sha256": "b7c2a219ede9f5889d767983423efcefddb1eb7525c13f76a15fde80c086099b",
+      "bytes": 906,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+      "existed": true,
+      "sha256": "68c2a070f61b47fe78c39df89e12b3ab099f35144aa97ca6a1dc7f013a0ed047",
+      "bytes": 14908,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Http/Controllers/QtsmsSms/Src/SmsClient.php",
+      "existed": true,
+      "sha256": "d5468fcbdf21fd5ef94e4ecff1475cd6ddc0735e8d557dc6905db4c2833ffe3a",
+      "bytes": 10182,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Jobs/ParseMailBox.php",
+      "existed": true,
+      "sha256": "9c69f87024a6fd8adcbf518f6231ad1a69515802b78c9b793d6ad04f23c7a0f5",
+      "bytes": 2031,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Providers/AppServiceProvider.php",
+      "existed": true,
+      "sha256": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+      "bytes": 1893,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Banking/BankingService.php",
+      "existed": true,
+      "sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+      "bytes": 4360,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Calls/CallService.php",
+      "existed": true,
+      "sha256": "e5cd4257c16d6c5ad8e8ae45138c7de9bb48a7aec10d216d5b53c15502795998",
+      "bytes": 36606,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Dadata/ClientBase.php",
+      "existed": true,
+      "sha256": "61cd6f7732d4f0408a37c1e8452f9dd7cc9292492d497fba384d56ec9ddbf42c",
+      "bytes": 980,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Mail/MailService.php",
+      "existed": true,
+      "sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+      "bytes": 15382,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Mail/ParseEmailService.php",
+      "existed": true,
+      "sha256": "e243492ecb848c85537bf4b3d343cdfdad467b78804c1fb36a70e6dcaf8048c0",
+      "bytes": 3230,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Mails/MailService.php",
+      "existed": true,
+      "sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+      "bytes": 22418,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Mails/ParsedMailService.php",
+      "existed": true,
+      "sha256": "6578da160f44bbcf7d97c9e088160a025cf66383378feeef1a8954652ea5c95c",
+      "bytes": 5016,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/MapDataService.php",
+      "existed": true,
+      "sha256": "1db8b608b3a2e3f09572c13f96c6a33929992de496490971b67b3dd8d2b22b1b",
+      "bytes": 5408,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Payment/ManagerPaymentService.php",
+      "existed": true,
+      "sha256": "3ef955a8e000ce7c12cedee04d5bfa1531c4c1a43c5c71af2d13d7c072bfd06c",
+      "bytes": 33586,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoPolicy.php",
+      "existed": false
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoTransport.php",
+      "existed": false
+    },
+    {
+      "file": "app/Services/Settings/BankingSettingsService.php",
+      "existed": true,
+      "sha256": "addfcaa9a67831967ba46b460ead8cc03b43b030574ab09578074ffd0f6cc5c8",
+      "bytes": 7553,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Services/WebKlexMailClient.php",
+      "existed": true,
+      "sha256": "50fad970e3bca51c6d7e04fb67afe6c6e46e6a721572caa0b61578cd3cde3c4a",
+      "bytes": 9735,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Traits/getCoordinateTrait.php",
+      "existed": true,
+      "sha256": "dae6430ef2443b36ca8fd6ea6a72d03e834206f8914e73ae559ce7a847a99778",
+      "bytes": 2110,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    },
+    {
+      "file": "app/Traits/sendSmsTrait.php",
+      "existed": true,
+      "sha256": "d39c63e82f830220dbf5540baac55ae4983428457d5b0ef0596a0a1381ed815f",
+      "bytes": 2830,
+      "mode": 33188,
+      "uid": 1001,
+      "gid": 1003
+    }
+  ],
+  "created_utc": "2026-11-10T10:43:18.278596+00:00",
+  "artifact": "/root/gpm-ts-update/20261110-demo-06/code-backup/ts-demo-code-before.tar.gz.age",
+  "bytes": 39318,
+  "sha256": "66557b00eea1a772c379bdec09d82b8ced5b323d7fc47e0d64385a9581a1187d",
+  "plaintext_archive_written": false,
+  "restore_verified": false,
+  "live_files_changed": false,
+  "database_accessed": false,
+  "main_crm_accessed": false
+}

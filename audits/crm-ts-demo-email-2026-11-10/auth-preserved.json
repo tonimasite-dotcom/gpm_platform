@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "controller": "app/Http/Controllers/Auth/LoginController.php",
+  "controller_sha256": "f64131b5e4593ad9556ef65ee61630d159fabcec0d3e76311ce9caa5c3753667",
+  "login_view": "resources/views/mail/mail/verify.blade.php",
+  "login_view_sha256": "272bbdc76ff6ea649c7afd5ac7d6f43bea486066565e5baeeba3982b0b9b0ae0",
+  "controller_jwt_code_validation_unchanged": true,
+  "login_mail_diff_only_dedicated_mailer_call": true,
+  "local_inbox_installed": false,
+  "live_files_changed": false
+}
