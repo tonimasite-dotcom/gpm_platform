@@ -1,0 +1,462 @@
+{
+  "source": "source-ts",
+  "application_bootstrapped": false,
+  "files": [
+    {
+      "file": "app/Services/Payment/ManagerPaymentService.php",
+      "sha256": "3ef955a8e000ce7c12cedee04d5bfa1531c4c1a43c5c71af2d13d7c072bfd06c",
+      "hits": [
+        {
+          "line": 306,
+          "method": "createStatementOOOOnApi",
+          "symbol": "Http"
+        },
+        {
+          "line": 324,
+          "method": "createStatementIPOnApi",
+          "symbol": "Http"
+        },
+        {
+          "line": 552,
+          "method": "getAllTochkaPayments",
+          "symbol": "Http"
+        },
+        {
+          "line": 573,
+          "method": "getAllTochkaPayments",
+          "symbol": "Http"
+        },
+        {
+          "line": 683,
+          "method": "getAllAlfaPayments",
+          "symbol": "Http"
+        },
+        {
+          "line": 745,
+          "method": "getToken",
+          "symbol": "Http"
+        },
+        {
+          "line": 769,
+          "method": "getAllTinkoffPayments",
+          "symbol": "Http"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Reference/BranchService.php",
+      "sha256": "3753be8849a33975609bb7f3fb7fecfef1f953c2a274830c7c1578b4b668ad3a",
+      "hits": [
+        {
+          "line": 227,
+          "method": "getDataTable",
+          "symbol": "Request"
+        },
+        {
+          "line": 230,
+          "method": "getDataTable",
+          "symbol": "Request"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/WebKlexMailClient.php",
+      "sha256": "be2d391192344d7c2640e8f92277c1fedbfd351294529843c1252fa286df712f",
+      "hits": [
+        {
+          "line": 61,
+          "method": "initSettingClient",
+          "symbol": "Client"
+        },
+        {
+          "line": 67,
+          "method": "connectClient",
+          "symbol": "connect"
+        },
+        {
+          "line": 83,
+          "method": "setSmtpConfig",
+          "symbol": "Swift_SmtpTransport"
+        },
+        {
+          "line": 88,
+          "method": "setSmtpConfig",
+          "symbol": "Swift_Mailer"
+        },
+        {
+          "line": 89,
+          "method": "setSmtpConfig",
+          "symbol": "Mail"
+        },
+        {
+          "line": 112,
+          "method": "sendDocumentMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 152,
+          "method": "sendDebitMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 175,
+          "method": "sendVerifyMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 197,
+          "method": "sendPassportLoaderMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 221,
+          "method": "sendLoaderMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 244,
+          "method": "sendCustomerMessage",
+          "symbol": "Mail"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Calls/CallService.php",
+      "sha256": "e5cd4257c16d6c5ad8e8ae45138c7de9bb48a7aec10d216d5b53c15502795998",
+      "hits": [
+        {
+          "line": 632,
+          "method": "makeCall",
+          "symbol": "Http"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Dadata/ClientBase.php",
+      "sha256": "61cd6f7732d4f0408a37c1e8452f9dd7cc9292492d497fba384d56ec9ddbf42c",
+      "hits": [
+        {
+          "line": 19,
+          "method": "__construct",
+          "symbol": "Client"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/UploadService.php",
+      "sha256": "62d2d465542449afc64f94bc7c806eee1f6270544ce937e0f08d76ba9890f7cf",
+      "hits": [
+        {
+          "line": 9,
+          "method": "upload",
+          "symbol": "file_get_contents"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Settings/BankingSettingsService.php",
+      "sha256": "addfcaa9a67831967ba46b460ead8cc03b43b030574ab09578074ffd0f6cc5c8",
+      "hits": [
+        {
+          "line": 62,
+          "method": "getRedirectingUrl",
+          "symbol": "Http"
+        },
+        {
+          "line": 76,
+          "method": "getRedirectingUrl",
+          "symbol": "Http"
+        },
+        {
+          "line": 158,
+          "method": "saveCode",
+          "symbol": "Http"
+        },
+        {
+          "line": 185,
+          "method": "refreshToken",
+          "symbol": "Http"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Mails/MailService.php",
+      "sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+      "hits": [
+        {
+          "line": 48,
+          "method": "connectImapServer",
+          "symbol": "Client"
+        },
+        {
+          "line": 52,
+          "method": "connectImapServer",
+          "symbol": "connect"
+        },
+        {
+          "line": 95,
+          "method": "setSmtpConfig",
+          "symbol": "Swift_SmtpTransport"
+        },
+        {
+          "line": 103,
+          "method": "setSmtpConfig",
+          "symbol": "Swift_Mailer"
+        },
+        {
+          "line": 104,
+          "method": "setSmtpConfig",
+          "symbol": "Mail"
+        },
+        {
+          "line": 367,
+          "method": "sendMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 461,
+          "method": "buildDraftMessage",
+          "symbol": "file_get_contents"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Order/GpmAppOrderSync.php",
+      "sha256": "6a6737a913c51d1f1a2ca63f846a2492280cdf951737d77bec7ef5f13db2a080",
+      "hits": [
+        {
+          "line": 40,
+          "method": "locked",
+          "symbol": "fopen"
+        },
+        {
+          "line": 96,
+          "method": "request",
+          "symbol": "request"
+        },
+        {
+          "line": 103,
+          "method": "request",
+          "symbol": "Http"
+        },
+        {
+          "line": 136,
+          "method": "syncOrder",
+          "symbol": "file_get_contents"
+        },
+        {
+          "line": 143,
+          "method": "syncOrder",
+          "symbol": "request"
+        },
+        {
+          "line": 152,
+          "method": "syncOrder",
+          "symbol": "request"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Order/GpmAppOrderPublisher.php",
+      "sha256": "906dacd8a5a1366ada2ad842878305c2d3c7916b9d6f9c05544996ac27668f95",
+      "hits": [
+        {
+          "line": 72,
+          "method": "publish",
+          "symbol": "Http"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Order/LoaderOrderService.php",
+      "sha256": "428b5004a3296399a42ccea1a7cfda1c79e7a9c458770b66f56c6a4477c4221d",
+      "hits": [
+        {
+          "line": 281,
+          "method": "getDataTable",
+          "symbol": "Request"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Mail/ParseEmailService.php",
+      "sha256": "e243492ecb848c85537bf4b3d343cdfdad467b78804c1fb36a70e6dcaf8048c0",
+      "hits": [
+        {
+          "line": 60,
+          "method": "configureAndTry",
+          "symbol": "Client"
+        },
+        {
+          "line": 74,
+          "method": "configureAndTry",
+          "symbol": "connect"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Mail/MailService.php",
+      "sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+      "hits": [
+        {
+          "line": 22,
+          "method": "connectImapServer",
+          "symbol": "Client"
+        },
+        {
+          "line": 26,
+          "method": "connectImapServer",
+          "symbol": "connect"
+        },
+        {
+          "line": 68,
+          "method": "setSmtpConfig",
+          "symbol": "Swift_SmtpTransport"
+        },
+        {
+          "line": 75,
+          "method": "setSmtpConfig",
+          "symbol": "Swift_Mailer"
+        },
+        {
+          "line": 76,
+          "method": "setSmtpConfig",
+          "symbol": "Mail"
+        },
+        {
+          "line": 220,
+          "method": "sendMessage",
+          "symbol": "Mail"
+        },
+        {
+          "line": 297,
+          "method": "buildDraftMessage",
+          "symbol": "file_get_contents"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Banking/BankingService.php",
+      "sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+      "hits": [
+        {
+          "line": 40,
+          "method": "getRedirectingUrl",
+          "symbol": "Http"
+        },
+        {
+          "line": 54,
+          "method": "getRedirectingUrl",
+          "symbol": "Http"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/MailMessage/MailMessageService.php",
+      "sha256": "51f057be2f2fea6e482c4e5b79d9df820d07524f099f0aa54f3f7c49305131dc",
+      "hits": [
+        {
+          "line": 60,
+          "method": "getModelForDataTable",
+          "symbol": "request"
+        }
+      ]
+    },
+    {
+      "file": "app/Services/Lead/LeadService.php",
+      "sha256": "7cdc79cc24b7d6f9efb8ebf8b8e79e7d0afce858a1858b2b7eea0310bdcbae18",
+      "hits": [
+        {
+          "line": 222,
+          "method": "getDataTable",
+          "symbol": "Request"
+        }
+      ]
+    },
+    {
+      "file": "app/Http/Controllers/Documents/DocumentController.php",
+      "sha256": "b51ec7883cda6db1511da78882bba91dfa0ad616028e6b49bdec2aae61871a94",
+      "hits": [
+        {
+          "line": 32,
+          "method": "index",
+          "symbol": "request"
+        },
+        {
+          "line": 55,
+          "method": "index",
+          "symbol": "fopen"
+        }
+      ]
+    },
+    {
+      "file": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+      "sha256": "68c2a070f61b47fe78c39df89e12b3ab099f35144aa97ca6a1dc7f013a0ed047",
+      "hits": [
+        {
+          "line": 141,
+          "method": "getAllTinkoffPayments",
+          "symbol": "Http"
+        },
+        {
+          "line": 214,
+          "method": "getAllAlfaPayments",
+          "symbol": "Http"
+        },
+        {
+          "line": 276,
+          "method": "getToken",
+          "symbol": "Http"
+        },
+        {
+          "line": 315,
+          "method": "addStatementFromApi",
+          "symbol": "Http"
+        },
+        {
+          "line": 337,
+          "method": "addStatementFromApi",
+          "symbol": "Http"
+        }
+      ]
+    },
+    {
+      "file": "app/Http/Controllers/QtsmsSms/Src/SmsClient.php",
+      "sha256": "d5468fcbdf21fd5ef94e4ecff1475cd6ddc0735e8d557dc6905db4c2833ffe3a",
+      "hits": [
+        {
+          "line": 266,
+          "method": "sendRequest",
+          "symbol": "curl_exec"
+        }
+      ]
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginController.php",
+      "sha256": "f64131b5e4593ad9556ef65ee61630d159fabcec0d3e76311ce9caa5c3753667",
+      "hits": [
+        {
+          "line": 43,
+          "method": "findUsername",
+          "symbol": "request"
+        },
+        {
+          "line": 45,
+          "method": "findUsername",
+          "symbol": "request"
+        }
+      ]
+    },
+    {
+      "file": "app/Http/Middleware/TrustProxies.php",
+      "sha256": "360684b583b67681b9c6e506043285a28fe7240c1b355150d61066ff7860a852",
+      "hits": [
+        {
+          "line": 22,
+          "method": "(file)",
+          "symbol": "Request"
+        }
+      ]
+    }
+  ]
+}

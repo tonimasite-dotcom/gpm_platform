@@ -1,0 +1,8 @@
+{
+  "private_target": "/root/gpm-ts-update/20261110-demo-04",
+  "changed_files": 27,
+  "guarded_methods": 64,
+  "lint_passed": true,
+  "all_other_saved_ts_files_unchanged": true,
+  "live_files_changed": false
+}

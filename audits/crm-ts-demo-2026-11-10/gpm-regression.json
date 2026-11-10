@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "tests": [
+    {
+      "test": "sync_plan_test.php",
+      "result": "GPM sync planner: 11 scenarios passed",
+      "actual_overlay_sources": true
+    },
+    {
+      "test": "sync_service_test.php",
+      "result": "GPM sync service: 16 scenarios passed",
+      "actual_overlay_sources": true
+    },
+    {
+      "test": "worker_rate_test.php",
+      "result": "GPM worker rate: 35 scenarios passed",
+      "actual_overlay_sources": true
+    }
+  ],
+  "external_network": false,
+  "live_files_changed": false,
+  "live_sync_executed": false,
+  "database_accessed": false
+}

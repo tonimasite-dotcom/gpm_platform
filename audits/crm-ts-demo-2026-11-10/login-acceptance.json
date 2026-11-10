@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "checks": [
+    "correct_password_without_remember_creates_private_code_not_jwt",
+    "captured_code_matches_real_user_challenge",
+    "wrong_password_creates_no_new_capture",
+    "missing_captcha_rejected",
+    "wrong_captcha_rejected",
+    "inactive_user_rejected",
+    "missing_code_rejected",
+    "other_users_code_rejected_even_with_correct_password",
+    "own_code_with_wrong_password_rejected",
+    "own_code_verifies_and_returns_jwt",
+    "used_code_cannot_be_reused",
+    "consumed_code_not_retained_in_private_inbox",
+    "protected_api_rejects_missing_token",
+    "verified_jwt_accesses_real_protected_api"
+  ],
+  "private_tables_checked": 72,
+  "all_private_original_rows_unchanged": true,
+  "synthetic_accounts_rolled_back": true,
+  "captcha_process_double": true,
+  "real_login_verify_jwt_used": true,
+  "live_database_accessed": false,
+  "real_email_sent": false,
+  "live_files_changed": false
+}

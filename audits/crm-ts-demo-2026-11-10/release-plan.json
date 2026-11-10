@@ -1,0 +1,191 @@
+{
+  "dry_run_passed": true,
+  "manifest_sha256": "c350b69976a1ff4b43a40878050299ff1dff48bbbc6a172da18a8c16d8860531",
+  "files": [
+    {
+      "file": "app/Console/Commands/CheckCustomerDebit.php",
+      "new_file": false,
+      "before_sha256": "204398dc400d2a052cf338c55fa94b0862b7a32a24c0c78c23c1d565060d292d",
+      "after_sha256": "7009b5886046a1afe321702423f838a2e9fa1188abc0cd7fe0a2daff79f47a2f"
+    },
+    {
+      "file": "app/Console/Commands/CheckDebit.php",
+      "new_file": false,
+      "before_sha256": "c87f29176eca847fe0dafd1a2b81ee2c69c8eeae7d10963859ee45210ea7258f",
+      "after_sha256": "59f98384b369be772fcee734e36aca7b16328bc372a4f00222e406e08711539f"
+    },
+    {
+      "file": "app/Console/Commands/CheckWorkerIsActive.php",
+      "new_file": false,
+      "before_sha256": "96664e83806c169902d3097b2c78323367544b7582f8928c005c8934abecde72",
+      "after_sha256": "d3d7658524d3c4b6cdaff43edd007758147a76178b844c4f0a724d523b962359"
+    },
+    {
+      "file": "app/Console/Commands/ParseEmailLead.php",
+      "new_file": false,
+      "before_sha256": "0d545e4897046b43f78c10c10da4d7a662a3d20fb34032fc9a917cf056a73702",
+      "after_sha256": "4fd563ada91ff16e6c8a78e52ebc4072a377bada82bc4d4c88035fc989369f04"
+    },
+    {
+      "file": "app/Console/Commands/RefreshBankingToken.php",
+      "new_file": false,
+      "before_sha256": "c17ccc9020baa3937464d53dcebf3257371117a81b657ab6aa450de6f02e451d",
+      "after_sha256": "1a3c8d9f542890b2157d4113a105c6f165fddd68af639a225fbac8a88fde7ca8"
+    },
+    {
+      "file": "app/Console/Commands/setStatementsAndGetTransactionsFromApi.php",
+      "new_file": false,
+      "before_sha256": "b7c2a219ede9f5889d767983423efcefddb1eb7525c13f76a15fde80c086099b",
+      "after_sha256": "ec3f65b1e974d6fae9240cfe6abf682946791b0648d7d7d2052bc65159f5ee43"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginController.php",
+      "new_file": false,
+      "before_sha256": "f64131b5e4593ad9556ef65ee61630d159fabcec0d3e76311ce9caa5c3753667",
+      "after_sha256": "ccf012c1fa36d8eb99386eab51beffc1a1b63f177433a90d186bbfd085f40168"
+    },
+    {
+      "file": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+      "new_file": false,
+      "before_sha256": "68c2a070f61b47fe78c39df89e12b3ab099f35144aa97ca6a1dc7f013a0ed047",
+      "after_sha256": "dff052014dffebf875ce682e7198ce4d443b3bad75d2a6bee88ba078b1890e53"
+    },
+    {
+      "file": "app/Http/Controllers/QtsmsSms/Src/SmsClient.php",
+      "new_file": false,
+      "before_sha256": "d5468fcbdf21fd5ef94e4ecff1475cd6ddc0735e8d557dc6905db4c2833ffe3a",
+      "after_sha256": "ea5e5ba74b888af03d8676e0600d51ea0f236dbc9689c6b17d5940d187f7429e"
+    },
+    {
+      "file": "app/Jobs/ParseMailBox.php",
+      "new_file": false,
+      "before_sha256": "9c69f87024a6fd8adcbf518f6231ad1a69515802b78c9b793d6ad04f23c7a0f5",
+      "after_sha256": "fb81169effef061152ef78315323bfae536859f95c62c95bda65b10ef7a0f09e"
+    },
+    {
+      "file": "app/Providers/AppServiceProvider.php",
+      "new_file": false,
+      "before_sha256": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+      "after_sha256": "b4f1dc38dc0fe1e2f6fae22dd2bbb25570045c7792da999cb2e5e3edbdc707b3"
+    },
+    {
+      "file": "app/Services/Banking/BankingService.php",
+      "new_file": false,
+      "before_sha256": "db0dff966188c1e3560e877f05d81656c34e710a65085aa23f960ea03fb124b9",
+      "after_sha256": "3544b182478568cdfa02599d1a2588a4c7236a708b31cbc031672107f74abc2a"
+    },
+    {
+      "file": "app/Services/Calls/CallService.php",
+      "new_file": false,
+      "before_sha256": "e5cd4257c16d6c5ad8e8ae45138c7de9bb48a7aec10d216d5b53c15502795998",
+      "after_sha256": "cb934a65b44b97012ba315604dd430b464d40d2b6b47566a01d8ad68055302f3"
+    },
+    {
+      "file": "app/Services/Dadata/ClientBase.php",
+      "new_file": false,
+      "before_sha256": "61cd6f7732d4f0408a37c1e8452f9dd7cc9292492d497fba384d56ec9ddbf42c",
+      "after_sha256": "de07f80d8ab0c6b1d176014259c11a5febc8fc3bb8b617eabf8de887249c597c"
+    },
+    {
+      "file": "app/Services/Mail/MailService.php",
+      "new_file": false,
+      "before_sha256": "6225a2ba98bf717bfd04a2ceebd4bcc2b14b44f00583a5779a4729c48f010b5b",
+      "after_sha256": "d0bd0e1297d5a84b8212f8795014ef6a6dbad3dbfd54b726cd480a94df841103"
+    },
+    {
+      "file": "app/Services/Mail/ParseEmailService.php",
+      "new_file": false,
+      "before_sha256": "e243492ecb848c85537bf4b3d343cdfdad467b78804c1fb36a70e6dcaf8048c0",
+      "after_sha256": "c27835bf6ef0b72a6b91679dfbce76ee54318cc7576528c95af86263cb6dee0c"
+    },
+    {
+      "file": "app/Services/Mails/MailService.php",
+      "new_file": false,
+      "before_sha256": "284c970d33180f357b6bc6f8308998f33e0580dfab240353f9fdbf9b85109dbc",
+      "after_sha256": "846bf6881d3b668d7f0ad4f81215ac265c4ddd1ea513a0b043335832b1ac246e"
+    },
+    {
+      "file": "app/Services/Mails/ParsedMailService.php",
+      "new_file": false,
+      "before_sha256": "6578da160f44bbcf7d97c9e088160a025cf66383378feeef1a8954652ea5c95c",
+      "after_sha256": "a0528c8afc6ae1291bea0d0cc359d772b896848c8f3bf95ce7d3d4cc8a8e1dc8"
+    },
+    {
+      "file": "app/Services/MapDataService.php",
+      "new_file": false,
+      "before_sha256": "1db8b608b3a2e3f09572c13f96c6a33929992de496490971b67b3dd8d2b22b1b",
+      "after_sha256": "7ee380097a15691883c97bebcbba0cd286a8c2760ba1d351f153237805db2d8e"
+    },
+    {
+      "file": "app/Services/Payment/ManagerPaymentService.php",
+      "new_file": false,
+      "before_sha256": "3ef955a8e000ce7c12cedee04d5bfa1531c4c1a43c5c71af2d13d7c072bfd06c",
+      "after_sha256": "d2a7dd9d1db0a69a5c89135fa17fb23aea253a7e64324807847925000db9b807"
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoLoginInbox.php",
+      "new_file": true,
+      "before_sha256": null,
+      "after_sha256": "8f3bda2072084ad43f23773f8087ae169762edfa337e294c12d20b2abbdba631"
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoPolicy.php",
+      "new_file": true,
+      "before_sha256": null,
+      "after_sha256": "81f96b6fa4e6c159abaf5f710806db06ab3d9ac0c264b93c2495703864fe71e9"
+    },
+    {
+      "file": "app/Services/Release/GpmTsDemoTransport.php",
+      "new_file": true,
+      "before_sha256": null,
+      "after_sha256": "252874a6753e8e6045552b6d9306a11072f9ee2602033ff9c760f1d0fd84f700"
+    },
+    {
+      "file": "app/Services/Settings/BankingSettingsService.php",
+      "new_file": false,
+      "before_sha256": "addfcaa9a67831967ba46b460ead8cc03b43b030574ab09578074ffd0f6cc5c8",
+      "after_sha256": "552150225637ea4dadde8c4570309e4e15dac681e79140ac23253b72b6d3a7c4"
+    },
+    {
+      "file": "app/Services/WebKlexMailClient.php",
+      "new_file": false,
+      "before_sha256": "be2d391192344d7c2640e8f92277c1fedbfd351294529843c1252fa286df712f",
+      "after_sha256": "8e79e96ad69419a073e23b023b48f0c46996ef5c6d84e7021e44e8e60bb5425f"
+    },
+    {
+      "file": "app/Traits/getCoordinateTrait.php",
+      "new_file": false,
+      "before_sha256": "dae6430ef2443b36ca8fd6ea6a72d03e834206f8914e73ae559ce7a847a99778",
+      "after_sha256": "4390dad9efc086ec252680f9968e90da379901f62fdf40d9bf357dde563151a3"
+    },
+    {
+      "file": "app/Traits/sendSmsTrait.php",
+      "new_file": false,
+      "before_sha256": "d39c63e82f830220dbf5540baac55ae4983428457d5b0ef0596a0a1381ed815f",
+      "after_sha256": "6ab711f3e401af8498104e7ec7bfebffac7738aaf816c7101bcdada28e2b5ba7"
+    }
+  ],
+  "private_acceptance": {
+    "auth": true,
+    "transport": true,
+    "installation": true
+  },
+  "fresh_targeted_encrypted_backup_restored": true,
+  "database_backup_needed_for_this_code_only_package": false,
+  "apply_implemented": true,
+  "live_files_changed": false,
+  "release_ready": false,
+  "remaining_before_live_apply": [
+    "Owner review of concrete package consequences",
+    "Live apply and HTTP verification through TS FPM socket during the agreed short TS maintenance window",
+    "Manual browser login using local inbox and app-to-TS acceptance on designated test data"
+  ],
+  "apply_order": [
+    "Keep original data/schema/accounts/env/cron",
+    "Create three new release classes first; provider then guarded caller files",
+    "Preserve exact file owners/modes and use atomic per-file replacement",
+    "Invalidate only these TS opcache entries through its socket; no global reset",
+    "Check demo response marker plus auth denials; preserve GPM sync cron",
+    "Never restore an SMTP-capable baseline while claiming daily mail remains OFF"
+  ]
+}

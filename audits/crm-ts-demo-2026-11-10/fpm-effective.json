@@ -1,0 +1,21 @@
+{
+  "php_version": "7.4.33",
+  "sapi": "fpm-fcgi",
+  "settings": {
+    "opcache.enable": "1",
+    "opcache.validate_timestamps": "1",
+    "opcache.revalidate_freq": "2",
+    "opcache.revalidate_path": "0",
+    "opcache.use_cwd": "1",
+    "opcache.file_cache_only": "0",
+    "opcache.restrict_api": ""
+  },
+  "opcache_invalidate_available": true,
+  "laravel_bootstrapped": false,
+  "database_connected": false,
+  "opcache_invalidated": false,
+  "socket": "/var/run/ts.workstaffcrm.ru.sock",
+  "main_crm_accessed": false,
+  "existing_live_files_changed": false,
+  "shared_services_reloaded": false
+}

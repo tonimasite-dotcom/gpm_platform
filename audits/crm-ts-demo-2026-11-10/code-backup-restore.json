@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "kind": "targeted_code_backup_no_database",
+  "encrypted_sha256": "4d1555014fd01a636d21444076a5aabdfc95236ad7e2cee17e3198c0d621cc01",
+  "encrypted_bytes": 40682,
+  "existing_files_restored": 24,
+  "new_files_absence_recorded": 3,
+  "all_restored_sha256_match": true,
+  "key_stayed_separate": true,
+  "database_backup_included": false,
+  "live_files_changed": false,
+  "local_encrypted_backup": ".tmp/demo-code-backup-04/ts-demo-code-before.tar.gz.age",
+  "key_location": "original-checkout/.tmp/production-backup-20261015/age-identity.txt"
+}
