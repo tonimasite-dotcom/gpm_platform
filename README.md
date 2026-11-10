@@ -10,6 +10,9 @@
 72 таблиц сохранены, private MySQL остановлен. Свежий targeted encrypted backup
 кода восстановлен с совпадением SHA. Основная CRM не менялась.
 [Код и границы пакета](integrations/workstaff-test-crm/baseline/demo/README.md).
+Код `b24a97d`, [CI 42787704677](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42787704677)
+успешен. [Текущая точка и последствия выпуска](PROJECT_HANDOFF_2026-11-10_TS_DEMO_PACKAGE_READY.md).
+[Продолжить с этой точки](CONTINUE_PROJECT_PROMPT_2026-11-10_TS_DEMO_PACKAGE_READY.md).
 
 10.11.2026 подготовлен полный пакет переноса в новый чат: операционный снимок,
 промпт, карта ресурсов, безопасные документы/код/audits; частная переписка и
