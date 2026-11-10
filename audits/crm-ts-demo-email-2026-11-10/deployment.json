@@ -1,0 +1,187 @@
+{
+  "passed": true,
+  "code_commit": "c4e5ef28f9a2c382fea9409989a1e4d9290aea93",
+  "ci_run": 42802391274,
+  "manifest_sha256": "58113c74d2a7f18b349ebf1ee172418fcf3a1744c22d61ac753312aae06f3c32",
+  "elapsed_seconds": 2.274,
+  "files_changed": 25,
+  "debt_guards_retained": 4,
+  "login_controller_unchanged": true,
+  "local_inbox_installed": false,
+  "login_delivery": "existing email view and branch SMTP through separate mailer",
+  "protected_files_unchanged": true,
+  "sync_cron_unchanged": true,
+  "maintenance_held": false,
+  "runtime_probe": {
+    "passed": true,
+    "php_sapi": "fpm-fcgi",
+    "login_smtp_separate_from_blocked_default": true,
+    "demo_version": "ts-demo-20261110-06",
+    "login_code_check_enabled": true,
+    "existing_gpm_sync_enabled": true,
+    "mail_transport_is_null": true,
+    "broadcast_transport_is_null": true,
+    "explicit_sql_or_sync_executed": false,
+    "opened_database_connections": 0,
+    "main_crm_accessed": false,
+    "socket": "/var/run/ts.workstaffcrm.ru.sock",
+    "existing_live_files_changed": false,
+    "shared_services_reloaded": false
+  },
+  "http_acceptance": {
+    "passed": true,
+    "responses": {
+      "/api/user": {
+        "status": 401,
+        "demo_marker": "ts-demo-20261110-06",
+        "response_bytes": 30
+      },
+      "/": {
+        "status": 200,
+        "demo_marker": "ts-demo-20261110-06",
+        "response_bytes": 1902
+      }
+    }
+  },
+  "opcache": {
+    "passed": true,
+    "files": [
+      {
+        "file": "app/Console/Commands/CheckCustomerDebit.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Console/Commands/CheckDebit.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Console/Commands/CheckWorkerIsActive.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Console/Commands/ParseEmailLead.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Console/Commands/RefreshBankingToken.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Console/Commands/setStatementsAndGetTransactionsFromApi.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Http/Controllers/Payment/TinkofWebhookController.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Http/Controllers/QtsmsSms/Src/SmsClient.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Jobs/ParseMailBox.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Providers/AppServiceProvider.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Banking/BankingService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Calls/CallService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Dadata/ClientBase.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Mail/MailService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Mail/ParseEmailService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Mails/MailService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Mails/ParsedMailService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/MapDataService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Payment/ManagerPaymentService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Release/GpmTsDemoPolicy.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Release/GpmTsDemoTransport.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/Settings/BankingSettingsService.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Services/WebKlexMailClient.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Traits/getCoordinateTrait.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      },
+      {
+        "file": "app/Traits/sendSmsTrait.php",
+        "was_cached": false,
+        "invalidated_or_not_cached": true
+      }
+    ],
+    "global_cache_reset": false,
+    "laravel_bootstrapped": false,
+    "database_connected": false,
+    "main_crm_accessed": false,
+    "socket": "/var/run/ts.workstaffcrm.ru.sock",
+    "existing_live_files_changed": false,
+    "shared_services_reloaded": false
+  },
+  "database_jobs_or_migrations_executed": false,
+  "main_crm_accessed": false,
+  "shared_services_reloaded": false,
+  "live_login_or_email_to_real_user_tested": false
+}

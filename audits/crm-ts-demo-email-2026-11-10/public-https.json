@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "checked_utc": "2026-11-10T10:51:56.592721+00:00",
+  "tls_verified": true,
+  "redirects_followed": false,
+  "responses": [
+    {
+      "path": "/",
+      "status": 200,
+      "demo_marker": "ts-demo-20261110-06"
+    },
+    {
+      "path": "/api/user",
+      "status": 401,
+      "demo_marker": "ts-demo-20261110-06"
+    }
+  ],
+  "login_requested": false,
+  "real_emails_sent": false,
+  "main_crm_accessed": false
+}
