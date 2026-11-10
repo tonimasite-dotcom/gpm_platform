@@ -1,0 +1,16 @@
+{
+  "headSha": "d8b8ff3bfd422e23353865b0d16b82e5bb35a06e",
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42798190912",
+  "jobs": [
+    {
+      "name": "flutter",
+      "conclusion": "success"
+    },
+    {
+      "name": "backend",
+      "conclusion": "success"
+    }
+  ]
+}

@@ -10,6 +10,9 @@ Auth/GPM логика совпадает с ранее проверенной; �
 Полный пакет еще НЕ применен. На live остается отдельное отключение дебиторки;
 переход кодов входа в локальное окно требует согласованного выпуска.
 [Актуальный состав](audits/crm-ts-demo-rebase-2026-11-10/manifest.json).
+Код `d8b8ff3`, [CI 42798190912](https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/42798190912)
+успешен. [Текущий handoff](PROJECT_HANDOFF_2026-11-10_TS_DEMO_REBASED_READY.md).
+[Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-10_TS_DEMO_REBASED_READY.md).
 
 10.11.2026 выпущено отдельное отключение фоновой дебиторки и email должникам
 только в TS: три файла/четыре guards. Код `497943c`, CI 42791198145 SUCCESS;
