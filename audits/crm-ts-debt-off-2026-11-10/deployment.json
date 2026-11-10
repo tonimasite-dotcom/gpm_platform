@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "manifest_sha256": "9281c7aec1cf5ca3489e5b06f9e0c76eb2c76590fc42b130097f7bff0c6254b2",
+  "elapsed_seconds": 0.209,
+  "files_changed": 3,
+  "guarded_methods": 4,
+  "fpm_handlers": {
+    "passed": true,
+    "checks": [
+      "App\\Console\\Commands\\CheckDebit::handle",
+      "App\\Console\\Commands\\CheckDebit::sendMail",
+      "App\\Console\\Commands\\CheckCustomerDebit::handle",
+      "App\\Services\\WebKlexMailClient::sendDebitMessage"
+    ],
+    "sapi": "fpm-fcgi",
+    "database_accessed": false,
+    "mail_transport_accessed": false,
+    "laravel_bootstrapped": false,
+    "actual_job_dispatched": false,
+    "main_crm_accessed": false,
+    "socket": "/var/run/ts.workstaffcrm.ru.sock",
+    "existing_live_files_changed": false,
+    "shared_services_reloaded": false
+  },
+  "http": {
+    "passed": true,
+    "responses": {
+      "/api/user": {
+        "status": 401,
+        "demo_marker": null,
+        "response_bytes": 30
+      },
+      "/": {
+        "status": 200,
+        "demo_marker": null,
+        "response_bytes": 1902
+      }
+    }
+  },
+  "protected_files_unchanged": true,
+  "sync_cron_unchanged": true,
+  "maintenance_held": false,
+  "authorization_changed": false,
+  "database_jobs_or_migrations_executed": false,
+  "main_crm_accessed": false,
+  "shared_services_reloaded": false
+}

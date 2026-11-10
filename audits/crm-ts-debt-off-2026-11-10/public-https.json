@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "host": "ts.workstaffcrm.ru",
+  "responses": [
+    {
+      "path": "/",
+      "status": 200,
+      "expected": 200,
+      "body_bytes": 1902
+    },
+    {
+      "path": "/api/user",
+      "status": 401,
+      "expected": 401,
+      "body_bytes": 30
+    }
+  ],
+  "redirects_followed": false,
+  "real_jobs_dispatched": false
+}
