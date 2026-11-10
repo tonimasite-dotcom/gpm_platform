@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "App\\Console\\Commands\\CheckDebit::handle",
+    "App\\Console\\Commands\\CheckDebit::sendMail",
+    "App\\Console\\Commands\\CheckCustomerDebit::handle",
+    "App\\Services\\WebKlexMailClient::sendDebitMessage"
+  ],
+  "sapi": "cli",
+  "database_accessed": false,
+  "mail_transport_accessed": false,
+  "laravel_bootstrapped": false,
+  "actual_job_dispatched": false,
+  "main_crm_accessed": false
+}

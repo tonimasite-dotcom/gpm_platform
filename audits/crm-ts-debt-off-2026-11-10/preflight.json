@@ -1,0 +1,7 @@
+{
+  "dry_run_passed": true,
+  "files": 3,
+  "manifest_sha256": "9281c7aec1cf5ca3489e5b06f9e0c76eb2c76590fc42b130097f7bff0c6254b2",
+  "backup_sha256": "4d1555014fd01a636d21444076a5aabdfc95236ad7e2cee17e3198c0d621cc01",
+  "live_files_changed": false
+}

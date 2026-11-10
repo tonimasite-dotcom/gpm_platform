@@ -1,0 +1,49 @@
+{
+  "files": [
+    {
+      "file": "app/Console/Commands/CheckDebit.php",
+      "before_sha256": "c87f29176eca847fe0dafd1a2b81ee2c69c8eeae7d10963859ee45210ea7258f",
+      "after_sha256": "63947d0016dc66dab044d89a843d5d2a3b0a33fe3705d8a233dc943cd9b9e5af",
+      "guarded_methods": [
+        "handle",
+        "sendMail"
+      ]
+    },
+    {
+      "file": "app/Console/Commands/CheckCustomerDebit.php",
+      "before_sha256": "204398dc400d2a052cf338c55fa94b0862b7a32a24c0c78c23c1d565060d292d",
+      "after_sha256": "cf629abb50f6866868599e237f4c20734714db5320d38215bad82309510c963b",
+      "guarded_methods": [
+        "handle"
+      ]
+    },
+    {
+      "file": "app/Services/WebKlexMailClient.php",
+      "before_sha256": "be2d391192344d7c2640e8f92277c1fedbfd351294529843c1252fa286df712f",
+      "after_sha256": "50fad970e3bca51c6d7e04fb67afe6c6e46e6a721572caa0b61578cd3cde3c4a",
+      "guarded_methods": [
+        "sendDebitMessage"
+      ]
+    }
+  ],
+  "protected_files": {
+    ".env": "1dd46bd454f259ff2367bcc67a8cbcabd84c98c6bd1953b2551401e1da1b59b2",
+    "config/auth.php": "880c9dd0045b696c33a0f60a49396eeaf2ae89efb2e3d36378449c77284fc548",
+    "app/Console/Kernel.php": "b72d6217f3798bb75ff7870f4caa58c71b6100172cca11277897143195121405",
+    "routes/api.php": "77772fb2f96466f0ff28cc0d95bde8bb18992a26cfc6c3e8db46902b09d7a145",
+    "app/Http/Controllers/Auth/LoginController.php": "f64131b5e4593ad9556ef65ee61630d159fabcec0d3e76311ce9caa5c3753667",
+    "app/Providers/AppServiceProvider.php": "0e365a645725efde4f9e4a18c6f8af7f19da718ea58823fc238b8146bd375152",
+    "app/Services/Order/GpmAppOrderSync.php": "6a6737a913c51d1f1a2ca63f846a2492280cdf951737d77bec7ef5f13db2a080",
+    "app/Services/Order/GpmAppOrderPublisher.php": "906dacd8a5a1366ada2ad842878305c2d3c7916b9d6f9c05544996ac27668f95",
+    "app/Services/Order/GpmWorkerRateRules.php": "2e9cc2dbfbb5fb60738b13ceb09553375290d894d0a4d9e83f89e6c948f05031",
+    "app/Services/Order/GpmLogistOrderGuard.php": "4a5cbaf6c49b34a200ac782768d31d8afc31857512f47c1dadc0e79a959487a7",
+    "app/Http/Controllers/Order/GpmWorkerRateController.php": "e02e7bce9b7724a8eb4834c11be981743013c6d7c9b404d336ad6d9e9a99bd9a"
+  },
+  "sync_cron_sha256": "113d98c6d51bc04f4d8f8dfc12814402bec01b061127445f394b4afbf60c2365",
+  "backup_artifact": "/root/gpm-ts-update/20261110-demo-04/code-backup/ts-demo-code-before.tar.gz.age",
+  "backup_sha256": "4d1555014fd01a636d21444076a5aabdfc95236ad7e2cee17e3198c0d621cc01",
+  "debt_calculation_and_email_disabled_in_overlay": true,
+  "authorization_changes": false,
+  "schema_changes": false,
+  "live_files_changed": false
+}
