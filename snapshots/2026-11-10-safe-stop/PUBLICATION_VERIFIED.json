@@ -1,0 +1,249 @@
+{
+  "all_encrypted_assets_verified": true,
+  "encrypted_asset_count": 39,
+  "verified_encrypted_assets": [
+    {
+      "name": "GPM_SESSION_PRIVATE_20261110_FINAL.tar.gz.age",
+      "bytes": 675519454,
+      "sha256": "bc35c44725cd928632ccf3e9c6dc6a8a97735a97b9098c7e24507fd1f618b7f0",
+      "asset_id": 734323574
+    },
+    {
+      "name": "ts-manifest.json.age",
+      "bytes": 4698377,
+      "sha256": "e53284319ab65fb94ab2a7e16834b4178ce4bef8d5aaaa5c0ed2f33de5d53a01",
+      "asset_id": 731882028
+    },
+    {
+      "name": "ts-mysql.sql.gz.age",
+      "bytes": 55778427,
+      "sha256": "5dab2b936f17de0938a3740d444ea3fb3740381d1eb6ed4b321e273e302aedf8",
+      "asset_id": 731882029
+    },
+    {
+      "name": "ts-files.tar.gz.age.part001",
+      "bytes": 50331648,
+      "sha256": "e645aacb42dc27d49f16721a7fc431409fded64ff2af5c284fa24cc27b428187",
+      "asset_id": 734339703
+    },
+    {
+      "name": "ts-files.tar.gz.age.part002",
+      "bytes": 50331648,
+      "sha256": "d0c194b3c264a6e853c0e6c0881349ac284bf49ac6060af1284c5834ab3ba92c",
+      "asset_id": 734339709
+    },
+    {
+      "name": "ts-files.tar.gz.age.part003",
+      "bytes": 50331648,
+      "sha256": "c51ecab38b0b2d1096a38e13c80d2e21a94ed68690cd237e50eb225839197cf8",
+      "asset_id": 734339710
+    },
+    {
+      "name": "ts-files.tar.gz.age.part004",
+      "bytes": 50331648,
+      "sha256": "816f2c37ad53b9cbce9778cf20a9ac0f2f0ff542bc9e993c10ec8a887c4a7534",
+      "asset_id": 734339704
+    },
+    {
+      "name": "ts-files.tar.gz.age.part005",
+      "bytes": 50331648,
+      "sha256": "f6d677953cd6130c28fdb4985860872fc1463943c02fa896c1407da7f87dbbfa",
+      "asset_id": 734339711
+    },
+    {
+      "name": "ts-files.tar.gz.age.part006",
+      "bytes": 50331648,
+      "sha256": "7b48943010c2026417fa04b924ba3dc5bca956d02ddaefac7a8e784eb53f6a88",
+      "asset_id": 734342800
+    },
+    {
+      "name": "ts-files.tar.gz.age.part007",
+      "bytes": 50331648,
+      "sha256": "884117156fd5ac81d930802462335e47c436ce6b2a2253c1e80755271e78881e",
+      "asset_id": 734342922
+    },
+    {
+      "name": "ts-files.tar.gz.age.part008",
+      "bytes": 50331648,
+      "sha256": "1838077fe3c76772eced781233a9630482a4fed0d3e74077b82b2b2bebad3b9d",
+      "asset_id": 734342921
+    },
+    {
+      "name": "ts-files.tar.gz.age.part009",
+      "bytes": 50331648,
+      "sha256": "f650208f36cc0307b100810a54f5f626e2f5f7cca9614c2d303647937fb19506",
+      "asset_id": 734342932
+    },
+    {
+      "name": "ts-files.tar.gz.age.part010",
+      "bytes": 50331648,
+      "sha256": "3e258b026fbf435cf81880007d233a49e8c88c5b83b54195e8d13de80aaa8e88",
+      "asset_id": 734342950
+    },
+    {
+      "name": "ts-files.tar.gz.age.part011",
+      "bytes": 50331648,
+      "sha256": "2b186a7e66e56b516a08db7611e65d2908355b4dcec2aa2d9883a3f4fd6423db",
+      "asset_id": 734345364
+    },
+    {
+      "name": "ts-files.tar.gz.age.part012",
+      "bytes": 50331648,
+      "sha256": "c863a49793a2e48d83981534bc7d17c4c707362f49abead9f5a628f3be00743e",
+      "asset_id": 734346125
+    },
+    {
+      "name": "ts-files.tar.gz.age.part013",
+      "bytes": 50331648,
+      "sha256": "11dd8e2ac14e068c48400a0f495f4fc08b75c164b96688a9dcf1f3eb161028dc",
+      "asset_id": 734346129
+    },
+    {
+      "name": "ts-files.tar.gz.age.part014",
+      "bytes": 50331648,
+      "sha256": "fce26b96a739eff820290c0481a3d060fca478be12dbe8bb24ae0141c12eb5e9",
+      "asset_id": 734346138
+    },
+    {
+      "name": "ts-files.tar.gz.age.part015",
+      "bytes": 50331648,
+      "sha256": "395607ca97f282f5e88ce65227739685f2ed27445db0ba79e27fab376d79220d",
+      "asset_id": 734346240
+    },
+    {
+      "name": "ts-files.tar.gz.age.part016",
+      "bytes": 50331648,
+      "sha256": "e80aa31e0826aacdc832f068e3fecb2c98fb2969671302d24e1889dff42c1f9a",
+      "asset_id": 734347880
+    },
+    {
+      "name": "ts-files.tar.gz.age.part017",
+      "bytes": 50331648,
+      "sha256": "38b14bc4552e5597aaf9e2e4859b0808308446bc8f762a9a6e3261bdda07e71c",
+      "asset_id": 734348811
+    },
+    {
+      "name": "ts-files.tar.gz.age.part018",
+      "bytes": 50331648,
+      "sha256": "b5a41501b3037cbf818e7938a5315dcf054837358538c911a7707fadc2afc879",
+      "asset_id": 734348830
+    },
+    {
+      "name": "ts-files.tar.gz.age.part019",
+      "bytes": 50331648,
+      "sha256": "ad2ada14dfaa6293051e47b85891a0933d26935f4b58e55fe370909759d4b356",
+      "asset_id": 734348894
+    },
+    {
+      "name": "ts-files.tar.gz.age.part020",
+      "bytes": 50331648,
+      "sha256": "e59f992bddd894e3885d9efd5257963f53fd9b7bfacc8638824d6c031c5095f8",
+      "asset_id": 734348906
+    },
+    {
+      "name": "ts-files.tar.gz.age.part021",
+      "bytes": 50331648,
+      "sha256": "b78e094712fb8efceaa47e95d3d0c533f6f67d6c40896c064db3bef068f192ed",
+      "asset_id": 734349977
+    },
+    {
+      "name": "ts-files.tar.gz.age.part022",
+      "bytes": 50331648,
+      "sha256": "7b4bc7677848721756547ca6860c182eb3ef496681975a636e989bbd654bcee1",
+      "asset_id": 734351110
+    },
+    {
+      "name": "ts-files.tar.gz.age.part023",
+      "bytes": 50331648,
+      "sha256": "2fbef73dfc018c622dd174716ff5faa202bcdb5940337e89af395eb7c4b6004f",
+      "asset_id": 734351113
+    },
+    {
+      "name": "ts-files.tar.gz.age.part024",
+      "bytes": 50331648,
+      "sha256": "7422db64aa0c6a9dff4524994ccd764106826de4939767799790dc2dd85787e4",
+      "asset_id": 734351141
+    },
+    {
+      "name": "ts-files.tar.gz.age.part025",
+      "bytes": 50331648,
+      "sha256": "d53226fb8de40ec4cb4f0a60c14bc016a83bd249523f8ad6b6e50c4f09beace2",
+      "asset_id": 734351164
+    },
+    {
+      "name": "ts-files.tar.gz.age.part026",
+      "bytes": 50331648,
+      "sha256": "55a94064d6a34c172ea9a5b09731c9871788c60f14eba3625ec8cb4432117529",
+      "asset_id": 734352459
+    },
+    {
+      "name": "ts-files.tar.gz.age.part027",
+      "bytes": 50331648,
+      "sha256": "5f83751906dfb4bdf9e93666153ecf10ab8361ff765882fd79c3816a2aa09f53",
+      "asset_id": 734355456
+    },
+    {
+      "name": "ts-files.tar.gz.age.part028",
+      "bytes": 50331648,
+      "sha256": "b530ea32b6459296e11909f114a88503832e6d1182a5d583589a49920bbdb4a5",
+      "asset_id": 734355497
+    },
+    {
+      "name": "ts-files.tar.gz.age.part029",
+      "bytes": 50331648,
+      "sha256": "812ffa5fe274b7613da10374ba7775457a417884b42a5c1741f1067c83fc4eaf",
+      "asset_id": 734355556
+    },
+    {
+      "name": "ts-files.tar.gz.age.part030",
+      "bytes": 50331648,
+      "sha256": "93fac87eed82057856625ea5ea2d8085650f7889cf06910445822f33335651b3",
+      "asset_id": 734355574
+    },
+    {
+      "name": "ts-files.tar.gz.age.part031",
+      "bytes": 50331648,
+      "sha256": "61cb91c2369b828d44c359ebd3e95a0e0e4a7d8709a1c15e40dc351af7dbe556",
+      "asset_id": 734356623
+    },
+    {
+      "name": "ts-files.tar.gz.age.part032",
+      "bytes": 50331648,
+      "sha256": "89bea317c4fe2d3581764574303dd35e8115e05434d6dc98093f7a556c7b7ed2",
+      "asset_id": 734358693
+    },
+    {
+      "name": "ts-files.tar.gz.age.part033",
+      "bytes": 50331648,
+      "sha256": "1d4af6aa5be1b8253f0634fe686b6176ce79d8fb69b3d1281bd8cdeec27412e3",
+      "asset_id": 734358737
+    },
+    {
+      "name": "ts-files.tar.gz.age.part034",
+      "bytes": 50331648,
+      "sha256": "204606f0834755e404cd09feca95a07723283b802a7003ee2fc5c6f61fddb6bf",
+      "asset_id": 734358792
+    },
+    {
+      "name": "ts-files.tar.gz.age.part035",
+      "bytes": 50331648,
+      "sha256": "0331cbe9f0212e4a53613dd8790ead5d46759a59a943be807240f0c0a5d9ffee",
+      "asset_id": 734358801
+    },
+    {
+      "name": "ts-files.tar.gz.age.part036",
+      "bytes": 23838697,
+      "sha256": "b9bd9b125908a3f0a197b9b5fac8619c01eb72da572dbe4b68878cfd903c7e7c",
+      "asset_id": 734359621
+    }
+  ],
+  "artifact_manifest_sha256": "9a0e1eeee8f7d63a51753a0b970a41799556eff4b7ef20132d1b0e85ca727146",
+  "manifest_asset_id": 734371391,
+  "draft_release_download_verified": true,
+  "whole_ciphertext_split_join_verified": true,
+  "recovery_private_keys_uploaded": false,
+  "code_checkpoint_commit": "2c8d946b561092059457b2f3fb081f2b5c22a140",
+  "release_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/tag/untagged-0be682ad25b37adb2e63",
+  "release_is_draft": true,
+  "new_order_parity_deployed": false
+}

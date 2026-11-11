@@ -29,6 +29,12 @@ SUCCESS; demo-06 deployment PASS. Email-код владелец подтверд
 handoff и continuation. Внутренние schema reports в plaintext не публикуются.
 Большие encrypted файлы хранятся как assets GitHub Release того же репозитория;
 manifest со ссылками и SHA записан в snapshots/2026-11-10-safe-stop/.
+Финализация 11.11: 39 encrypted assets проверены по GitHub digest/размерам.
+Основной архив расшифрован и проверен по всем 84 676 элементам. Файловый backup
+передан 36 частями; split/join дал исходный SHA без расшифровки. Команда скачивания
+draft Release проверена. Git bundle содержит полную историю checkpoint 2c8d946.
+Последующие metadata commits смотреть в git log; архив кода заморожен на2c8d946,
+а актуальный join-helper/индекс/промпт доступны в текущей ветке Git.
 
 Серверные точки: /root/gpm-ts-update/order-parity-20261110-02 и
 /root/gpm-ts-update/order-parity-audit-20261110-01. Там все сохранено на месте.

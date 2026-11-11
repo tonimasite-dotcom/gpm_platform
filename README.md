@@ -7,6 +7,11 @@
 [Полный снимок и получение encrypted assets](snapshots/2026-11-10-safe-stop/README.md).
 [Текущий handoff](PROJECT_HANDOFF_2026-11-10_SAFE_STOP_FULL_SNAPSHOT.md).
 [Промпт продолжения](CONTINUE_PROJECT_PROMPT_2026-11-10_SAFE_STOP_FULL_SNAPSHOT.md).
+Сохранение завершено 11.11: все 39 encrypted assets в draft GitHub Release
+проверены по server SHA/размерам; расшифровка основного архива и 84 676 элементов,
+а также round trip 36 частей файлового backup проверены. Ключи отдельно.
+[Индекс](snapshots/2026-11-10-safe-stop/ARTIFACTS.json) и
+[подтверждение хранения](snapshots/2026-11-10-safe-stop/PUBLICATION_VERIFIED.json).
 
 10.11.2026 по новому поручению выполнена read-only сверка поведения заявок.
 Подробные внутренние отчеты и план сохранены приватно в текущем worktree:
