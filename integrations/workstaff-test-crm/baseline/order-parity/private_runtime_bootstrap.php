@@ -56,4 +56,13 @@ if (config('cache.default') !== 'array' || config('session.driver') !== 'array')
 }
 // Process-only test double. Production sync code/configuration is not modified.
 $app['config']->set('gpm_app_order_sync.enabled', false);
+// The existing sync service reads env() directly, not this config key. Clamp
+// every Laravel env adapter in this process too; never write the .env file.
+$_ENV['GPM_APP_ORDER_SYNC_ENABLED'] = 'false';
+$_SERVER['GPM_APP_ORDER_SYNC_ENABLED'] = 'false';
+putenv('GPM_APP_ORDER_SYNC_ENABLED=false');
+if (!class_exists(App\Services\Order\GpmAppOrderSync::class)
+    || (new App\Services\Order\GpmAppOrderSync())->enabled()) {
+    throw new RuntimeException('PRIVATE_SYNC_MUST_BE_DISABLED');
+}
 return $app;

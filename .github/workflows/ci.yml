@@ -65,8 +65,10 @@ jobs:
           find integrations/workstaff-test-crm -name '*.php' -print0 | xargs -0 -n 1 php -l
           php integrations/workstaff-test-crm/tests/sync_plan_test.php
           php integrations/workstaff-test-crm/tests/sync_service_test.php
+          php integrations/workstaff-test-crm/tests/sync_pause_guard_test.php
           php integrations/workstaff-test-crm/tests/worker_rate_test.php
           python -m unittest discover -s integrations/workstaff-test-crm/baseline/order-parity -p 'test_*.py' -v
+          python -m unittest discover -s integrations/workstaff-test-crm/baseline/full-runtime -p 'test_*.py' -v
           python -m py_compile integrations/workstaff-test-crm/worker-rate/install-worker-rate.py
 
   flutter:
