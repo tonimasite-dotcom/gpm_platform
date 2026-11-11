@@ -1,0 +1,309 @@
+{
+  "snapshot_date": "2026-11-10",
+  "repo": "tonimasite-dotcom/gpm_platform",
+  "branch": "work/ts-resume-2026-11-09",
+  "code_checkpoint_commit": "2c8d946b561092059457b2f3fb081f2b5c22a140",
+  "release_tag": "snapshot-20261110-order-parity-stop",
+  "release_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/tag/untagged-0be682ad25b37adb2e63",
+  "release_is_draft": true,
+  "release_id": 440520085,
+  "all_github_assets_verified": false,
+  "artifacts": [
+    {
+      "name": "GPM_SESSION_PRIVATE_20261110_FINAL.tar.gz.age",
+      "bytes": 675519454,
+      "sha256": "bc35c44725cd928632ccf3e9c6dc6a8a97735a97b9098c7e24507fd1f618b7f0",
+      "role": "complete_private_session_code_data_chat",
+      "server_path": "/root/gpm-ts-update/session-snapshot-20261110-final-01/GPM_SESSION_PRIVATE_20261110_FINAL.tar.gz.age",
+      "github_uploaded_and_digest_verified": true,
+      "github_asset_id": 734323574,
+      "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/GPM_SESSION_PRIVATE_20261110_FINAL.tar.gz.age"
+    },
+    {
+      "name": "ts-manifest.json.age",
+      "bytes": 4698377,
+      "sha256": "e53284319ab65fb94ab2a7e16834b4178ce4bef8d5aaaa5c0ed2f33de5d53a01",
+      "role": "ts_recovery_backup",
+      "server_path": "/root/gpm-ts-update/order-parity-20261110-02/backup-preparation-02/ts-manifest.json.age",
+      "github_uploaded_and_digest_verified": true,
+      "github_asset_id": 731882028,
+      "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-manifest.json.age"
+    },
+    {
+      "name": "ts-mysql.sql.gz.age",
+      "bytes": 55778427,
+      "sha256": "5dab2b936f17de0938a3740d444ea3fb3740381d1eb6ed4b321e273e302aedf8",
+      "role": "ts_recovery_backup",
+      "server_path": "/root/gpm-ts-update/order-parity-20261110-02/backup-preparation-02/ts-mysql.sql.gz.age",
+      "github_uploaded_and_digest_verified": true,
+      "github_asset_id": 731882029,
+      "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-mysql.sql.gz.age"
+    },
+    {
+      "name": "ts-files.tar.gz.age",
+      "bytes": 1785446377,
+      "sha256": "688a921414d1f28f1d862beea608b370b2c2a7293b64fc71e2f86b81319e734e",
+      "role": "ts_recovery_backup",
+      "server_path": "/root/gpm-ts-update/order-parity-20261110-02/backup-preparation-02/ts-files.tar.gz.age",
+      "github_uploaded_and_digest_verified": false,
+      "storage": "split_encrypted_file",
+      "parts": [
+        {
+          "name": "ts-files.tar.gz.age.part001",
+          "bytes": 50331648,
+          "sha256": "e645aacb42dc27d49f16721a7fc431409fded64ff2af5c284fa24cc27b428187",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734339703,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part001"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part002",
+          "bytes": 50331648,
+          "sha256": "d0c194b3c264a6e853c0e6c0881349ac284bf49ac6060af1284c5834ab3ba92c",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734339709,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part002"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part003",
+          "bytes": 50331648,
+          "sha256": "c51ecab38b0b2d1096a38e13c80d2e21a94ed68690cd237e50eb225839197cf8",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734339710,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part003"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part004",
+          "bytes": 50331648,
+          "sha256": "816f2c37ad53b9cbce9778cf20a9ac0f2f0ff542bc9e993c10ec8a887c4a7534",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734339704,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part004"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part005",
+          "bytes": 50331648,
+          "sha256": "f6d677953cd6130c28fdb4985860872fc1463943c02fa896c1407da7f87dbbfa",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734339711,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part005"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part006",
+          "bytes": 50331648,
+          "sha256": "7b48943010c2026417fa04b924ba3dc5bca956d02ddaefac7a8e784eb53f6a88",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734342800,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part006"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part007",
+          "bytes": 50331648,
+          "sha256": "884117156fd5ac81d930802462335e47c436ce6b2a2253c1e80755271e78881e",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734342922,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part007"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part008",
+          "bytes": 50331648,
+          "sha256": "1838077fe3c76772eced781233a9630482a4fed0d3e74077b82b2b2bebad3b9d",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734342921,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part008"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part009",
+          "bytes": 50331648,
+          "sha256": "f650208f36cc0307b100810a54f5f626e2f5f7cca9614c2d303647937fb19506",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734342932,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part009"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part010",
+          "bytes": 50331648,
+          "sha256": "3e258b026fbf435cf81880007d233a49e8c88c5b83b54195e8d13de80aaa8e88",
+          "github_uploaded_and_digest_verified": true,
+          "github_asset_id": 734342950,
+          "download_url": "https://github.com/tonimasite-dotcom/gpm_platform/releases/download/untagged-0be682ad25b37adb2e63/ts-files.tar.gz.age.part010"
+        },
+        {
+          "name": "ts-files.tar.gz.age.part011",
+          "bytes": 50331648,
+          "sha256": "2b186a7e66e56b516a08db7611e65d2908355b4dcec2aa2d9883a3f4fd6423db",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part012",
+          "bytes": 50331648,
+          "sha256": "c863a49793a2e48d83981534bc7d17c4c707362f49abead9f5a628f3be00743e",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part013",
+          "bytes": 50331648,
+          "sha256": "11dd8e2ac14e068c48400a0f495f4fc08b75c164b96688a9dcf1f3eb161028dc",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part014",
+          "bytes": 50331648,
+          "sha256": "fce26b96a739eff820290c0481a3d060fca478be12dbe8bb24ae0141c12eb5e9",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part015",
+          "bytes": 50331648,
+          "sha256": "395607ca97f282f5e88ce65227739685f2ed27445db0ba79e27fab376d79220d",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part016",
+          "bytes": 50331648,
+          "sha256": "e80aa31e0826aacdc832f068e3fecb2c98fb2969671302d24e1889dff42c1f9a",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part017",
+          "bytes": 50331648,
+          "sha256": "38b14bc4552e5597aaf9e2e4859b0808308446bc8f762a9a6e3261bdda07e71c",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part018",
+          "bytes": 50331648,
+          "sha256": "b5a41501b3037cbf818e7938a5315dcf054837358538c911a7707fadc2afc879",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part019",
+          "bytes": 50331648,
+          "sha256": "ad2ada14dfaa6293051e47b85891a0933d26935f4b58e55fe370909759d4b356",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part020",
+          "bytes": 50331648,
+          "sha256": "e59f992bddd894e3885d9efd5257963f53fd9b7bfacc8638824d6c031c5095f8",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part021",
+          "bytes": 50331648,
+          "sha256": "b78e094712fb8efceaa47e95d3d0c533f6f67d6c40896c064db3bef068f192ed",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part022",
+          "bytes": 50331648,
+          "sha256": "7b4bc7677848721756547ca6860c182eb3ef496681975a636e989bbd654bcee1",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part023",
+          "bytes": 50331648,
+          "sha256": "2fbef73dfc018c622dd174716ff5faa202bcdb5940337e89af395eb7c4b6004f",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part024",
+          "bytes": 50331648,
+          "sha256": "7422db64aa0c6a9dff4524994ccd764106826de4939767799790dc2dd85787e4",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part025",
+          "bytes": 50331648,
+          "sha256": "d53226fb8de40ec4cb4f0a60c14bc016a83bd249523f8ad6b6e50c4f09beace2",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part026",
+          "bytes": 50331648,
+          "sha256": "55a94064d6a34c172ea9a5b09731c9871788c60f14eba3625ec8cb4432117529",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part027",
+          "bytes": 50331648,
+          "sha256": "5f83751906dfb4bdf9e93666153ecf10ab8361ff765882fd79c3816a2aa09f53",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part028",
+          "bytes": 50331648,
+          "sha256": "b530ea32b6459296e11909f114a88503832e6d1182a5d583589a49920bbdb4a5",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part029",
+          "bytes": 50331648,
+          "sha256": "812ffa5fe274b7613da10374ba7775457a417884b42a5c1741f1067c83fc4eaf",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part030",
+          "bytes": 50331648,
+          "sha256": "93fac87eed82057856625ea5ea2d8085650f7889cf06910445822f33335651b3",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part031",
+          "bytes": 50331648,
+          "sha256": "61cb91c2369b828d44c359ebd3e95a0e0e4a7d8709a1c15e40dc351af7dbe556",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part032",
+          "bytes": 50331648,
+          "sha256": "89bea317c4fe2d3581764574303dd35e8115e05434d6dc98093f7a556c7b7ed2",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part033",
+          "bytes": 50331648,
+          "sha256": "1d4af6aa5be1b8253f0634fe686b6176ce79d8fb69b3d1281bd8cdeec27412e3",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part034",
+          "bytes": 50331648,
+          "sha256": "204606f0834755e404cd09feca95a07723283b802a7003ee2fc5c6f61fddb6bf",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part035",
+          "bytes": 50331648,
+          "sha256": "0331cbe9f0212e4a53613dd8790ead5d46759a59a943be807240f0c0a5d9ffee",
+          "github_uploaded_and_digest_verified": false
+        },
+        {
+          "name": "ts-files.tar.gz.age.part036",
+          "bytes": 23838697,
+          "sha256": "b9bd9b125908a3f0a197b9b5fac8619c01eb72da572dbe4b68878cfd903c7e7c",
+          "github_uploaded_and_digest_verified": false
+        }
+      ],
+      "parts_combined_sha256_verified": true
+    }
+  ],
+  "total_encrypted_bytes": 2521442635,
+  "visible_chat_messages": 83,
+  "user_images": 2,
+  "new_order_parity_deployed": false,
+  "private_mysql_stopped": true,
+  "recovery_private_keys_included": false,
+  "today_archive_decryption_and_all_members_verified": true,
+  "git_bundle_full_history_verified": true,
+  "ts_sql_restore_verified": true,
+  "ts_files_archive_all_hashes_verified": true,
+  "physical_ts_files_restore_performed": false,
+  "prior_chat_ciphertext_preserved": true,
+  "prior_chat_needs_its_original_separate_key": true,
+  "continuation_prompt": "CONTINUE_PROJECT_PROMPT_2026-11-10_SAFE_STOP_FULL_SNAPSHOT.md",
+  "last_asset_check_utc": "2026-11-11T06:02:40.506543+00:00",
+  "recovery_join_command": "python integrations/workstaff-test-crm/baseline/order-parity/join_snapshot_parts.py --manifest snapshots/2026-11-10-safe-stop/ARTIFACTS.json --directory .tmp/session-restore-20261110",
+  "finalized_after_session_date": "2026-11-11",
+  "encrypted_parts_round_trip_verified": true
+}

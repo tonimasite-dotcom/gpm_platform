@@ -18,11 +18,23 @@ gh release download snapshot-20261110-order-parity-stop --repo tonimasite-dotcom
 
 Сначала проверить SHA всех файлов из ARTIFACTS.json. Затем читать
 CONTINUE_PROJECT_PROMPT_2026-11-10_SAFE_STOP_FULL_SNAPSHOT.md в корне проекта.
+Файловый backup передан 36 encrypted частями, чтобы избежать зависания большой
+загрузки. После скачивания собрать его без расшифровки и с проверкой каждого SHA:
+
+```powershell
+python integrations/workstaff-test-crm/baseline/order-parity/join_snapshot_parts.py --manifest snapshots/2026-11-10-safe-stop/ARTIFACTS.json --directory .tmp/session-restore-20261110
+```
+
+Инструмент не удаляет части/оригиналы и не перезаписывает существующие файлы.
+Локальный полный round trip split/join проверен: SHA исходного ciphertext совпал.
 Основной encrypted архив содержит полный private handoff, видимую переписку,
 два скриншота, текущий candidate с установленными программными зависимостями,
 холодную БД и оба failed datasets, исходники/операторские скрипты/отчеты,
-git bundle и предыдущий encrypted архив чата. Три больших TS backup являются
-отдельными assets того же комплекта; скачать и проверить нужно ВСЕ assets.
+git bundle и предыдущий encrypted архив чата. Три TS backup передаются отдельно,
+один из них частями; скачать и проверить нужно ВСЕ assets. Если GitHub-передача
+оборвалась, оригинальные encrypted файлы сохранены на сервере и локально;
+server_path в ARTIFACTS.json позволяет получить их по прежнему SSH без новой
+сборки snapshot и без запуска приложения.
 
 Recovery identity сегодняшнего комплекта хранится отдельно, не в Git и не в
 архивах: original-checkout/.tmp/production-backup-20261015/age-identity.txt.

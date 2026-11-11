@@ -16,6 +16,11 @@ GitHub Release snapshot-20261110-order-parity-stop. Крупные данные 
 При необходимости скачай assets авторизованным gh:
 gh release download snapshot-20261110-order-parity-stop --repo tonimasite-dotcom/gpm_platform --dir .tmp/session-restore-20261110
 Используй НОВУЮ приватную папку. Проверь каждый файл по manifest SHA до расшифровки.
+Один backup разделен на36 encrypted частей. Собери его инструментом из Git:
+python integrations/workstaff-test-crm/baseline/order-parity/join_snapshot_parts.py --manifest snapshots/2026-11-10-safe-stop/ARTIFACTS.json --directory .tmp/session-restore-20261110
+Проверяется SHA каждой части и общего ciphertext, расшифровки и перезаписи нет.
+Оригиналы всех encrypted файлов также сохранены на сервере (server_path в manifest)
+и локально; их можно забрать по SSH, не создавая snapshot заново.
 Ключ отдельно: original-checkout/.tmp/production-backup-20261015/age-identity.txt;
 age.exe: original-checkout/.tmp/full-project-snapshot-20261015/tools/age.exe.
 SSH key Path.home()/.ssh/id_ed25519, known-hosts сохранен в private client context.
