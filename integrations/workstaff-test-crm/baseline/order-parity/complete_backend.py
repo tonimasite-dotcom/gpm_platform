@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import subprocess
+from php_routes import active_routes, route_prefix
 
 ROOT = Path('/root/gpm-ts-update/order-parity-20261110-02')
 MAIN = Path('/var/www/gruzpiter/data/www/workstaffcrm.ru')
@@ -43,10 +44,10 @@ def main():
         r'^use\s+(App\\Http\\Controllers\\[\w\\]+)(?:\s+as\s+(\w+))?;', upstream_routes, re.M))
     statements = []
     queue = [MAIN / 'app/Models/User.php', MAIN / 'app/Http/Middleware/FinancialTransaction.php']
-    for match in re.finditer(r'Route::(?:get|post|put|patch|delete|resource|apiResource|match|any)\s*\([^;]*;', upstream_routes):
+    for match in active_routes(upstream_routes):
         statement = match.group(0)
-        prefix = re.search(r'\(\s*[\'"]([^\'"/]+)', statement)
-        if not prefix or prefix.group(1) not in prefixes:
+        prefix = route_prefix(statement)
+        if prefix not in prefixes:
             continue
         classes = re.findall(r'(\\?[\w\\]+Controller)::class', statement)
         if not classes:
@@ -100,11 +101,10 @@ def main():
     manager.write_text(text[:text.rfind('}')] + method + text[text.rfind('}'):])
     routes = candidate / 'routes/api.php'
     original = routes.read_text()
-    pattern = r'Route::(?:get|post|put|patch|delete|resource|apiResource|match|any)\s*\([^;]*;'
     selected = []
-    for match in re.finditer(pattern, original):
-        prefix = re.search(r'\(\s*[\'"]([^\'"/]+)', match.group(0))
-        if prefix and prefix.group(1) in prefixes and 'gpm_' not in match.group(0):
+    for match in active_routes(original):
+        prefix = route_prefix(match.group(0))
+        if prefix in prefixes and 'gpm_' not in match.group(0):
             selected.append((match.start(), match.end()))
     if not selected:
         raise RuntimeError('EXISTING_AUTHENTICATED_ROUTE_GROUP_REQUIRED')

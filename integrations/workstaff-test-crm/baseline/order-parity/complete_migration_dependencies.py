@@ -13,6 +13,23 @@ def references(text):
     for prefix, group in re.findall(r'\buse\s+(App\\[\w\\]+)\\\s*\{([^}]+)\}', text):
         for item in group.split(','):
             result.add(prefix + '\\' + item.strip().split()[0])
+    namespace = re.search(r'^\s*namespace\s+([^;]+);', text, re.M)
+    if namespace:
+        # PHP resolves an unqualified static call/type to the current namespace
+        # unless a use declaration supplies an alias. These helpers need not
+        # have a use statement (for example PaymentReference::...).
+        aliases = set()
+        for imported, alias in re.findall(r'^\s*use\s+([\w\\]+)(?:\s+as\s+(\w+))?\s*;', text, re.M):
+            aliases.add(alias or imported.split('\\')[-1])
+        for _, group in re.findall(r'\buse\s+([\w\\]+)\\\s*\{([^}]+)\}', text):
+            for item in group.split(','):
+                parts = re.split(r'\s+as\s+', item.strip())
+                aliases.add(parts[-1].split('\\')[-1])
+        symbols = set(re.findall(r'(?<![\w\\])([A-Z]\w*)\s*::', text))
+        symbols.update(re.findall(r'\b(?:new|extends|implements|instanceof)\s+([A-Z]\w*)\b', text))
+        symbols.update(re.findall(r'(?<![\w\\])([A-Z]\w*)\s+\$\w+', text))
+        symbols.update(re.findall(r'\)\s*:\s*\??([A-Z]\w*)\b', text))
+        result.update(namespace.group(1) + '\\' + symbol for symbol in symbols - aliases)
     return result
 
 
