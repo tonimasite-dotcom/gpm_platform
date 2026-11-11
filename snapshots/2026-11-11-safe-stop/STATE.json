@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-11",
+  "kind": "continuation_checkpoint",
+  "full_archive_required": false,
+  "work_paused": true,
+  "branch": "work/ts-resume-2026-11-09",
+  "code_checkpoint": "c4785af67f542175309efb4ca617d99619e2e3bf",
+  "code_ci": {
+    "run_id": 43032662131,
+    "conclusion": "success",
+    "url": "https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/43032662131"
+  },
+  "allowed_work_server": "5.183.191.222",
+  "new_server": "5.188.30.25",
+  "new_server_access": "read_only",
+  "leave_existing_new_server_directories": true,
+  "move_ts_or_dns_to_new_server": false,
+  "live_ts": {
+    "code": "c4e5ef2",
+    "version": "demo-06",
+    "new_deployment": false,
+    "new_live_migrations": false
+  },
+  "private_progress_old_server": "/root/gpm-ts-update/order-parity-20261111-04",
+  "private_mysql_running": false,
+  "test_delete": "requested_but_not_executed",
+  "ts_storage_dependency": "test.workstaffcrm.ru/storage/app/public",
+  "target_php": "8.5.12",
+  "old_php": "7.4.33",
+  "old_os": "Debian 10",
+  "old_free_disk_gib_approx": 7,
+  "next_step": "Plan an isolated PHP 8.5.12/Laravel 13 runtime and space on OLD server; no shared-service changes or unapproved cleanup.",
+  "manual_app_acceptance_pending": true,
+  "private_payload_uploaded": false,
+  "bulk_archive_stopped": true,
+  "source_data_and_existing_backups_preserved": true,
+  "verification_file": "GITHUB_VERIFIED.json"
+}
