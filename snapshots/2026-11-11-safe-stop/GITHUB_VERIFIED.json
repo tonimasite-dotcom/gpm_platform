@@ -1,0 +1,60 @@
+{
+  "verified": true,
+  "mode": "compact_continuation_checkpoint",
+  "repo": "tonimasite-dotcom/gpm_platform",
+  "branch": "work/ts-resume-2026-11-09",
+  "verified_commit": "45ed71acdff60f37526f0cc3d12f5ab5b9376029",
+  "github_head_matches": true,
+  "checked_files": [
+    {
+      "file": "AGENTS.md",
+      "bytes": 10842,
+      "sha256": "fe4cf302f6cf61b3cd8baa885d2ac536e776cef3de4dfd76da4868d0f92365c5",
+      "github_blob_sha": "64fb28973ae6b3ed6746a7d81ac4c2a28b5df7d4",
+      "downloaded_and_verified": true
+    },
+    {
+      "file": "README.md",
+      "bytes": 55997,
+      "sha256": "55fe8eeefdda235cf80419d097ce18c668c7e200f72c06db470171d3712d87b6",
+      "github_blob_sha": "eff97884bc967acaab49e6243b23e480e22d024e",
+      "downloaded_and_verified": true
+    },
+    {
+      "file": "CONTINUE_PROJECT_PROMPT_2026-11-11_OLD_SERVER_ONLY_SAFE_STOP.md",
+      "bytes": 5536,
+      "sha256": "9e6ec0b751ad163571347f34b9979e55de67dda2404fd8c5ad8d14cc5c8f6ba5",
+      "github_blob_sha": "abcbe93dd37415d5f897a977541fe93cb665898b",
+      "downloaded_and_verified": true
+    },
+    {
+      "file": "PROJECT_HANDOFF_2026-11-11_OLD_SERVER_ONLY_SAFE_STOP.md",
+      "bytes": 7788,
+      "sha256": "723802aaf704094ef7930e80d893862e2cc7d70a75f516bb3e4298289d95881a",
+      "github_blob_sha": "0fe7e588c45248b7fbfa3f2dac2154b381f13c05",
+      "downloaded_and_verified": true
+    },
+    {
+      "file": "snapshots/2026-11-11-safe-stop/README.md",
+      "bytes": 1726,
+      "sha256": "bc4a549e88bb2c0034dd90cbfe9e4e5dfcf39ee70a779ac4e09549f5ba745509",
+      "github_blob_sha": "5f2d0fb7be1a6692f612281ed203c45e32b31ea1",
+      "downloaded_and_verified": true
+    },
+    {
+      "file": "snapshots/2026-11-11-safe-stop/STATE.json",
+      "bytes": 1410,
+      "sha256": "52cc4e25014970b67eeaefa9f19343f38806c65f660affc4ebdca133e4b0997e",
+      "github_blob_sha": "707065ac3e357bd7bad1326f5f8f2089737d2081",
+      "downloaded_and_verified": true
+    }
+  ],
+  "private_payload_uploaded": false,
+  "full_archive_required": false,
+  "code_ci": {
+    "commit": "c4785af67f542175309efb4ca617d99619e2e3bf",
+    "run_id": 43032662131,
+    "conclusion": "success"
+  },
+  "created_utc": "2026-11-11T14:02:10.705590+00:00"
+}
