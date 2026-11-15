@@ -1,0 +1,24 @@
+{
+  "repo": "tonimasite-dotcom/gpm_platform",
+  "release_id": 446353724,
+  "release_draft": true,
+  "release_tag": "snapshot-20261115-full-session",
+  "artifacts": [
+    {
+      "name": "GPM_APPLICATION_CHANGES_CONTEXT_20261116.tar.gz.age",
+      "role": "application_changes_context",
+      "bytes": 1900219,
+      "sha256": "d5544e5ba55fda438933351d82ac64adf24757eafb93c849b1167aeafb910d95",
+      "parts": [
+        {
+          "name": "GPM_APPLICATION_CHANGES_CONTEXT_20261116.tar.gz.age",
+          "bytes": 1900219,
+          "sha256": "d5544e5ba55fda438933351d82ac64adf24757eafb93c849b1167aeafb910d95",
+          "asset_id": 752415217
+        }
+      ]
+    }
+  ],
+  "external_artifacts": [],
+  "scope": "GPM application changes and continuation context only; no full TS/CRM/server/database copies; no access credentials"
+}
