@@ -57,6 +57,9 @@ final class GpmTsDemoPolicy
             'password' => $config['password'],
             'timeout' => 3,
         ]);
+        if (in_array($encryption, ['tls', 'starttls'], true)) {
+            $transport->setRequireTls(true);
+        }
         // Do not share MessageSending listeners or register this mailer globally.
         return new \Illuminate\Mail\Mailer('gpm_ts_login_only', app('view'),
             $transport, new \Illuminate\Events\Dispatcher(app()));

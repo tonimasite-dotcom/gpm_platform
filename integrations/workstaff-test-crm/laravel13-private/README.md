@@ -1,5 +1,28 @@
 # Частная проверка редактора ставки на Laravel 13
 
+16.11.2026: demo/email/TLS 33 PASS, rate HTTP-kernel/JWT/permissions 18 PASS,
+Vue 21 PASS, offline frontend build PASS. Работающая TS не обновлена.
+Актуальный контекст: PROJECT_HANDOFF_2026-11-16_TS_RESUMED.md.
+
+Новые инструменты не имеют live apply: adapt_demo.py, adapt_scheduler.py,
+adapt_frontend.py, restore_frontend_inputs.py работают только с сохраненным
+отмеченным synthetic-кандидатом. Они уже применены, повтор запрещен.
+Scheduler кандидата регистрирует ноль событий, отдельный GPM cron не меняется.
+Новые debtor-команды и mail-методы отключены до работы с данными/вложениями.
+Правило: .agents/skills/gpm-ts-debt-off/SKILL.md в корне проекта.
+
+run_http_fixture.py требует отдельной network namespace, существующего datadir,
+уникального run-id и запускает/выключает только synthetic MySQL. До/после сравнивает
+строки всех таблиц. --prepare-gate использован один раз: добавлена только таблица
+payout_settlement_gate с id=1; upstream миграция выплат не отмечена выполненной.
+Теперь 74 таблицы. Metadata/edit card прошли; datatable пока требует
+order_worker_mail_states. Финансовый откат и Auto_increment не приняты.
+
+build_frontend.py строит offline, без npm install, с сохраненными private
+node_modules. Лимит Node 3 GiB, core dumps OFF, reserve 3 GiB. Сборка уже принята,
+повтор setup/resume не нужен. Исходники SCSS и build config сохранены от прежней TS;
+их равенство основной не заявляется. UI в браузере еще не принят.
+
 Это исходники адаптации и синтетической проверки, не пакет выпуска TS.
 Штатные установщики прежнего runtime не меняются.
 

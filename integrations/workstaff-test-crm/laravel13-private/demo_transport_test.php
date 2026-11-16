@@ -24,6 +24,7 @@ verifyDemo13('synthetic_context', app()->environment('testing')
     && is_file(base_path('PRIVATE_BOT_FIXTURE')));
 verifyDemo13('default_is_demo', config('mail.default') === 'gpm_ts_demo');
 verifyDemo13('broadcasts_disabled', config('broadcasting.default') === 'null');
+verifyDemo13('general_scheduler_has_no_events', count(app(Illuminate\Console\Scheduling\Schedule::class)->events()) === 0);
 verifyDemo13('symfony_transport', Mail::mailer()->getSymfonyTransport() instanceof GpmTsDemoTransport);
 $message = (new Email())->from('sender@example.invalid')->to('fixture@example.invalid')
     ->subject('Synthetic')->text('Synthetic fixture');
@@ -39,6 +40,17 @@ foreach (['imap', 'sms', 'bank', 'calls', 'dadata', 'geocode'] as $channel) {
 }
 try { Policy::suppress('unknown'); throw new RuntimeException('UNKNOWN_ACCEPTED'); }
 catch (InvalidArgumentException $error) { verifyDemo13('unknown_channel_rejected', true); }
+foreach (['CheckDebit', 'CheckCustomerDebit', 'ParseEmailLead', 'RefreshBankingToken',
+    'CheckWorkerIsActive', 'setStatementsAndGetTransactionsFromApi',
+    'DebitCalculate', 'DebitNotify', 'DebitRemindersDryRun'] as $name) {
+    // Unit invocation of the already guarded method, never Artisan/scheduler/cron.
+    $command = (new ReflectionClass('App\\Console\\Commands\\' . $name))->newInstanceWithoutConstructor();
+    verifyDemo13($name . '_stops_before_background_work', $command->handle() === 0);
+}
+$debtorClient = (new ReflectionClass(App\Services\WebKlexMailClient::class))->newInstanceWithoutConstructor();
+$document = (new ReflectionClass(App\Models\Documents\DocumentLink::class))->newInstanceWithoutConstructor();
+verifyDemo13('verified_debtor_mail_rejected_before_attachment_work', $debtorClient->sendVerifiedDebitMessage('fixture@example.invalid', $document, 100, []) === 'rejected');
+verifyDemo13('partial_payment_mail_rejected_before_attachment_work', $debtorClient->sendPartialPaymentInquiry('fixture@example.invalid', $document, []) === 'rejected');
 $url = config('app.url');
 config(['app.url' => 'https://workstaffcrm.ru']);
 try { Policy::assertContext(); throw new RuntimeException('MAIN_ACCEPTED'); }
@@ -87,19 +99,24 @@ if ($child === 0) {
 fclose($server);
 $mailer = null;
 try {
-    $mailer = Policy::loginMailer(['host' => '127.0.0.1', 'port' => $port,
-        'encryption' => '', 'username' => '', 'password' => '']);
+    $smtpConfig = ['host' => '127.0.0.1', 'port' => $port,
+        'encryption' => '', 'username' => '', 'password' => ''];
+    $mailer = Policy::loginMailer($smtpConfig);
     verifyDemo13('separate_login_mailer', $mailer !== Mail::mailer());
-    $sent = $mailer->send('mail.mail.verify', ['code' => 'SYNTHETIC-CODE-ONLY'], static function ($mail) {
-        $mail->from('sender@example.invalid')->to('fixture@example.invalid')->subject('Synthetic code');
-    });
-    verifyDemo13('login_template_delivered_to_fake_smtp', $sent instanceof Illuminate\Mail\SentMessage);
+    $smtpConfig['username'] = 'sender@example.invalid';
+    $client = (new ReflectionClass(App\Services\WebKlexMailClient::class))->newInstanceWithoutConstructor();
+    (new ReflectionProperty($client, 'config'))->setValue($client, $smtpConfig);
+    $sent = $client->sendVerifyMessage((object) ['email' => 'fixture@example.invalid', 'remember_token' => 'SYNTHETIC-CODE-ONLY']);
+    verifyDemo13('existing_login_helper_delivers_template_to_fake_smtp', $sent === true);
 } finally {
     if ($mailer !== null) { $mailer->getSymfonyTransport()->stop(); }
     pcntl_waitpid($child, $status);
 }
 verifyDemo13('fake_smtp_verified_recipient_body_and_single_message', pcntl_wifexited($status) && pcntl_wexitstatus($status) === 0);
 verifyDemo13('global_mailer_still_suppressed', Mail::mailer()->getSymfonyTransport() instanceof GpmTsDemoTransport);
+$tlsMailer = Policy::loginMailer(['host' => '127.0.0.1', 'port' => $port,
+    'encryption' => 'tls', 'username' => '', 'password' => '']);
+verifyDemo13('configured_tls_is_required', (new ReflectionProperty($tlsMailer->getSymfonyTransport(), 'requireTls'))->getValue($tlsMailer->getSymfonyTransport()) === true);
 verifyDemo13('ordinary_mail_still_blocked_after_login', Mail::raw('Synthetic', static function ($mail) {
     $mail->from('sender@example.invalid')->to('fixture@example.invalid')->subject('Synthetic');
 }) === null);
