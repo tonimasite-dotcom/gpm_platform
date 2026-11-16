@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mime\Email;
 
 $checks = [];
+$databaseQueries = 0;
+Illuminate\Support\Facades\DB::listen(static function () use (&$databaseQueries): void { $databaseQueries++; });
 function verifyDemo13(string $name, bool $condition): void {
     global $checks;
     if (!$condition) { throw new RuntimeException('DEMO13_ASSERTION:' . $name); }
@@ -51,6 +53,15 @@ $debtorClient = (new ReflectionClass(App\Services\WebKlexMailClient::class))->ne
 $document = (new ReflectionClass(App\Models\Documents\DocumentLink::class))->newInstanceWithoutConstructor();
 verifyDemo13('verified_debtor_mail_rejected_before_attachment_work', $debtorClient->sendVerifiedDebitMessage('fixture@example.invalid', $document, 100, []) === 'rejected');
 verifyDemo13('partial_payment_mail_rejected_before_attachment_work', $debtorClient->sendPartialPaymentInquiry('fixture@example.invalid', $document, []) === 'rejected');
+foreach (['send', 'sendManual'] as $method) {
+    try {
+        $workerMail = app(App\Services\Order\OrderWorkerMailService::class);
+        $method === 'send' ? $workerMail->send(123) : $workerMail->sendManual(['order_id' => 123, 'selected' => [456]]);
+        throw new RuntimeException('WORKER_MAIL_NOT_BLOCKED');
+    } catch (Symfony\Component\HttpKernel\Exception\HttpException $error) {
+        verifyDemo13('worker_mail_' . $method . '_blocked_before_state_changes', $error->getStatusCode() === 409);
+    }
+}
 $url = config('app.url');
 config(['app.url' => 'https://workstaffcrm.ru']);
 try { Policy::assertContext(); throw new RuntimeException('MAIN_ACCEPTED'); }
@@ -120,6 +131,7 @@ verifyDemo13('configured_tls_is_required', (new ReflectionProperty($tlsMailer->g
 verifyDemo13('ordinary_mail_still_blocked_after_login', Mail::raw('Synthetic', static function ($mail) {
     $mail->from('sender@example.invalid')->to('fixture@example.invalid')->subject('Synthetic');
 }) === null);
+verifyDemo13('no_database_queries_during_demo_acceptance', $databaseQueries === 0);
 echo json_encode(['status' => 'PASS', 'checks' => $checks, 'scenarios' => count($checks),
     'smtp' => 'isolated_loopback_fixture', 'production_database_used' => false,
     'live_files_changed' => false]);

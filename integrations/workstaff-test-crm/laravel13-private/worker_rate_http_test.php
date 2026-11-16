@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use App\Models\Order;
 
-$checks=[]; $stage='bootstrap'; $failure=null;
+$checks=[]; $stage='bootstrap'; $failure=null; $newStatePath=null;
 function rateHttpAssert(bool $condition, string $label): void {
     if (!$condition) { throw new RuntimeException('HTTP_RATE_ASSERTION:'.$label); }
 }
@@ -55,7 +55,7 @@ try {
     $read=Spatie\Permission\Models\Permission::firstOrCreate(['name'=>'read_logist_orders','guard_name'=>'api']);
     $update=Spatie\Permission\Models\Permission::firstOrCreate(['name'=>'update_logist_orders','guard_name'=>'api']);
     $actors=[];
-    foreach(['logist','head','loader'] as $roleName) {
+    foreach(['logist','head','loader','admin'] as $roleName) {
         $role=Spatie\Permission\Models\Role::firstOrCreate(['name'=>$roleName,'guard_name'=>'api']);
         if($roleName!=='loader') { $role->givePermissionTo($read); }
         if($roleName==='head') { $role->givePermissionTo($update); }
@@ -66,11 +66,13 @@ try {
     }
     app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     $actor=$actors['logist'];
-    $order=DB::table('orders')->insertGetId(['order_number'=>'SYNTHETIC-HTTP-RATE-16','status_id'=>2,'payment_type_id'=>1,
+    $legacyData=['order_number'=>'SYNTHETIC-HTTP-RATE-16','status_id'=>2,'payment_type_id'=>1,
         'source_id'=>1,'customer_id'=>$customer,'contact_person_id'=>$contact,'branch_id'=>$branch,'work_type_id'=>$work,
         'logist_id'=>$actor->id,'completion_date'=>'2026-11-16 15:00:00','loader_count'=>2,'duration'=>4,'min_time'=>4,
         'workers_cost'=>500,'customer_cost'=>900,'city'=>'Synthetic','address'=>'Synthetic address','street'=>'Synthetic street',
-        'house'=>'1','coords'=>'[55.0,37.0]','additional'=>'[]','note'=>'Synthetic note','info'=>'']);
+        'house'=>'1','coords'=>'[55.0,37.0]','additional'=>'[]','note'=>'Synthetic note','info'=>''];
+    if(Illuminate\Support\Facades\Schema::hasColumn('orders','calculation_version')) { $legacyData['calculation_version']=1; }
+    $order=DB::table('orders')->insertGetId($legacyData);
     $uri='api/logist_orders/'.$order.'/gpm_worker_rate';
     $payload=['workers_cost'=>600,'expected_workers_cost'=>500];
     rateHttpStatus('unauthenticated_rejected',401,fn()=>rateHttp('PATCH',$uri,$payload));
@@ -108,12 +110,66 @@ try {
     rateHttpStatus('order_datatable',200,fn()=>rateHttp('GET','api/logist_orders',[
         'datatable'=>1,'draw'=>1,'start'=>0,'length'=>10],$actor));
     rateHttpStatus('order_history',200,fn()=>rateHttp('GET','api/manager_orders/get_history/'.$order,[],$actor));
+    // CAPTCHA network verification alone is a fixture. Controller, password, code and JWT are real.
+    $app['validator']->extend('captcha',static fn($attribute,$value)=>$value==='synthetic-captcha-only');
+    $smtpPort=(int)getenv('GPM_PRIVATE_SMTP_PORT');rateHttpAssert($smtpPort>0,'smtp_fixture_required');
+    DB::table('branches')->where('id',$branch)->update(['host'=>'127.0.0.1','port'=>$smtpPort,
+        'encryption'=>null,'mail'=>'sender@example.invalid','password_mail'=>'synthetic-not-real']);
+    $credentials=['login'=>$actor->email,'email'=>$actor->email,'password'=>'synthetic-only',
+        'remember'=>false,'g-recaptcha-response'=>'synthetic-captcha-only'];
+    $bad=$credentials;$bad['password']='wrong-synthetic';
+    rateHttpStatus('actual_login_wrong_password_rejected',422,fn()=>rateHttp('POST','api/login',$bad));
+    $login=rateHttpStatus('actual_login_sends_email_code',200,fn()=>rateHttp('POST','api/login',$credentials));
+    rateHttpAssert(($login[1]['success']??null)===true && !isset($login[1]['token']),'email_step_before_jwt');
+    $code=(string)DB::table('users')->where('id',$actor->id)->value('remember_token');
+    rateHttpAssert($code!=='','synthetic_code_generated');
+    rateHttpStatus('actual_verify_wrong_code_rejected',422,fn()=>rateHttp('POST','api/verify',array_merge($credentials,['code'=>'wrong-synthetic-code'])));
+    $verified=rateHttpStatus('actual_verify_returns_jwt',200,fn()=>rateHttp('POST','api/verify',array_merge($credentials,['code'=>$code])));
+    rateHttpAssert(is_string($verified[1]['token']??null) && strlen($verified[1]['token'])>20,'issued_jwt');
+    rateHttpStatus('issued_login_jwt_fetches_current_user',200,fn()=>rateHttp('GET','api/user',[],null,['Authorization'=>'Bearer '.$verified[1]['token']]));
+    // No production API: intercept the exact publication endpoint in this isolated process.
+    $baseUrl=rtrim((string)env('GPM_APP_API_URL'),'/');rateHttpAssert($baseUrl!=='','fixture_api_url');
+    Http::swap(new Illuminate\Http\Client\Factory());
+    Http::preventStrayRequests();
+    Http::fake(static function($request) use($baseUrl) {
+        rateHttpAssert($request->method()==='POST' && $request->url()===$baseUrl.'/app-api/orders','publication_target');
+        $body=$request->data();
+        rateHttpAssert(($body['source_instance']??null)==='https://ts.workstaffcrm.ru','publication_identity');
+        rateHttpAssert((int)($body['order_data']['price_per_hour']??0)===800,'publication_rate');
+        return Http::response(['order'=>['id'=>'synthetic-gpm-order','source_instance'=>'https://ts.workstaffcrm.ru']],200);
+    });
+    $statePath=storage_path('app/gpm-app-sync/'.$order.'.json');
+    rateHttpAssert(!file_exists($statePath) && !file_exists($statePath.'.lock'),'new_private_sync_state_path');
+    $newStatePath=$statePath;
+    $published=rateHttpStatus('actual_publication_route_uses_fake_gpm_api',200,
+        fn()=>rateHttp('PUT','api/manager_orders/publish_gpm_app/'.$order,['logist_phone'=>'+79990000000'],$actor));
+    rateHttpAssert(($published[1]['success']??null)===true && Http::recorded()->count()===1,'one_publication');
+    rateHttpAssert(is_file($statePath),'publication_state_saved');
+    rateHttpStatus('admin_current_user_preserves_default_permissions',200,fn()=>rateHttp('GET','api/user',[],$actors['admin']));
+    $detail=['contact_person'=>$contact,'contact_name'=>'Synthetic contact','contact_phone'=>'+70000000000',
+        'completion_date'=>now()->addDays(2)->toDateString(),'completion_time'=>'12:30','work_type'=>$work,
+        'address'=>'Synthetic new GPM test order','loader_count_checkbox'=>1,'loader_count'=>2,'max_loader_count'=>2,
+        'transport_count_checkbox'=>0,'customer_cost'=>1000,'workers_cost'=>600,'brigadier_cost'=>600,
+        'min_cost'=>4000,'min_time'=>2,'logist'=>(string)$actor->id,'send_sms'=>'0'];
+    $create=['source'=>array_key_first(Order::SOURCES),'status'=>0,'payment_type_id'=>array_key_first(Order::PAYMENTTYPES),
+        'branch_id'=>$branch,'customer_id'=>$customer,'details'=>[$detail]];
+    rateHttpStatus('new_order_creation_requires_auth',401,fn()=>rateHttp('POST','api/manager_orders',$create));
+    $beforeCreate=DB::table('orders')->count();
+    rateHttpStatus('admin_creates_new_test_order_via_real_validation',200,fn()=>rateHttp('POST','api/manager_orders',$create,$actors['admin']));
+    rateHttpAssert(DB::table('orders')->count()===$beforeCreate+1,'one_new_order_created');
+    $newOrder=Order::where('customer_id',$customer)->where('id','<>',$order)->firstOrFail();
+    rateHttpAssert((int)$newOrder->calculation_version===2,'new_order_current_calculation_version');
 } catch(Throwable $error) {
     $failure=['stage'=>$stage,'exception'=>get_class($error),'message'=>$error->getMessage()];
 } finally {
     while(DB::transactionLevel()>0) { DB::rollBack(); }
+    if($newStatePath!==null) {
+        foreach([$newStatePath,$newStatePath.'.lock'] as $path) {
+            if(is_file($path) && !is_link($path)) { unlink($path); }
+        }
+    }
 }
 echo json_encode(['status'=>$failure?'FAILED':'PASS','scenarios'=>count($checks),'checks'=>$checks,
     'failure'=>$failure,'jwt_middleware_real'=>true,'permission_actor_substituted'=>false,
-    'production_data_used'=>false,'external_http_used'=>false]);
+    'production_data_used'=>false,'external_http_used'=>false,'external_captcha_stubbed'=>true]);
 exit($failure?1:0);
