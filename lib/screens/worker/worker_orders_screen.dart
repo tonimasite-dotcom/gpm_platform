@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
-import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
 import '../../utils/order_citizenship.dart';
 import '../attendance/order_attendance.dart';
@@ -427,8 +426,6 @@ class _WorkerOrderDetailsScreenState extends State<WorkerOrderDetailsScreen> {
               child: ElevatedButton(
                 onPressed: _primaryAction(canApply),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: GpmColors.yellow,
-                  foregroundColor: GpmColors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: isApplying
