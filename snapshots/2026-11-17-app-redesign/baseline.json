@@ -1,0 +1,303 @@
+{
+  "commit": "27e5ad03b67cc0a978cf4e071a608049646c6eee",
+  "branch": "backup/app-design-2026-11-17",
+  "files_verified": 74,
+  "files": [
+    {
+      "path": "assets/images/gpm_logo.png",
+      "git_blob": "077b4bc82484be2d70dae8122232852f7f129c0b"
+    },
+    {
+      "path": "assets/images/gpm_logo_refined.png",
+      "git_blob": "a483b97917e7c67acac335d9e5ef06f2a34f4eb5"
+    },
+    {
+      "path": "assets/images/gpm_logo_refined.prompt.md",
+      "git_blob": "4a10afe7a0edcb92432e705cd025e9326e778431"
+    },
+    {
+      "path": "lib/auth/bitrix_registration_example.dart",
+      "git_blob": "38e697ec60bd6405f133137d9158381d4ae61bcd"
+    },
+    {
+      "path": "lib/client/client_create_order_example.dart",
+      "git_blob": "cfe55c3a2ace68a139272670de1da31fb09523ae"
+    },
+    {
+      "path": "lib/client/client_create_order_screen.dart",
+      "git_blob": "637f53e7939a7d712e85105f5f8903109692225a"
+    },
+    {
+      "path": "lib/client/client_home_screen.dart",
+      "git_blob": "922a87f8fd781adc9684cc9a2ec6dd4d5cf2da87"
+    },
+    {
+      "path": "lib/client/client_orders_list_example.dart",
+      "git_blob": "29005f880fd46e41903ec5280ee5047a75e3dad9"
+    },
+    {
+      "path": "lib/client/client_orders_screen.dart",
+      "git_blob": "2972f75bddf64a0ca5c990e2af21cb704549bf40"
+    },
+    {
+      "path": "lib/client/client_profile_screen.dart",
+      "git_blob": "6f0be0179e2c9a9465a9bc1e5e9fed8e5aea7881"
+    },
+    {
+      "path": "lib/client_home.dart",
+      "git_blob": "4551ed992ee7be4c9d9667fb1434bb5678b1b1a8"
+    },
+    {
+      "path": "lib/login_screen.dart",
+      "git_blob": "9e2b1e9f2686720c3fc16744a4e45dc4b13231c2"
+    },
+    {
+      "path": "lib/logist/logist_analytics_screen.dart",
+      "git_blob": "69df1507fe0614a3ca8c7a3fc71a5e8787f00b3e"
+    },
+    {
+      "path": "lib/logist/logist_home_screen.dart",
+      "git_blob": "0da19d164ee8c32d76c1bb8700f601a9e61e8092"
+    },
+    {
+      "path": "lib/logist/logist_orders_screen.dart",
+      "git_blob": "a46c1efd835ae3aa9683918b14aab4ed11b41679"
+    },
+    {
+      "path": "lib/logist/logist_profile_screen.dart",
+      "git_blob": "3d1dd6a3586699adcc8700007004ab55159c38c5"
+    },
+    {
+      "path": "lib/logist_screen.dart",
+      "git_blob": "84efa294c8dec6f02c7c162237b82f2c5ce6d633"
+    },
+    {
+      "path": "lib/main.dart",
+      "git_blob": "4652a10ba4f07c99e966a13ae0981d452a95b8f9"
+    },
+    {
+      "path": "lib/models/chat_models.dart",
+      "git_blob": "e8aa19df0c7d6cc2394194b8f45b2f486a4af181"
+    },
+    {
+      "path": "lib/models/worker_order.dart",
+      "git_blob": "585374952a26e318a9b6f7ee8b3207b6882b63c5"
+    },
+    {
+      "path": "lib/models/worker_transaction.dart",
+      "git_blob": "733c2c337f0cf5688a21c09e8e5b9c202683924d"
+    },
+    {
+      "path": "lib/register_screen.dart",
+      "git_blob": "10bb482a5631fd54eddd7e8a1c890557f4b14672"
+    },
+    {
+      "path": "lib/screens/attendance/order_attendance.dart",
+      "git_blob": "ea0d3e71d5f09cfc0fcb5aebadf83082c2b55353"
+    },
+    {
+      "path": "lib/screens/auth/login_screen.dart",
+      "git_blob": "a01bca71c08e732874a56243b27ee53ea7f4f68d"
+    },
+    {
+      "path": "lib/screens/auth/register_screen.dart",
+      "git_blob": "4eb11ad00670a74c0523cb9e2339a6226e06b7fd"
+    },
+    {
+      "path": "lib/screens/chats/chat_conversation_screen.dart",
+      "git_blob": "2de30cc317e38be4105a671576fa525ca51dcb6d"
+    },
+    {
+      "path": "lib/screens/chats/chat_threads_screen.dart",
+      "git_blob": "ee1f3e8f226997ba23643b2eba1b3a8242ed5d8b"
+    },
+    {
+      "path": "lib/screens/client/client_create_order_screen.dart",
+      "git_blob": "54f96919254b37c04a787eeafb8c677e272c5b96"
+    },
+    {
+      "path": "lib/screens/client/client_home_screen.dart",
+      "git_blob": "30f7ad12dd34825dc982bb18bb6ab154d1cbc6af"
+    },
+    {
+      "path": "lib/screens/client/client_orders_screen.dart",
+      "git_blob": "59998a1d419c5048b1e52cc61830e5bf204faa7f"
+    },
+    {
+      "path": "lib/screens/client/client_profile_screen.dart",
+      "git_blob": "b6f9cc00699cb6df0aaef166714bc17428fce614"
+    },
+    {
+      "path": "lib/screens/logist/logist_analytics_screen.dart",
+      "git_blob": "29264da1aa33e37e43738d3d860aef8c1242a4de"
+    },
+    {
+      "path": "lib/screens/logist/logist_home_screen.dart",
+      "git_blob": "684d2a6d2eb5722152e4653fec3d713903a47624"
+    },
+    {
+      "path": "lib/screens/logist/logist_orders_screen.dart",
+      "git_blob": "436713b588cf8d9224134ae249579de5746079d8"
+    },
+    {
+      "path": "lib/screens/logist/logist_profile_screen.dart",
+      "git_blob": "e5ed89277a5f110391eea9123bdcef0178731190"
+    },
+    {
+      "path": "lib/screens/logist/logist_workers_screen.dart",
+      "git_blob": "35e91270b6fd558bdf8246320ec8d1ef9f431c78"
+    },
+    {
+      "path": "lib/screens/logist/worker_profile_review_screen.dart",
+      "git_blob": "0f6649377cc7907d87e317d4d33516876072ede2"
+    },
+    {
+      "path": "lib/screens/orders/order_draft_edit_screen.dart",
+      "git_blob": "dc6a4dd8c6975be83b573b24f47f9c8a54a47806"
+    },
+    {
+      "path": "lib/screens/worker/worker_dashboard_screen.dart",
+      "git_blob": "10f6a691586765e570d97a519d98f47f1f7629f7"
+    },
+    {
+      "path": "lib/screens/worker/worker_finance_screen.dart",
+      "git_blob": "c138dbab279c322ed1c94af81e1c86315f25315b"
+    },
+    {
+      "path": "lib/screens/worker/worker_home_screen.dart",
+      "git_blob": "a9218ad57168e9e216bea3e5b8683dc2d38460ab"
+    },
+    {
+      "path": "lib/screens/worker/worker_orders_screen.dart",
+      "git_blob": "bb7abb5dc4ff65d91a6e49f33e789d9f01e5b561"
+    },
+    {
+      "path": "lib/screens/worker/worker_profile_screen.dart",
+      "git_blob": "5a15b188aa8c4fb2897cab0285255eae4d1ced19"
+    },
+    {
+      "path": "lib/screens/worker/worker_referral_promo.dart",
+      "git_blob": "6ecfbde2192ee6ac9646b88a0b470d4f3d37bf93"
+    },
+    {
+      "path": "lib/services/bitrix24_service.dart",
+      "git_blob": "5f91b576b228c0d6266add25b7ba2503a7ff599f"
+    },
+    {
+      "path": "lib/services/chat_service.dart",
+      "git_blob": "2bdeafdc80d41f97c86571fc9ebdac1a5c796c89"
+    },
+    {
+      "path": "lib/services/demo_storage.dart",
+      "git_blob": "4a65b6be759b98526d7d2061c7e207b9a0693f16"
+    },
+    {
+      "path": "lib/services/demo_storage_stub.dart",
+      "git_blob": "da4d318968e71161525efcb19565969a53ed620e"
+    },
+    {
+      "path": "lib/services/demo_storage_web.dart",
+      "git_blob": "0b497dada0c6dfadc628479ecc96412119d5f5ad"
+    },
+    {
+      "path": "lib/services/gpm_api_service.dart",
+      "git_blob": "02545f4d9034e51080153cbb19ec23aa14c1f4a4"
+    },
+    {
+      "path": "lib/services/supabase_compat.dart",
+      "git_blob": "44d7ee1cdc158e6c77d38286bf3ff09055c38b9a"
+    },
+    {
+      "path": "lib/theme/gpm_theme.dart",
+      "git_blob": "b012be69c90749f5d807da87230b3d608f443193"
+    },
+    {
+      "path": "lib/utils/date_time_input_formatters.dart",
+      "git_blob": "5c03ce6be58629011e2a22123a128fb18792e2f7"
+    },
+    {
+      "path": "lib/utils/order_citizenship.dart",
+      "git_blob": "4d917253b7b0f1d3d0213d9eea69e291eaefc24a"
+    },
+    {
+      "path": "lib/utils/order_display.dart",
+      "git_blob": "07db44de934f9a91a6c038204eb1d62d85b13055"
+    },
+    {
+      "path": "lib/widgets/adaptive_buttons.dart",
+      "git_blob": "e58822d9e5b3c7194cf384293b5111ac34b6119d"
+    },
+    {
+      "path": "lib/widgets/feature_unavailable.dart",
+      "git_blob": "f4f0e5b24ef31cac680a19e00f6dcb978be99a8b"
+    },
+    {
+      "path": "lib/widgets/gpm_logo.dart",
+      "git_blob": "e24f2f863c7dc586e430214922849b95e0227c69"
+    },
+    {
+      "path": "lib/widgets/worker_rating.dart",
+      "git_blob": "56d788c84117c46bc31350f62f7279dc9d6eace9"
+    },
+    {
+      "path": "lib/worker/financial_stats_example.dart",
+      "git_blob": "b1d5d1dddd6b0d5f2d3a7079f19af2984d0165e4"
+    },
+    {
+      "path": "lib/worker/worker_dashboard_screen.dart",
+      "git_blob": "43aea34e8b5942f45a3e1d1714f10a6e5b64db02"
+    },
+    {
+      "path": "lib/worker/worker_finance_screen.dart",
+      "git_blob": "9eb5da83ba09f9b6679fe0fe09c724632a7c7183"
+    },
+    {
+      "path": "lib/worker/worker_home_screen.dart",
+      "git_blob": "94ffc6a75cf112399e856025e7d18f9305ae0b50"
+    },
+    {
+      "path": "lib/worker/worker_orders_screen.dart",
+      "git_blob": "a7c994a76667e0a44179a1dcd8ad3ab80ce40fbf"
+    },
+    {
+      "path": "lib/worker/worker_profile_screen.dart",
+      "git_blob": "85b7a9ca211dec9b25ab4c8e79784d29c4d75c1d"
+    },
+    {
+      "path": "pubspec.lock",
+      "git_blob": "00c49c1609b2e80d3f4803094ff6eee42d5cf5b5"
+    },
+    {
+      "path": "pubspec.yaml",
+      "git_blob": "a6fd4ca0e961fd098729f9a0efa79df9e11e723a"
+    },
+    {
+      "path": "web/favicon.png",
+      "git_blob": "186867d2428916b4c7608fbae153d865816ecdde"
+    },
+    {
+      "path": "web/icons/Icon-192.png",
+      "git_blob": "76c1787ccd27ab77a58b91d0fccbde087404326a"
+    },
+    {
+      "path": "web/icons/Icon-512.png",
+      "git_blob": "31ea42c4be43920de521d5aa5b34d4a91b50f833"
+    },
+    {
+      "path": "web/icons/Icon-maskable-192.png",
+      "git_blob": "76c1787ccd27ab77a58b91d0fccbde087404326a"
+    },
+    {
+      "path": "web/icons/Icon-maskable-512.png",
+      "git_blob": "31ea42c4be43920de521d5aa5b34d4a91b50f833"
+    },
+    {
+      "path": "web/index.html",
+      "git_blob": "b54a5b0b1a27c2c67512406f8381eca120f9589e"
+    },
+    {
+      "path": "web/manifest.json",
+      "git_blob": "cfef4621be0031f9d25f97c95531d7bd48551b81"
+    }
+  ]
+}
