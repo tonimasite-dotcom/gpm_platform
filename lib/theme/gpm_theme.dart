@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 class GpmColors {
   // Website tokens: design-system.css and corporate.css; font is bundled offline.
-  static const red = Color(0xFFEF4444);
+  static const brandRed = Color(0xFFEF4444);
+  // Existing red labels also include errors and amounts: retain text contrast.
+  static const red = Color(0xFFDC2626);
   static const redAction = Color(0xFFDC2626);
   static const business = Color(0xFF115E59);
   static const brandSoft = Color(0xFFFEF2F2);
@@ -23,7 +25,7 @@ enum GpmAudience { personal, business }
 
 ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
   final isBusiness = audience == GpmAudience.business;
-  final brand = isBusiness ? GpmColors.business : GpmColors.red;
+  final brand = isBusiness ? GpmColors.business : GpmColors.brandRed;
   final action = isBusiness ? GpmColors.business : GpmColors.redAction;
   final ink = isBusiness ? GpmColors.business : GpmColors.redInk;
   final soft = isBusiness ? GpmColors.businessSoft : GpmColors.brandSoft;
