@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "cipher_sha256": "958e9b900f3036968af12bb7149b85cca5fe7c71c5c0a81d762b4d6a315daf3a",
+  "cipher_bytes": 1938269515,
+  "manifest_sha256": "660986d5b6d7004c724bcf23d3993abe221f83973b92bc785f7bfcbbc4d14f91",
+  "objects": 23842,
+  "entries": 92909,
+  "largest_object_bytes": 239075328,
+  "original_logical_bytes": 8334691942,
+  "decryption_and_all_object_hashes_verified": true,
+  "private_key_uploaded": false,
+  "archive_saved_on_pc": false,
+  "originals_deleted": false,
+  "trial_restore": {
+    "status": "PASS",
+    "mode": "bounded_sequential_trial",
+    "restored_files": 75876,
+    "original_file_hashes_compared": 75876,
+    "objects": 23842,
+    "directories": 17019,
+    "symlinks": 14,
+    "all_content_and_metadata_checked": true,
+    "complete_tree_retained": false,
+    "trial_scaffold_removed": true,
+    "original_directories_retained": true,
+    "database_started": false,
+    "destination": "/root/gpm-ts-update/cold-restore-20261117-trial-03",
+    "free_bytes_after": 4692004864
+  }
+}

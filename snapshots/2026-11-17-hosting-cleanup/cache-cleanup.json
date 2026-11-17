@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "removed_files": 3949,
+  "removed_logical_bytes": 379822043,
+  "removed_allocated_bytes": 390123520,
+  "free_bytes_before": 4321693696,
+  "free_bytes_after": 4722753536,
+  "targets": [
+    "/var/www/gruzpiter/data/www/ts.workstaffcrm.ru/node_modules/.cache",
+    "/var/cache/apt/pkgcache.bin",
+    "/var/cache/apt/srcpkgcache.bin"
+  ],
+  "crm_data_removed": false,
+  "backups_removed": false,
+  "main_crm_changed": false,
+  "services_restarted": false
+}
