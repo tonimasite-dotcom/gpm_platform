@@ -1,5 +1,7 @@
 {
-  "status": "design_ready_deployment_waiting_for_frontend_ssh_access",
+  "status": "paused_by_owner_for_transfer_to_other_computer",
+  "frontend_ssh_access_available_on_other_computer_per_owner": true,
+  "new_instruction_required_before_resume": true,
   "context_branch": "work/bot-ts-runtime-2026-11-13",
   "code_commit": "a7d577a",
   "main_release_commit": "772e025",
@@ -29,5 +31,5 @@
   "legacy_crm_deletion_resumed": false,
   "debtor_jobs_or_general_scheduler_enabled": false,
   "ts_financial_write_rollback_accepted": false,
-  "next_step": "Obtain current frontend SSH access/profile/port or restore connectivity; deploy only frontend, verify live assets, preserve prior web build."
+  "next_step": "On the other computer read prompt/handoff and restore context first. After a new resume instruction use existing frontend SSH access; deploy only frontend and run scripts/verify_app_design_release.py."
 }
