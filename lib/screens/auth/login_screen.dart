@@ -127,7 +127,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEDE9E4),
+      backgroundColor: GpmColors.page,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final horizontalPadding = constraints.maxWidth > 520 ? 18.0 : 0.0;
@@ -153,7 +153,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                           boxShadow: constraints.maxWidth > 520
                               ? const [
                                   BoxShadow(
-                                    color: Color(0x26000000),
+                                    color: Color(0x0F020617),
                                     blurRadius: 32,
                                     offset: Offset(0, 12),
                                   ),
@@ -584,7 +584,7 @@ class _RoleCard extends StatelessWidget {
       color: GpmColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE8E3E0)),
+        side: const BorderSide(color: GpmColors.softLine),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -648,137 +648,66 @@ class _GpmAuthHero extends StatelessWidget {
   const _GpmAuthHero();
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 220,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned.fill(
-            child: DecoratedBox(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(28, 32, 28, 42),
+    color: GpmColors.surface,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const GpmLogoImage(width: 48, height: 54),
+            const SizedBox(width: 12),
+            const Text(
+              'GPM',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1.2,
+                color: GpmColors.black,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFFFFF8F3), Color(0xFFFFE9ED)],
+                color: GpmColors.brandSoft,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: const Text(
+                '24/7',
+                style: TextStyle(
+                  color: GpmColors.redInk,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 26),
+        const Text(
+          'Люди. Работа.\nВсе в одном месте.',
+          style: TextStyle(
+            fontSize: 30,
+            height: 1.16,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -.8,
+            color: GpmColors.black,
           ),
-          const Positioned(
-            top: -42,
-            right: -34,
-            child: _DecorativeBubble(size: 150, color: Color(0x24F8B800)),
-          ),
-          const Positioned(
-            left: -50,
-            bottom: -56,
-            child: _DecorativeBubble(size: 150, color: Color(0x18FF1744)),
-          ),
-          Positioned(
-            top: 34,
-            left: 28,
-            child: Transform.rotate(
-              angle: -0.16,
-              child: Container(
-                width: 42,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: GpmColors.yellow.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 34,
-            bottom: 46,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: GpmColors.red,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 92,
-                  height: 92,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: GpmColors.red.withValues(alpha: 0.14),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const GpmLogoImage(),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'GPM',
-                  style: TextStyle(
-                    color: GpmColors.black,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Заказы, люди и работа в одном месте',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 12,
-                    color: GpmColors.graphite.withValues(alpha: 0.68),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DecorativeBubble extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _DecorativeBubble({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Заказы, исполнители и ваша команда',
+          style: TextStyle(fontSize: 14, height: 1.4, color: GpmColors.muted),
+        ),
+      ],
+    ),
+  );
 }
 
 class _AuthBackdrop extends StatelessWidget {
   const _AuthBackdrop();
-
   @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFF2EEE9), Color(0xFFE8E2DC)],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const ColoredBox(color: GpmColors.page);
 }
