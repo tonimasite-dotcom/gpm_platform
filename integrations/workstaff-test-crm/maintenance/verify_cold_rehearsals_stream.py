@@ -250,7 +250,7 @@ def main():
               'original_logical_bytes': receipt['source_logical_bytes'],
               'decryption_and_all_object_hashes_verified': not args.use_verified_manifest,
               'private_key_uploaded': False,
-              'archive_saved_on_pc': False, 'originals_deleted': False}
+              'archive_saved_on_pc': False, 'originals_deleted_by_this_tool': False}
     print(json.dumps(result), flush=True)
     Path('.tmp/cold-rehearsal-verification-20261117.json').write_text(json.dumps(result, indent=2) + '\n')
     if args.trial or args.trial_destination or args.full_destination:

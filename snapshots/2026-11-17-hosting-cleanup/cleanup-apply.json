@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "mode": "apply",
+  "exact_targets": [
+    "/root/gpm-ts-update/20261109-switch-01/accepted-new-first-run",
+    "/root/gpm-ts-update/20261109-switch-01/next",
+    "/root/gpm-ts-update/20261109-switch-01/runtime",
+    "/root/gpm-ts-update/20261109-switch-01/mysql-new-failed-after-timeout",
+    "/root/gpm-ts-update/20261109-switch-01/mysql-new-timeout-evidence"
+  ],
+  "entries_verified": 92909,
+  "expected_allocated_bytes": 8591511552,
+  "source_content_and_metadata_match": true,
+  "active_references": false,
+  "original_directories_deleted": true,
+  "archive_retained": true,
+  "cipher_sha256": "958e9b900f3036968af12bb7149b85cca5fe7c71c5c0a81d762b4d6a315daf3a",
+  "free_bytes_before": 4691963904,
+  "free_bytes_after": 13283475456,
+  "main_crm_changed": false,
+  "backups_deleted": false,
+  "database_started": false
+}

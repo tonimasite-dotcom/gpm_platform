@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "five_exact_directories_absent": true,
+  "archive_cipher_unchanged": true,
+  "fresh_ts_backup_cipher_artifacts_unchanged": 3,
+  "neighbor_datadirs_retained": true,
+  "current_candidate_retained": true,
+  "nginx_apache_mysql_active": true,
+  "main_crm_changed": false,
+  "new_server_accessed": false,
+  "disk_total_bytes": 167965130752,
+  "disk_used_bytes": 152946929664,
+  "disk_free_bytes": 13283459072,
+  "df_output": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1       157G  143G   13G  93% /"
+}
