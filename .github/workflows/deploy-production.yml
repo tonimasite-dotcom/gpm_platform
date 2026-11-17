@@ -232,10 +232,13 @@ jobs:
         if: inputs.target == 'all' || inputs.target == 'frontend'
         shell: bash
         run: |
-          scp -o BatchMode=yes -o ConnectTimeout=15 \
+          # Avoid depending on the frontend server's SFTP subsystem.
+          timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
             -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-            "/tmp/gpm-web-${GITHUB_SHA}.tar.gz" \
-            "${SSH_USER}@${FRONTEND_HOST}:/tmp/gpm-web-${GITHUB_SHA}.tar.gz"
+            "${SSH_USER}@${FRONTEND_HOST}" \
+            "umask 077; cat > '/tmp/gpm-web-${GITHUB_SHA}.tar.gz'" \
+            < "/tmp/gpm-web-${GITHUB_SHA}.tar.gz"
 
       - name: Deploy frontend atomically
         if: inputs.target == 'all' || inputs.target == 'frontend'
