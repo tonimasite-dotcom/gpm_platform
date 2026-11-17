@@ -46,5 +46,6 @@ flutter:
   
   assets:
     - .env
+    - assets/fonts/OFL-Manrope.txt
     - assets/images/gpm_logo.png
     - assets/images/gpm_logo_refined.png
