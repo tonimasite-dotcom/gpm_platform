@@ -1,5 +1,15 @@
 # Частная проверка редактора ставки на Laravel 13
 
+17.11.2026: реальный restore свежего SQL backup TS PASS в НОВОМ отдельном datadir:
+72 таблицы, 3 399 842 строки; полные хеши содержимого, DDL и AUTO_INCREMENT совпали.
+Частный MySQL выключен. Рабочие CRM и существующая synthetic-база не менялись.
+`restore_ts_backup_stream.py` и `receive_ts_backup_restore.py` не запускают приложение,
+миграции и scheduler; требуют отдельную сеть, socket и новый каталог, запас 3 GiB.
+`sql_snapshot.py` проверяет мультимножества строк, включая дубли и generated columns.
+Ключ остается локальным, plaintext SQL/архивы на ПК не сохраняются. Это проверка
+backup restore, финансовый write rollback еще не принят. Точка продолжения:
+PROJECT_HANDOFF_2026-11-17_APP_TESTING_RESUMED.md. Исторические состояния ниже.
+
 16.11.2026: demo/email/TLS 33 PASS, rate HTTP-kernel/JWT/permissions 18 PASS,
 Vue 21 PASS, offline frontend build PASS. Работающая TS не обновлена.
 Актуальный контекст: PROJECT_HANDOFF_2026-11-16_TS_RESUMED.md.
