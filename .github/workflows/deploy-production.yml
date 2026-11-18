@@ -232,13 +232,25 @@ jobs:
         if: inputs.target == 'all' || inputs.target == 'frontend'
         shell: bash
         run: |
-          # Avoid depending on the frontend server's SFTP subsystem.
-          timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=15 \
+          set -euo pipefail
+          ARCHIVE="/tmp/gpm-web-${GITHUB_SHA}.tar.gz"
+          EXPECTED_SHA=$(sha256sum "$ARCHIVE" | cut -d' ' -f1)
+          # Probe command access before transferring. SFTP is also exercised by
+          # the verified daily frontend backup; raw SSH stdin can stall here.
+          timeout 45 ssh -o BatchMode=yes -o ConnectTimeout=15 \
             -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
             -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
             "${SSH_USER}@${FRONTEND_HOST}" \
-            "umask 077; cat > '/tmp/gpm-web-${GITHUB_SHA}.tar.gz'" \
-            < "/tmp/gpm-web-${GITHUB_SHA}.tar.gz"
+            'test -d /var/www/gpm-app; df -Pk /tmp /var/www; printf "Frontend SSH ready\n"'
+          timeout 180 scp -q -o BatchMode=yes -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "$ARCHIVE" "${SSH_USER}@${FRONTEND_HOST}:${ARCHIVE}.partial"
+          timeout 45 ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "${SSH_USER}@${FRONTEND_HOST}" \
+            "set -eu; printf '%s  %s\n' '$EXPECTED_SHA' '${ARCHIVE}.partial' | sha256sum --check --status; chmod 600 '${ARCHIVE}.partial'; mv '${ARCHIVE}.partial' '$ARCHIVE'; printf 'Frontend artifact SHA256 verified\n'"
 
       - name: Deploy frontend atomically
         if: inputs.target == 'all' || inputs.target == 'frontend'
