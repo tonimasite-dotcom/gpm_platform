@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "url": "https://app.gpmbot.ru/",
+  "manrope_weights": [
+    400,
+    500,
+    600,
+    700,
+    800
+  ],
+  "live_font_and_license_hashes_match": true,
+  "assets": [
+    {
+      "asset": "Manrope-Bold.ttf",
+      "sha256": "bbaf9ce021068ba862b94ab090d04d5559b114ab8e251b325b0dadca69b90eb9"
+    },
+    {
+      "asset": "Manrope-ExtraBold.ttf",
+      "sha256": "897aacef4a0f5c6cb36f1d3b663f50754c1ec6e9431ffe5c35a3e7bb66f508ac"
+    },
+    {
+      "asset": "Manrope-Medium.ttf",
+      "sha256": "8d56d0f92712029e4d26a568303a0de5ed1d8dd99a92205d7417fa4d6dff80ba"
+    },
+    {
+      "asset": "Manrope-Regular.ttf",
+      "sha256": "d3e398c7ba4c00d0306af2ea1b0089d6574b15a91c24380439520669b00d326b"
+    },
+    {
+      "asset": "Manrope-SemiBold.ttf",
+      "sha256": "e089d489bb6211de4bfd0ff725dbd72520e0818a79c8b6f3c2f752e3ece640dd"
+    },
+    {
+      "asset": "OFL-Manrope.txt",
+      "sha256": "d6a309fcfb963d329a93baf9df66fa5f3c23a4be2b5f67edf24d6cafecde12ac"
+    }
+  ],
+  "new_login_headline_in_bundle": true,
+  "main_js_sha256": "5c984fe5772b39265852f7a857a54e81f21a6c3253fbe3758d1313effe3cd22f",
+  "main_js_bytes": 3769196,
+  "backend_requests_made": false
+}

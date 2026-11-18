@@ -1,5 +1,11 @@
 # GPM Platform
 
+18.11.2026: новый дизайн опубликован на https://app.gpmbot.ru/, frontend 772e025.
+Deployment 44328905446 и backup 44293319911 SUCCESS; analyze/tests/build и HTTP fonts/license PASS.
+Визуальная приемка live остается. Backend/CRM/TS не менялись.
+[Итог и откат](PROJECT_HANDOFF_2026-11-18_APP_DESIGN_RELEASE.md),
+[промпт продолжения](CONTINUE_PROJECT_PROMPT_2026-11-18_APP_DESIGN_RELEASE.md).
+
 06.11.2026 после сверки владелец подтвердил объем обновления только ts с сохранением
 GPM, редактора ставки, ограничений логиста, учетных записей, настроек и данных;
 короткая остановка ts допустима. Подготовлены
