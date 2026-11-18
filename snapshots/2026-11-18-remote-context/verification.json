@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-18",
+  "archive_bytes": 456487928,
+  "archive_sha256": "40e5d6a9dd552d9996a15e6a27af814e9b32ad9185e6f6863044543f36e77849",
+  "files": 5833,
+  "decryption_verified": true,
+  "all_file_hashes_verified": true,
+  "plaintext_extracted": false,
+  "old_crm_backups_excluded": true,
+  "ssh_and_windows_credentials_excluded": true,
+  "crm_services_or_data_changed": false,
+  "production_backend": "f3f2875",
+  "production_frontend": "d02869b",
+  "deployment_run": 44352039959
+}
