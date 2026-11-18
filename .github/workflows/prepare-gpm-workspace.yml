@@ -1,0 +1,62 @@
+name: Prepare GPM developer workspace
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Inspect capacity or prepare isolated GPM development on frontend host
+        type: choice
+        options: [inspect, prepare]
+        default: inspect
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpm-developer-workspace
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      FRONTEND_HOST: 186.246.10.163
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Validate script and server mapping
+        run: |
+          python3 -m py_compile scripts/prepare_gpm_remote_workspace.py
+          grep -Fxq '  FRONTEND_HOST: 186.246.10.163' .github/workflows/deploy-production.yml
+          test -f .agents/skills/gpm-application/SKILL.md
+      - name: Prepare existing GPM SSH access
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/gpm-dev-key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/gpm-dev-known-hosts"
+      - name: Inspect or prepare isolated workspace
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          case "$MODE" in inspect|prepare) ;; *) exit 2 ;; esac
+          ssh -i "$HOME/.ssh/gpm-dev-key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/gpm-dev-known-hosts" \
+            -o ConnectTimeout=15 \
+            "root@${FRONTEND_HOST}" \
+            "python3 - --mode ${MODE} --expected-host ${FRONTEND_HOST}" \
+            < scripts/prepare_gpm_remote_workspace.py
+      - name: Clear runner SSH credentials
+        if: always()
+        run: rm -f -- "$HOME/.ssh/gpm-dev-key" "$HOME/.ssh/gpm-dev-known-hosts"
