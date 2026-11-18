@@ -114,6 +114,38 @@ class MessengerTests(unittest.TestCase):
             self.send()
         self.assertEqual(caught.exception.status_code, 409)
 
+    def test_closed_order_archives_immediately_and_preserves_history(self):
+        for status in ("CONVERTED", "JUNK"):
+            with self.subTest(status=status):
+                self.order["status"] = "IN_PROCESS"
+                api.save_order(self.order)
+                api.list_account_chat_threads(self.worker)
+                key = str(uuid4())
+                original = self.send(text="История " + status, key=key)
+                self.order["status"] = status
+                api.save_order(self.order)
+
+                # Do not refresh the thread list before direct GET/POST.
+                thread, messages = api.get_account_chat_messages(self.thread_id, self.worker)
+                self.assertTrue(thread["is_archived"])
+                self.assertIn(original["id"], [item["id"] for item in messages])
+                with self.assertRaises(HTTPException) as caught:
+                    self.send(text="Новое сообщение")
+                self.assertEqual(caught.exception.status_code, 409)
+                self.assertEqual(original, self.send(text="История " + status, key=key))
+
+                # A new authenticated session/connection still sees the archive.
+                worker = api.current_user("Bearer " + api.check_app_credentials(
+                    "synthetic-worker", "synthetic-password-123")["access_token"])
+                threads = api.list_account_chat_threads(worker)
+                self.assertTrue(next(t for t in threads if t["id"] == self.thread_id)["is_archived"])
+                _, restored = api.get_account_chat_messages(self.thread_id, worker)
+                self.assertEqual(sum(m["id"] == key for m in restored), 1)
+                outsider = {"sub": "outsider", "role": "worker"}
+                with self.assertRaises(HTTPException) as denied:
+                    api.get_account_chat_messages(self.thread_id, outsider)
+                self.assertEqual(denied.exception.status_code, 404)
+
     def test_read_cursor_clears_unread_and_new_message_restores_it(self):
         self.send()
         self.assertGreater(api.list_account_chat_threads(self.logist)[0]["unread_count"], 0)

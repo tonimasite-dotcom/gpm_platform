@@ -15,6 +15,7 @@ class LogistHomeScreen extends StatefulWidget {
 
 class _LogistHomeScreenState extends State<LogistHomeScreen> {
   int _currentIndex = 0;
+  final Set<int> _visited = {0};
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +28,20 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
     ];
 
     return Scaffold(
-      body: screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(
+          screens.length,
+          (index) => TickerMode(
+            enabled: index == _currentIndex,
+            child:
+                (index == _currentIndex ||
+                    (index == 2 && _visited.contains(index)))
+                ? screens[index]
+                : const SizedBox.shrink(),
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         selectedFontSize: 11,
@@ -36,6 +50,7 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
         onTap: (index) {
           setState(() {
             _currentIndex = index;
+            _visited.add(index);
           });
         },
         items: const [

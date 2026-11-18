@@ -417,7 +417,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 onPressed: _showSupportMessage,
                 child: const GpmButtonContent(
                   icon: Icon(Icons.support_agent),
-                  label: Text('Обратиться в поддержку 24/7'),
+                  label: Text('Обратиться в поддержку'),
                 ),
               ),
               const SizedBox(height: 12),
@@ -452,7 +452,7 @@ class _ProfileHeader extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Padding(

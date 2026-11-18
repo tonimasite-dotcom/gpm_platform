@@ -5570,6 +5570,12 @@ def _canonical_order_chat_type(order: dict[str, Any]) -> str:
     return "workerLogist"
 
 
+def _is_chat_archived(row: Any, order: dict[str, Any] | None) -> bool:
+    # All read/send paths must observe terminal order status immediately,
+    # including when no thread-list refresh has updated the stored flag yet.
+    return bool(row[3]) or str((order or {}).get("status") or "") in {"CONVERTED", "JUNK"}
+
+
 def _ensure_chat_thread_in_connection(
     connection: Any,
     order: dict[str, Any],
@@ -5818,7 +5824,7 @@ def list_account_chat_threads(user: dict[str, Any]) -> list[dict[str, Any]]:
                         if last_message is not None
                         else str(order.get("city") or "")
                     ),
-                    "is_archived": bool(row[3]),
+                    "is_archived": _is_chat_archived(row, order),
                     "requires_logist_attention": bool(row[4]),
                     "unread_count": unread,
                     "updated_at": serialize_datetime(updated_at),
@@ -5883,7 +5889,7 @@ def get_account_chat_messages(
         "type": str(row[2]),
         "title": _chat_thread_title(str(row[2]), order),
         "subtitle": messages[-1]["text"] if messages else str(order.get("city") or ""),
-        "is_archived": bool(row[3]) or order.get("status") == "CONVERTED",
+        "is_archived": _is_chat_archived(row, order),
         "requires_logist_attention": bool(row[4]),
         "unread_count": 0,
         "updated_at": messages[-1]["created_at"] if messages else serialize_datetime(
@@ -5925,7 +5931,7 @@ def send_account_chat_message(
             if str(existing[2]) != account_id or str(existing[5]) != clean_text:
                 raise HTTPException(status_code=409, detail="message id already used")
             return _serialize_chat_message(existing, account_id)
-        if bool(row[3]) or (order or {}).get("status") == "CONVERTED":
+        if _is_chat_archived(row, order):
             raise HTTPException(status_code=409, detail="chat thread is archived")
         role = str(user.get("role") or "")
         sender_name = str(

@@ -17,12 +17,19 @@ for p in sorted(Path('assets/fonts').glob('*')):
     expected=hashlib.sha256(subprocess.check_output(['git','show','HEAD:'+p.as_posix()])).hexdigest()
     assert hashlib.sha256(content).hexdigest()==expected
     checks.append({'asset':p.name,'sha256':expected})
+for path in ['assets/images/gpm_logo.png', 'assets/images/gpm_logo_refined.png', 'web/favicon.png',
+             'web/icons/Icon-192.png', 'web/icons/Icon-512.png', 'web/manifest.json']:
+    url_path = path.removeprefix('web/') if path.startswith('web/') else 'assets/' + path
+    content = get(url_path)
+    expected = hashlib.sha256(subprocess.check_output(['git','show','HEAD:'+path])).hexdigest()
+    assert hashlib.sha256(content).hexdigest() == expected, path
+    checks.append({'asset':path,'sha256':expected})
 js=get('main.dart.js')
 text=js.decode('utf8')
 headline='Люди. Работа.'
 assert 'Manrope' in text and (headline in text or json.dumps(headline,ensure_ascii=True)[1:-1].lower() in text.lower())
 result={'status':'PASS','url':base,'manrope_weights':sorted(row['weight'] for row in family['fonts']),
-        'live_font_and_license_hashes_match':True,'assets':checks,'new_login_headline_in_bundle':True,
+        'live_font_and_license_hashes_match':True,'logo_and_web_icons_match':True,'assets':checks,'new_login_headline_in_bundle':True,
         'main_js_sha256':hashlib.sha256(js).hexdigest(),'main_js_bytes':len(js),'backend_requests_made':False}
 output=Path('.tmp/live-app-design-verification.json')
 output.parent.mkdir(exist_ok=True)

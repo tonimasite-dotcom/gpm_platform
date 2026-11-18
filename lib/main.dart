@@ -170,7 +170,14 @@ class _DevRoleSwitcherState extends State<DevRoleSwitcher> {
             onRoleChanged: (role) => setState(() => _role = role),
             onSignedOut: widget.onSignedOut,
           ),
-          Expanded(child: child),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1120),
+                child: child,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -202,7 +209,7 @@ class _GpmHeader extends StatelessWidget {
         child: Row(
           children: [
             const _GpmLogo(),
-            const SizedBox(width: 18),
+            const SizedBox(width: 12),
             Expanded(
               child: gpmApi.requiresAuth
                   ? Align(
@@ -255,20 +262,6 @@ class _GpmLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const GpmLogoImage(width: 48, height: 48),
-        const SizedBox(width: 8),
-        const Text(
-          'GPM',
-          style: TextStyle(
-            color: GpmColors.black,
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
+    return const GpmLogoImage(width: 104);
   }
 }

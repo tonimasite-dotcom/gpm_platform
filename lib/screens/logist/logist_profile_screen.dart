@@ -474,7 +474,7 @@ class _ProfileHeader extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Padding(
@@ -529,7 +529,7 @@ class _ModerationSection extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(
@@ -627,7 +627,7 @@ class _ModerationCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(

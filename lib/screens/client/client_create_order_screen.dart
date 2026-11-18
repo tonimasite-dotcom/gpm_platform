@@ -554,299 +554,307 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: GpmColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: GpmColors.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: GpmColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: GpmColors.line),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          tooltip: 'Назад',
-                          onPressed: _goBack,
-                          icon: const Icon(Icons.arrow_back),
+                        Row(
+                          children: [
+                            IconButton(
+                              tooltip: 'Назад',
+                              onPressed: _goBack,
+                              icon: const Icon(Icons.arrow_back),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineSmall,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            widget.title.toUpperCase(),
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Оставьте заявку: укажите время, адрес, груз и бюджет.',
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _cityController,
+                    decoration: const InputDecoration(labelText: 'Город'),
+                    validator: (value) => _requiredText(value, 'Укажите город'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _dateController,
+                          keyboardType: TextInputType.datetime,
+                          inputFormatters: dateAutoSeparatorFormatters,
+                          decoration: const InputDecoration(
+                            labelText: 'Дата',
+                            hintText: '18.08.2026',
+                            prefixIcon: Icon(Icons.calendar_today),
+                          ),
+                          validator: _validateDate,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _timeController,
+                          keyboardType: TextInputType.datetime,
+                          inputFormatters: timeAutoSeparatorFormatters,
+                          decoration: const InputDecoration(
+                            labelText: 'Время',
+                            hintText: '14:30',
+                            prefixIcon: Icon(Icons.schedule),
+                          ),
+                          validator: _validateTime,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Формат: дата ДД.ММ.ГГГГ, время 24 часа. '
+                    'Не раньше чем через 30 минут и не позже чем через год.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _cargoTypeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Вид груза',
+                      hintText: 'Например: мебель, техника, коробки',
+                    ),
+                    validator: (value) =>
+                        _requiredText(value, 'Укажите вид груза'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _workDescriptionController,
+                    maxLines: 4,
+                    minLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Описание работ',
+                      hintText: 'Что нужно сделать, откуда и куда, особенности',
+                      alignLabelWithHint: true,
+                    ),
+                    validator: (value) =>
+                        _requiredText(value, 'Опишите работы'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _totalWeightController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Общий вес, кг',
+                            hintText: 'Например: 800',
+                          ),
+                          validator: (value) => _requiredIntegerInRange(
+                            value,
+                            min: 1,
+                            max: 100000,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _unitWeightController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Вес одной единицы, кг',
+                            hintText:
+                                'Укажите приблизительный '
+                                'максимальный вес единицы',
+                          ),
+                          validator: (value) => _requiredIntegerInRange(
+                            value,
+                            min: 1,
+                            max: 100000,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _floorController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      signed: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Этаж (необязательно)',
+                      hintText: 'Например: 4',
+                    ),
+                    validator: (value) =>
+                        _optionalIntegerInRange(value, min: -5, max: 200),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Есть лифт'),
+                    value: _hasElevator,
+                    onChanged: (value) => setState(() => _hasElevator = value),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCounters(),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _addressController,
+                    focusNode: _addressFocusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Адрес',
+                      hintText: 'Начните вводить улицу и дом',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.location_on_outlined),
+                      suffixIcon: _isAddressLookupLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    onChanged: _scheduleAddressLookup,
+                    validator: _validateAddress,
+                  ),
+                  if (_addressLookupError != null) ...[
                     const SizedBox(height: 8),
-                    const Text(
-                      'Оставьте заявку: укажите время, адрес, груз и бюджет.',
+                    Text(
+                      _addressLookupError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _cityController,
-                decoration: const InputDecoration(
-                  labelText: 'Город',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => _requiredText(value, 'Укажите город'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _dateController,
-                      keyboardType: TextInputType.datetime,
-                      inputFormatters: dateAutoSeparatorFormatters,
-                      decoration: const InputDecoration(
-                        labelText: 'Дата',
-                        hintText: '18.08.2026',
-                        prefixIcon: Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _validateDate,
+                  if (_addressCandidates.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _AddressCandidatesList(
+                      candidates: _addressCandidates,
+                      onSelected: _selectAddress,
+                    ),
+                  ],
+                  if (_selectedAddress != null) ...[
+                    const SizedBox(height: 12),
+                    _SelectedAddressPreview(candidate: _selectedAddress!),
+                  ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _metroController,
+                    decoration: const InputDecoration(
+                      labelText: 'Метро (необязательно)',
+                      hintText: 'Например: Динамо, если рядом есть метро',
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _timeController,
-                      keyboardType: TextInputType.datetime,
-                      inputFormatters: timeAutoSeparatorFormatters,
-                      decoration: const InputDecoration(
-                        labelText: 'Время',
-                        hintText: '14:30',
-                        prefixIcon: Icon(Icons.schedule),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _validateTime,
-                    ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Гражданство исполнителя:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Формат: дата ДД.ММ.ГГГГ, время 24 часа. '
-                'Не раньше чем через 30 минут и не позже чем через год.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _cargoTypeController,
-                decoration: const InputDecoration(
-                  labelText: 'Вид груза',
-                  hintText: 'Например: мебель, техника, коробки',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => _requiredText(value, 'Укажите вид груза'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _workDescriptionController,
-                maxLines: 4,
-                minLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Описание работ',
-                  hintText: 'Что нужно сделать, откуда и куда, особенности',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                validator: (value) => _requiredText(value, 'Опишите работы'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _totalWeightController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Общий вес, кг',
-                        hintText: 'Например: 800',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) =>
-                          _requiredIntegerInRange(value, min: 1, max: 100000),
-                    ),
+                  const SizedBox(height: 8),
+                  GpmSegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'yes', label: Text('Только РФ')),
+                      ButtonSegment(value: 'every', label: Text('Любое')),
+                    ],
+                    selected: {_national},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _national = selection.first),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _unitWeightController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Вес одной единицы, кг',
-                        hintText:
-                            'Укажите приблизительный '
-                            'максимальный вес единицы',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) =>
-                          _requiredIntegerInRange(value, min: 1, max: 100000),
-                    ),
+                  const SizedBox(height: 12),
+                  GpmSegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'rate', label: Text('Ставка в час')),
+                      ButtonSegment(value: 'shift', label: Text('Смена')),
+                    ],
+                    selected: {_workMode},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _workMode = selection.first),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _floorController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  signed: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Этаж (необязательно)',
-                  hintText: 'Например: 4',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) =>
-                    _optionalIntegerInRange(value, min: -5, max: 200),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Есть лифт'),
-                value: _hasElevator,
-                onChanged: (value) => setState(() => _hasElevator = value),
-              ),
-              const SizedBox(height: 12),
-              _buildCounters(),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _addressController,
-                focusNode: _addressFocusNode,
-                decoration: InputDecoration(
-                  labelText: 'Адрес',
-                  hintText: 'Начните вводить улицу и дом',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.location_on_outlined),
-                  suffixIcon: _isAddressLookupLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _rateController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: _workMode == 'shift'
+                          ? 'Ставка исполнителя за смену, ₽'
+                          : 'Ставка исполнителя в час, ₽',
+                      border: const OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final rate = int.tryParse(value?.trim() ?? '');
+                      return rate == null || rate <= 0 || rate > 1000000000
+                          ? (_workMode == 'shift'
+                                ? 'Укажите положительную ставку за смену'
+                                : 'Укажите положительную ставку в час')
+                          : null;
+                    },
+                  ),
+                  if (!_isLogist) ...[
+                    const SizedBox(height: 12),
+                    _ClientPriceSection(
+                      clientType: _clientType,
+                      controller: _priceController,
+                      validatePrice: _optionalPrice,
+                      recommendedPrice: _recommendedPrice,
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            widget.submitText,
+                            style: const TextStyle(fontSize: 16),
                           ),
-                        )
-                      : null,
-                ),
-                onChanged: _scheduleAddressLookup,
-                validator: _validateAddress,
-              ),
-              if (_addressLookupError != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _addressLookupError!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-              if (_addressCandidates.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                _AddressCandidatesList(
-                  candidates: _addressCandidates,
-                  onSelected: _selectAddress,
-                ),
-              ],
-              if (_selectedAddress != null) ...[
-                const SizedBox(height: 12),
-                _SelectedAddressPreview(candidate: _selectedAddress!),
-              ],
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _metroController,
-                decoration: const InputDecoration(
-                  labelText: 'Метро (необязательно)',
-                  hintText: 'Например: Динамо, если рядом есть метро',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Гражданство исполнителя:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              GpmSegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'yes', label: Text('Только РФ')),
-                  ButtonSegment(value: 'every', label: Text('Любое')),
+                  ),
                 ],
-                selected: {_national},
-                onSelectionChanged: (selection) =>
-                    setState(() => _national = selection.first),
               ),
-              const SizedBox(height: 12),
-              GpmSegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'rate', label: Text('Ставка в час')),
-                  ButtonSegment(value: 'shift', label: Text('Смена')),
-                ],
-                selected: {_workMode},
-                onSelectionChanged: (selection) =>
-                    setState(() => _workMode = selection.first),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _rateController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: _workMode == 'shift'
-                      ? 'Ставка исполнителя за смену, ₽'
-                      : 'Ставка исполнителя в час, ₽',
-                  border: const OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final rate = int.tryParse(value?.trim() ?? '');
-                  return rate == null || rate <= 0 || rate > 1000000000
-                      ? (_workMode == 'shift'
-                            ? 'Укажите положительную ставку за смену'
-                            : 'Укажите положительную ставку в час')
-                      : null;
-                },
-              ),
-              if (!_isLogist) ...[
-                const SizedBox(height: 12),
-                _ClientPriceSection(
-                  clientType: _clientType,
-                  controller: _priceController,
-                  validatePrice: _optionalPrice,
-                  recommendedPrice: _recommendedPrice,
-                ),
-              ],
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        widget.submitText,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -879,7 +887,7 @@ class _BoundedCounter extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: GpmColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: GpmColors.line),
         ),
         child: Padding(
@@ -942,7 +950,7 @@ class _ClientPriceSection extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Padding(
@@ -1043,7 +1051,7 @@ class _AddressCandidatesList extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(
@@ -1083,7 +1091,7 @@ class _SelectedAddressPreview extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(

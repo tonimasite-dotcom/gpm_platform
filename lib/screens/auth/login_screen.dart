@@ -139,10 +139,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                   padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: 430,
-                        minHeight: constraints.maxHeight,
-                      ),
+                      constraints: const BoxConstraints(maxWidth: 460),
                       child: Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
@@ -163,13 +160,13 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const _GpmAuthHero(),
+                            _GpmAuthHero(compact: _role != null),
                             Transform.translate(
-                              offset: const Offset(0, -18),
+                              offset: Offset.zero,
                               child: Container(
                                 padding: const EdgeInsets.fromLTRB(
                                   20,
-                                  24,
+                                  16,
                                   20,
                                   32,
                                 ),
@@ -212,28 +209,7 @@ class _GpmLoginScreenState extends State<GpmLoginScreen> {
             context,
           ).textTheme.headlineSmall?.copyWith(fontSize: 26),
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF4D6),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE0A800)),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.science_outlined, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Закрытое тестирование. Не вводите реальные паспортные, банковские и иные чувствительные данные.',
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         for (final option in _roleOptions) ...[
           _RoleCard(option: option, onTap: () => _selectRole(option.value)),
           if (option != _roleOptions.last) const SizedBox(height: 10),
@@ -551,23 +527,21 @@ const _roleOptions = [
     value: 'client',
     title: 'Клиент',
     shortTitle: 'клиент',
-    description: 'Создаёт заявки, следит за выполнением и общается с логистом.',
+    description: 'Заказать исполнителей',
     icon: Icons.business_center_outlined,
   ),
   _RoleOption(
     value: 'worker',
     title: 'Исполнитель',
     shortTitle: 'исполнитель',
-    description:
-        'Выбирает доступные заказы, откликается на работу и получает выплаты.',
+    description: 'Найти работу и смены',
     icon: Icons.engineering_outlined,
   ),
   _RoleOption(
     value: 'logist',
     title: 'Логист',
     shortTitle: 'логист',
-    description:
-        'Управляет заявками, назначает исполнителей и контролирует работу.',
+    description: 'Управлять заявками и командой',
     icon: Icons.assignment_ind_outlined,
   ),
 ];
@@ -590,13 +564,13 @@ class _RoleCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(17),
+          padding: const EdgeInsets.all(12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: GpmColors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
@@ -614,12 +588,13 @@ class _RoleCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       option.description,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: GpmColors.graphite,
-                        height: 1.35,
+                        fontSize: 12,
+                        height: 1.25,
                       ),
                     ),
                   ],
@@ -645,65 +620,35 @@ class _RoleCard extends StatelessWidget {
 }
 
 class _GpmAuthHero extends StatelessWidget {
-  const _GpmAuthHero();
+  final bool compact;
+  const _GpmAuthHero({required this.compact});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(28, 32, 28, 42),
-    color: GpmColors.surface,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const GpmLogoImage(width: 48, height: 54),
-            const SizedBox(width: 12),
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width > 520;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, compact ? 12 : 24, 20, compact ? 4 : 8),
+      color: GpmColors.surface,
+      child: Column(
+        children: [
+          GpmLogoImage(width: compact ? 160 : (wide ? 280 : 240)),
+          if (!compact) ...[
+            const SizedBox(height: 12),
             const Text(
-              'GPM',
+              'Люди. Работа. Все в одном месте.',
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1.2,
-                color: GpmColors.black,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: GpmColors.brandSoft,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: const Text(
-                '24/7',
-                style: TextStyle(
-                  color: GpmColors.redInk,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                fontSize: 18,
+                height: 1.3,
+                fontWeight: FontWeight.w500,
+                color: GpmColors.graphite,
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 26),
-        const Text(
-          'Люди. Работа.\nВсе в одном месте.',
-          style: TextStyle(
-            fontSize: 30,
-            height: 1.16,
-            fontWeight: FontWeight.w500,
-            letterSpacing: -.8,
-            color: GpmColors.black,
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Заказы, исполнители и ваша команда',
-          style: TextStyle(fontSize: 14, height: 1.4, color: GpmColors.muted),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _AuthBackdrop extends StatelessWidget {

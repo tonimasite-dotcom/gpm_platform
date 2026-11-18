@@ -286,7 +286,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
     final data = _data;
     return Scaffold(
       appBar: AppBar(
-        title: Text(data?.thread.title ?? 'Чат'),
+        title: Text(
+          data?.thread.title ?? 'Чат',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           IconButton(
             tooltip: _searching ? 'Закрыть поиск' : 'Поиск в переписке',
@@ -319,7 +323,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
                     ),
                   )
                 : const Center(child: CircularProgressIndicator())
-          : _buildConversation(data),
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: _buildConversation(data),
+              ),
+            ),
     );
   }
 
@@ -451,18 +460,19 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
           ),
         ),
         if (!data.thread.isArchived) ...[
-          IgnorePointer(
-            ignoring: _actionBusy || _isSending,
-            child: _QuickActions(
-              role: widget.role,
-              thread: data.thread,
-              order: data.order,
-              canRequestSupport: _canRequestSupport(data.thread),
-              onRequestSupport: _requestSupport,
-              onQuickMessage: _sendMessage,
-              onResolveAttention: _resolveAttention,
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            IgnorePointer(
+              ignoring: _actionBusy || _isSending,
+              child: _QuickActions(
+                role: widget.role,
+                thread: data.thread,
+                order: data.order,
+                canRequestSupport: _canRequestSupport(data.thread),
+                onRequestSupport: _requestSupport,
+                onQuickMessage: _sendMessage,
+                onResolveAttention: _resolveAttention,
+              ),
             ),
-          ),
           _Composer(
             controller: _controller,
             focusNode: _focus,
@@ -520,46 +530,48 @@ class _OrderContextCard extends StatelessWidget {
     final workers = order['workers_count']?.toString() ?? '';
     final hours = order['hours']?.toString() ?? '';
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: GpmColors.line)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Material(
+      color: GpmColors.surface,
+      child: ExpansionTile(
+        key: ValueKey('chat-order-${thread.id}'),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        leading: const Icon(
+          Icons.assignment_outlined,
+          color: GpmColors.muted,
+          size: 22,
+        ),
+        title: Text(
+          order['title']?.toString() ?? 'Заявка',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          status,
+          style: TextStyle(color: statusColor, fontSize: 12),
+        ),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  order['title']?.toString() ?? 'Заказ',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              _SmallPill(text: status, color: statusColor),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 6,
-            children: [
-              _FactIcon(icon: Icons.place_outlined, text: address),
-              if (scheduledAt.isNotEmpty)
-                _FactIcon(icon: Icons.schedule, text: scheduledAt),
-              if (workers.isNotEmpty || hours.isNotEmpty)
-                _FactIcon(
-                  icon: Icons.engineering,
-                  text: [
-                    if (workers.isNotEmpty) '$workers исполн.',
-                    if (hours.isNotEmpty) '$hours ч',
-                  ].join(' · '),
-                ),
-            ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                _SmallPill(text: status, color: statusColor),
+                _FactIcon(icon: Icons.place_outlined, text: address),
+                if (scheduledAt.isNotEmpty)
+                  _FactIcon(icon: Icons.schedule, text: scheduledAt),
+                if (workers.isNotEmpty || hours.isNotEmpty)
+                  _FactIcon(
+                    icon: Icons.engineering,
+                    text: [
+                      if (workers.isNotEmpty) '$workers исполн.',
+                      if (hours.isNotEmpty) '$hours ч',
+                    ].join(' · '),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -619,7 +631,7 @@ class _QuickActions extends StatelessWidget {
       actions.add(
         _ActionButton(
           icon: Icons.support_agent,
-          label: 'Поддержка 24/7',
+          label: 'Поддержка',
           onTap: onRequestSupport,
         ),
       );
@@ -689,7 +701,11 @@ class _FactIcon extends StatelessWidget {
         Icon(icon, size: 16, color: GpmColors.graphite),
         const SizedBox(width: 4),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
+          constraints: BoxConstraints(
+            maxWidth: (MediaQuery.sizeOf(context).width - 80)
+                .clamp(120, 320)
+                .toDouble(),
+          ),
           child: Text(
             text,
             maxLines: 1,
@@ -768,18 +784,27 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
-    final background = isOwn ? GpmColors.red : GpmColors.surface;
-    final foreground = isOwn ? Colors.white : GpmColors.black;
+    final background = isOwn ? const Color(0xFFFFE4E6) : GpmColors.surface;
+    const foreground = GpmColors.black;
 
     return Align(
       alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 560),
-        margin: const EdgeInsets.symmetric(vertical: 5),
+        constraints: BoxConstraints(
+          maxWidth: (MediaQuery.sizeOf(context).width * .84)
+              .clamp(0, 560)
+              .toDouble(),
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isOwn ? 18 : 5),
+            bottomRight: Radius.circular(isOwn ? 5 : 18),
+          ),
           border: isOwn ? null : Border.all(color: GpmColors.line),
         ),
         child: Column(
@@ -884,7 +909,7 @@ class _Composer extends StatelessWidget {
                   maxLines: 4,
                   textInputAction: TextInputAction.newline,
                   decoration: const InputDecoration(
-                    hintText: 'Сообщение по заказу',
+                    hintText: 'Сообщение',
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
@@ -899,6 +924,11 @@ class _Composer extends StatelessWidget {
               child: ValueListenableBuilder<TextEditingValue>(
                 valueListenable: controller,
                 builder: (context, value, _) => FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    padding: const EdgeInsets.all(12),
+                    shape: const CircleBorder(),
+                  ),
                   onPressed: isSending || value.text.trim().isEmpty
                       ? null
                       : onSend,
@@ -937,7 +967,7 @@ class _ArchivedFooter extends StatelessWidget {
           border: Border(top: BorderSide(color: GpmColors.line)),
         ),
         child: const Text(
-          'Заказ завершен. Чат сохранен в архиве и доступен только для чтения.',
+          'Заявка закрыта. Чат сохранен в архиве и доступен только для чтения.',
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.w600),
         ),

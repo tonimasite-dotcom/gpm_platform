@@ -6,7 +6,8 @@ import '../../theme/gpm_theme.dart';
 import 'worker_referral_promo.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
-  const WorkerDashboardScreen({super.key});
+  final VoidCallback? onOpenOrders;
+  const WorkerDashboardScreen({super.key, this.onOpenOrders});
 
   @override
   State<WorkerDashboardScreen> createState() => _WorkerDashboardScreenState();
@@ -83,7 +84,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: GpmColors.surface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: GpmColors.line),
                 ),
                 child: Column(
@@ -137,7 +138,13 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: widget.onOpenOrders,
+                icon: const Icon(Icons.search),
+                label: const Text('Найти смену'),
+              ),
+              const SizedBox(height: 16),
               WorkerReferralPromoCard(
                 onTap: () => showWorkerReferralPromo(context),
               ),
@@ -167,9 +174,9 @@ class _DashboardStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
+        color: GpmColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: GpmColors.softLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

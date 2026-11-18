@@ -19,4 +19,7 @@ Future<void> loadMobileTestFonts() async {
     );
   }
   await loader.load();
+  final icons = FontLoader('MaterialIcons');
+  icons.addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+  await icons.load();
 }

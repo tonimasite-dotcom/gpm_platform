@@ -3,9 +3,9 @@
     "short_name": "GPM",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#F5F5F5",
-    "theme_color": "#D20A3C",
-    "description": "Закрытая тестовая версия платформы заказов и исполнителей GPM.",
+    "background_color": "#F1F5F9",
+    "theme_color": "#F1F5F9",
+    "description": "GPM — платформа заказов, исполнителей и вашей команды.",
     "prefer_related_applications": false,
     "icons": [
         {

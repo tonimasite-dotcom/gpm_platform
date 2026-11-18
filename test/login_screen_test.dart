@@ -15,7 +15,8 @@ void main() {
     await tester.pumpWidget(buildSubject());
 
     expect(find.text('Выберите роль'), findsOneWidget);
-    expect(find.textContaining('Закрытое тестирование'), findsOneWidget);
+    expect(find.textContaining('Закрытое тестирование'), findsNothing);
+    expect(find.text('24/7'), findsNothing);
     expect(find.textContaining('admin/admin'), findsNothing);
 
     await tester.tap(find.text('Клиент'));

@@ -66,6 +66,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
       foregroundColor: GpmColors.black,
       centerTitle: false,
       titleTextStyle: TextStyle(
+        fontFamily: 'Manrope',
         color: GpmColors.black,
         fontSize: 20,
         fontWeight: FontWeight.w600,

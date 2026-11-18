@@ -570,7 +570,7 @@ class _ProfileHeader extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Padding(
@@ -612,7 +612,7 @@ class _Section extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: GpmColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(
@@ -727,7 +727,7 @@ class _VerificationCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(
@@ -801,7 +801,7 @@ class _MetricCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -1006,7 +1006,7 @@ class _PassportDialogState extends State<_PassportDialog> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     border: Border.all(color: GpmColors.line),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     children: [

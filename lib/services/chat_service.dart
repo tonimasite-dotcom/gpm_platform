@@ -104,7 +104,7 @@ class ChatService {
         subtitle: messages.isEmpty ? thread.subtitle : messages.last.text,
         isArchived: order == null
             ? thread.isArchived
-            : order['status'] == 'CONVERTED',
+            : const {'CONVERTED', 'JUNK'}.contains(order['status']),
       );
     }
 
@@ -313,7 +313,7 @@ class ChatService {
     final createdAt =
         DateTime.tryParse(order['created_at']?.toString() ?? '') ??
         DateTime.now();
-    final archived = order['status'] == 'CONVERTED';
+    final archived = const {'CONVERTED', 'JUNK'}.contains(order['status']);
     final orderTitle = _orderTitle(order);
 
     _threads.add(

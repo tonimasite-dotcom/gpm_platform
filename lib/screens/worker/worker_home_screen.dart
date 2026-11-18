@@ -15,34 +15,55 @@ class WorkerHomeScreen extends StatefulWidget {
 
 class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   int _currentIndex = 0;
+  final Set<int> _visited = {0};
 
   @override
   Widget build(BuildContext context) {
-    final screens = const [
-      WorkerDashboardScreen(),
-      WorkerOrdersScreen(),
-      ChatThreadsScreen(role: ChatRole.worker),
-      WorkerFinanceScreen(),
-      WorkerProfileScreen(),
+    final screens = [
+      WorkerDashboardScreen(
+        onOpenOrders: () => setState(() => _currentIndex = 1),
+      ),
+      const WorkerOrdersScreen(),
+      const ChatThreadsScreen(role: ChatRole.worker),
+      const WorkerFinanceScreen(),
+      const WorkerProfileScreen(),
     ];
 
     return Scaffold(
-      body: screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(
+          screens.length,
+          (index) => TickerMode(
+            enabled: index == _currentIndex,
+            child:
+                (index == _currentIndex ||
+                    (index == 2 && _visited.contains(index)))
+                ? screens[index]
+                : const SizedBox.shrink(),
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
+            _visited.add(index);
           });
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
           BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Заказы'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.forum_outlined), label: 'Чаты'),
+            icon: Icon(Icons.forum_outlined),
+            label: 'Чаты',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet), label: 'Финансы'),
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Финансы',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
       ),

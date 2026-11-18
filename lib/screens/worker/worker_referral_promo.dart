@@ -4,9 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../theme/gpm_theme.dart';
 
 const _dialogBreakpoint = 600.0;
-const _promoBackground = Color(0xFFFFFCF2);
-const _promoSurface = Color(0xFFFFF4CC);
-const _promoBorder = Color(0xFFD6A000);
+const _promoBackground = GpmColors.surface;
+const _promoBorder = GpmColors.softLine;
 
 Future<void> showWorkerReferralPromo(BuildContext context) async {
   Future<void> openTelegram(String username) async {
@@ -79,14 +78,14 @@ class WorkerReferralPromoCard extends StatelessWidget {
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [GpmColors.surface, _promoSurface]),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _promoBorder, width: 2),
+          color: GpmColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _promoBorder, width: 1),
         ),
         child: InkWell(
           key: const Key('worker_referral_promo_card'),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -99,7 +98,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: GpmColors.yellow.withValues(alpha: 0.25),
+                        color: GpmColors.brandSoft,
                         borderRadius: BorderRadius.circular(7),
                       ),
                       child: const Icon(
@@ -153,8 +152,8 @@ class WorkerReferralPromoCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onTap,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: GpmColors.yellow,
-                      foregroundColor: GpmColors.black,
+                      backgroundColor: GpmColors.redAction,
+                      foregroundColor: Colors.white,
                       minimumSize: const Size(48, 44),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -185,7 +184,7 @@ class _RewardBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: GpmColors.surface.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: GpmColors.line),
       ),
       child: Column(
@@ -239,7 +238,7 @@ class _ReferralDetails extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: GpmColors.yellow.withValues(alpha: 0.25),
+                  color: GpmColors.brandSoft,
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: const Icon(
@@ -326,7 +325,7 @@ class _DetailRewardRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: GpmColors.surface.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: GpmColors.line),
       ),
       child: Row(
@@ -380,7 +379,7 @@ class _TelegramContactButton extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: GpmColors.black,
+          foregroundColor: Colors.white,
           backgroundColor: GpmColors.surface.withValues(alpha: 0.82),
           side: const BorderSide(color: _promoBorder, width: 1.4),
           minimumSize: const Size(48, 46),

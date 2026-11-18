@@ -14,6 +14,7 @@ class ClientHomeScreen extends StatefulWidget {
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
   int _currentIndex = 0;
+  final Set<int> _visited = {0};
 
   @override
   Widget build(BuildContext context) {
@@ -29,13 +30,27 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     ];
 
     return Scaffold(
-      body: screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(
+          screens.length,
+          (index) => TickerMode(
+            enabled: index == _currentIndex,
+            child:
+                (index == _currentIndex ||
+                    (index == 2 && _visited.contains(index)))
+                ? screens[index]
+                : const SizedBox.shrink(),
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
+            _visited.add(index);
           });
         },
         items: const [
@@ -51,10 +66,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             icon: Icon(Icons.forum_outlined),
             label: 'Чаты',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Профиль',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
       ),
     );
