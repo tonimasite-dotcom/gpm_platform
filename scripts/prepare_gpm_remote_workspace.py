@@ -20,7 +20,7 @@ def run(args, cwd=None, env=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['inspect', 'prepare'], required=True)
+    parser.add_argument('--mode', choices=['inspect', 'prepare', 'sync'], required=True)
     parser.add_argument('--expected-host', required=True)
     args = parser.parse_args()
     assert args.expected_host == FRONTEND_HOST, 'GPM frontend target mismatch'
@@ -32,6 +32,20 @@ def main():
     info = {'project': 'GPM', 'component': 'frontend development', 'mode': args.mode, 'free_bytes': free, 'memory': mem, 'existing_workspace': ROOT.exists(), 'production_changed': False}
     print(json.dumps(info), flush=True)
     if args.mode == 'inspect':
+        return
+    if args.mode == 'sync':
+        owner = json.loads((ROOT / 'owner.json').read_text())
+        assert owner['project'] == 'GPM' and owner['frontend_host'] == FRONTEND_HOST
+        repo = ROOT / 'repository'
+        assert not repo.is_symlink() and repo.resolve().parent == ROOT.resolve()
+        def git(*parts):
+            return subprocess.check_output(['git', '-C', str(repo), *parts], text=True).strip()
+        assert git('remote', 'get-url', 'origin') == 'https://github.com/tonimasite-dotcom/gpm_platform.git'
+        assert git('branch', '--show-current') == 'main', 'Workspace is in active feature work'
+        assert not git('status', '--porcelain'), 'Preserve local changes; sync stopped'
+        run(['git', '-C', str(repo), 'pull', '--ff-only', 'origin', 'main'])
+        result = dict(info, workspace_ready=True, synced_head=git('rev-parse', 'HEAD'), clean=not git('status', '--porcelain'))
+        print(json.dumps(result), flush=True)
         return
     assert free >= 6 * 1024**3, 'Insufficient disk reserve for developer SDK'
     assert mem['MemAvailable'] >= 1024**3, 'Insufficient memory reserve; do not compete with production'

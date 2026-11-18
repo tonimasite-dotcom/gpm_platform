@@ -6,7 +6,7 @@ on:
       mode:
         description: Inspect capacity or prepare isolated GPM development on frontend host
         type: choice
-        options: [inspect, prepare]
+        options: [inspect, prepare, sync]
         default: inspect
         required: true
 
@@ -49,7 +49,7 @@ jobs:
           MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
-          case "$MODE" in inspect|prepare) ;; *) exit 2 ;; esac
+          case "$MODE" in inspect|prepare|sync) ;; *) exit 2 ;; esac
           ssh -i "$HOME/.ssh/gpm-dev-key" \
             -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/gpm-dev-known-hosts" \
