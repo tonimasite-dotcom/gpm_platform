@@ -1,0 +1,11 @@
+{
+  "url": "https://app.gpmbot.ru/",
+  "frontend_commit": "d02869ba6c2f92db182f192feef8923e8335d96e",
+  "browser": "Headless Microsoft Edge, CDP mobile emulation",
+  "inner_width": 320,
+  "inner_height": 568,
+  "device_pixel_ratio": 1,
+  "flutter_first_frame_observed": true,
+  "screenshot_visually_reviewed": true,
+  "account_login_performed": false
+}

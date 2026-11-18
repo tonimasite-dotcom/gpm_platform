@@ -1,0 +1,42 @@
+{
+  "code_commit": "f3f2875b605463d7f7c46c85772e676f4a705a75",
+  "ci_run": 44347181455,
+  "ci_conclusion": "success",
+  "local_backend_tests": 120,
+  "local_backend_skipped": 2,
+  "local_web_build": "success",
+  "mobile_role_selection_no_scroll": [
+    [
+      320,
+      568
+    ],
+    [
+      360,
+      640
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "large_text_scale": 2,
+  "keyboard_inset_test_px": 240,
+  "chat_roles_checked": [
+    "client",
+    "worker",
+    "logist"
+  ],
+  "archive_statuses_checked": [
+    "CONVERTED",
+    "JUNK"
+  ],
+  "new_messages_in_archive": "blocked",
+  "retry_idempotency": "pass",
+  "outsider_access": "denied",
+  "order_api_failure_hides_chats": false,
+  "tab_switch_preserves_chat_search": true,
+  "real_widget_pngs": 10,
+  "original_logo_sha256": "aaf9e149f096bad1ec6343290ae9047ec37c2bc4b09dc2649aedd4521d23a34a",
+  "crm_or_ts_changed": false,
+  "database_migrations_added": false
+}

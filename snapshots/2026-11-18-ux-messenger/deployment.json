@@ -1,0 +1,83 @@
+{
+  "id": 44352039959,
+  "head_sha": "d02869ba6c2f92db182f192feef8923e8335d96e",
+  "status": "completed",
+  "conclusion": "success",
+  "html_url": "https://github.com/tonimasite-dotcom/gpm_platform/actions/runs/44352039959",
+  "created_at": "2026-11-18T16:51:24Z",
+  "frontend_backup": "/opt/gpm/front-backups/20261118_165316",
+  "frontend_previous": "/var/www/gpm-app-previous-20261118_165316",
+  "completed_at": "2026-11-18T16:53:20Z",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Require a main-branch dispatch",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Checkout main",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Set up Flutter",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Create public production config",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Validate and build frontend",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Validate backend",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Configure verified SSH access",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Deploy backend",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Upload frontend artifact",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Deploy frontend atomically",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Post Set up Flutter",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Post Checkout main",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

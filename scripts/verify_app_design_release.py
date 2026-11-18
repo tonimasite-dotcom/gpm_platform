@@ -6,7 +6,8 @@ def get(path):
     with urllib.request.urlopen(base+path+'?design_check='+stamp,timeout=60) as response:
         assert response.status==200
         return response.read()
-get('')
+html=get('').decode('utf-8')
+assert 'name="viewport"' in html and 'width=device-width' in html
 manifest=json.loads(get('assets/FontManifest.json'))
 family=next(row for row in manifest if row['family']=='Manrope')
 assert {row['weight'] for row in family['fonts']}=={400,500,600,700,800}
@@ -29,6 +30,7 @@ text=js.decode('utf8')
 headline='Люди. Работа.'
 assert 'Manrope' in text and (headline in text or json.dumps(headline,ensure_ascii=True)[1:-1].lower() in text.lower())
 result={'status':'PASS','url':base,'manrope_weights':sorted(row['weight'] for row in family['fonts']),
+        'mobile_device_viewport_configured':True,
         'live_font_and_license_hashes_match':True,'logo_and_web_icons_match':True,'assets':checks,'new_login_headline_in_bundle':True,
         'main_js_sha256':hashlib.sha256(js).hexdigest(),'main_js_bytes':len(js),'backend_requests_made':False}
 output=Path('.tmp/live-app-design-verification.json')

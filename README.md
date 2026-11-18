@@ -1,5 +1,13 @@
 # GPM Platform
 
+18.11.2026: компактный вход, логотип владельца и обновленные чаты опубликованы.
+Backend f3f2875, frontend d02869b; frontend run 44352039959 SUCCESS.
+CI/analyze/tests/build и public fonts/logo/icons PASS. Архив завершенных и отмененных
+заявок доступен участникам только для чтения. CRM/TS/auth/права/схемы не менялись.
+[Итог и откат](PROJECT_HANDOFF_2026-11-18_UX_MESSENGER.md),
+[промпт](CONTINUE_PROJECT_PROMPT_2026-11-18_UX_MESSENGER.md),
+[снимки](snapshots/2026-11-18-ux-messenger).
+
 18.11.2026: новый дизайн опубликован на https://app.gpmbot.ru/, frontend 772e025.
 Deployment 44328905446 и backup 44293319911 SUCCESS; analyze/tests/build и HTTP fonts/license PASS.
 Визуальная приемка live остается. Backend/CRM/TS не менялись.

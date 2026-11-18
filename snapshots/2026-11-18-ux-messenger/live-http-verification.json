@@ -1,0 +1,68 @@
+{
+  "status": "PASS",
+  "url": "https://app.gpmbot.ru/",
+  "manrope_weights": [
+    400,
+    500,
+    600,
+    700,
+    800
+  ],
+  "mobile_device_viewport_configured": true,
+  "live_font_and_license_hashes_match": true,
+  "logo_and_web_icons_match": true,
+  "assets": [
+    {
+      "asset": "Manrope-Bold.ttf",
+      "sha256": "bbaf9ce021068ba862b94ab090d04d5559b114ab8e251b325b0dadca69b90eb9"
+    },
+    {
+      "asset": "Manrope-ExtraBold.ttf",
+      "sha256": "897aacef4a0f5c6cb36f1d3b663f50754c1ec6e9431ffe5c35a3e7bb66f508ac"
+    },
+    {
+      "asset": "Manrope-Medium.ttf",
+      "sha256": "8d56d0f92712029e4d26a568303a0de5ed1d8dd99a92205d7417fa4d6dff80ba"
+    },
+    {
+      "asset": "Manrope-Regular.ttf",
+      "sha256": "d3e398c7ba4c00d0306af2ea1b0089d6574b15a91c24380439520669b00d326b"
+    },
+    {
+      "asset": "Manrope-SemiBold.ttf",
+      "sha256": "e089d489bb6211de4bfd0ff725dbd72520e0818a79c8b6f3c2f752e3ece640dd"
+    },
+    {
+      "asset": "OFL-Manrope.txt",
+      "sha256": "d6a309fcfb963d329a93baf9df66fa5f3c23a4be2b5f67edf24d6cafecde12ac"
+    },
+    {
+      "asset": "assets/images/gpm_logo.png",
+      "sha256": "aaf9e149f096bad1ec6343290ae9047ec37c2bc4b09dc2649aedd4521d23a34a"
+    },
+    {
+      "asset": "assets/images/gpm_logo_refined.png",
+      "sha256": "aaf9e149f096bad1ec6343290ae9047ec37c2bc4b09dc2649aedd4521d23a34a"
+    },
+    {
+      "asset": "web/favicon.png",
+      "sha256": "70111631cb74ba6558e2306a219f0ce67f77a16dbbe401813a07ae8c728d67f5"
+    },
+    {
+      "asset": "web/icons/Icon-192.png",
+      "sha256": "e769bb95d5c168d6340b2ecc136ad49edba5dd1965f2634b6c1ee96d33e8c44c"
+    },
+    {
+      "asset": "web/icons/Icon-512.png",
+      "sha256": "47c181d82612d91929b7c2f1ba192c6994367f513912030f5dbb105a558e5c3d"
+    },
+    {
+      "asset": "web/manifest.json",
+      "sha256": "d0d38d5a599eebda84945b0ada56ada7ce4b9a38ab751ea8d31ad2421050bb83"
+    }
+  ],
+  "new_login_headline_in_bundle": true,
+  "main_js_sha256": "be9961f906c93cc7e94c9d555da18abbe64830184aa53d8bfa42f89f29818898",
+  "main_js_bytes": 3761479,
+  "backend_requests_made": false
+}
