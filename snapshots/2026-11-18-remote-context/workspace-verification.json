@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-18",
+  "prepare_run": 44395455685,
+  "inspect_runs": [
+    44395082766,
+    44395286268
+  ],
+  "workspace_component": "GPM frontend development",
+  "flutter_version": "3.38.5",
+  "sdk_sha256": "a264940cfc431c1778f34f7413fa6ab71443ad52c71f38c50b0284397a4039b0",
+  "analyze": "No issues found",
+  "wrong_host_guard_cases_passed": 3,
+  "production_changed": false,
+  "wrong_crm_workspace_removed": true,
+  "obsolete_local_crm_backup_removed_by_owner_request": true,
+  "local_free_bytes": 11854278656,
+  "public_http": {
+    "frontend": {
+      "http": 200
+    },
+    "backend": {
+      "http": 200,
+      "health": {
+        "status": "ok",
+        "storage": "postgres"
+      }
+    }
+  },
+  "local_editor_ssh_connection_completed": false
+}
