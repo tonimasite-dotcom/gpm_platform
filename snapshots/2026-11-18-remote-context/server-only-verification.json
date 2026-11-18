@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-19",
+  "local_source_files_verified": 326,
+  "local_source_git_cache_files_removed": 626,
+  "old_local_source_and_git_removed": true,
+  "existing_access_files_retained": true,
+  "historical_archive_sha256_reverified": "40e5d6a9dd552d9996a15e6a27af814e9b32ad9185e6f6863044543f36e77849",
+  "remote_sync_run": 44399336860,
+  "remote_sync_clean": true,
+  "utf8_context_repaired": true,
+  "production_changed": false,
+  "public_http": {
+    "frontend": {
+      "status": 200
+    },
+    "backend": {
+      "status": 200,
+      "health": {
+        "status": "ok",
+        "storage": "postgres"
+      }
+    }
+  },
+  "client_project_copies_allowed": false,
+  "final_external_media_backup": "after final build and acceptance; destination selected by owner; GPM only"
+}
