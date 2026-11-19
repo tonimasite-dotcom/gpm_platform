@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/gpm_surface.dart';
 import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -521,8 +522,7 @@ class _AttendanceChallengeScreenState extends State<AttendanceChallengeScreen> {
             ),
             const SizedBox(height: 16),
             if (!expired && url.isNotEmpty)
-              Container(
-                color: Colors.white,
+              GpmSurface(
                 padding: const EdgeInsets.all(12),
                 child: QrImageView(data: url, size: 220),
               ),

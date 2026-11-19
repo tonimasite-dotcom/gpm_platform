@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/gpm_surface.dart';
 import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
 
@@ -459,27 +460,36 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
             ],
           ),
         ),
-        if (!data.thread.isArchived) ...[
-          if (MediaQuery.viewInsetsOf(context).bottom == 0)
-            IgnorePointer(
-              ignoring: _actionBusy || _isSending,
-              child: _QuickActions(
-                role: widget.role,
-                thread: data.thread,
-                order: data.order,
-                canRequestSupport: _canRequestSupport(data.thread),
-                onRequestSupport: _requestSupport,
-                onQuickMessage: _sendMessage,
-                onResolveAttention: _resolveAttention,
-              ),
+        if (!data.thread.isArchived)
+          GpmSurface(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (MediaQuery.viewInsetsOf(context).bottom == 0)
+                  IgnorePointer(
+                    ignoring: _actionBusy || _isSending,
+                    child: _QuickActions(
+                      role: widget.role,
+                      thread: data.thread,
+                      order: data.order,
+                      canRequestSupport: _canRequestSupport(data.thread),
+                      onRequestSupport: _requestSupport,
+                      onQuickMessage: _sendMessage,
+                      onResolveAttention: _resolveAttention,
+                    ),
+                  ),
+                _Composer(
+                  controller: _controller,
+                  focusNode: _focus,
+                  isSending: _isSending,
+                  onSend: _sendMessage,
+                ),
+              ],
             ),
-          _Composer(
-            controller: _controller,
-            focusNode: _focus,
-            isSending: _isSending,
-            onSend: _sendMessage,
-          ),
-        ] else
+          )
+        else
           const _ArchivedFooter(),
       ],
     );
@@ -530,10 +540,12 @@ class _OrderContextCard extends StatelessWidget {
     final workers = order['workers_count']?.toString() ?? '';
     final hours = order['hours']?.toString() ?? '';
 
-    return Material(
-      color: GpmColors.surface,
+    return GpmSurface(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: ExpansionTile(
         key: ValueKey('chat-order-${thread.id}'),
+        shape: const Border(),
+        collapsedShape: const Border(),
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         leading: const Icon(
@@ -649,13 +661,8 @@ class _QuickActions extends StatelessWidget {
 
     if (actions.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      width: double.infinity,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      decoration: const BoxDecoration(
-        color: GpmColors.surface,
-        border: Border(top: BorderSide(color: GpmColors.line)),
-      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(children: actions),
@@ -802,8 +809,8 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isOwn ? 18 : 5),
-            bottomRight: Radius.circular(isOwn ? 5 : 18),
+            bottomLeft: Radius.circular(isOwn ? 18 : 10),
+            bottomRight: Radius.circular(isOwn ? 10 : 18),
           ),
           border: isOwn ? null : Border.all(color: GpmColors.line),
         ),
@@ -881,12 +888,8 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        decoration: const BoxDecoration(
-          color: GpmColors.surface,
-          border: Border(top: BorderSide(color: GpmColors.line)),
-        ),
         child: Row(
           children: [
             Expanded(
@@ -959,13 +962,10 @@ class _ArchivedFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
+      child: GpmSurface(
         width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
         padding: const EdgeInsets.all(14),
-        decoration: const BoxDecoration(
-          color: GpmColors.surface,
-          border: Border(top: BorderSide(color: GpmColors.line)),
-        ),
         child: const Text(
           'Заявка закрыта. Чат сохранен в архиве и доступен только для чтения.',
           textAlign: TextAlign.center,
