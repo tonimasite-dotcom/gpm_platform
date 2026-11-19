@@ -95,3 +95,14 @@ jobs:
           flutter analyze --no-pub
           flutter test --no-pub
           flutter build web --release --base-href /
+
+      - name: Capture synthetic logist filter previews
+        run: flutter test --no-pub .tmp/logist_filter_preview_test.dart
+
+      - name: Upload synthetic filter previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: logist-filter-previews
+          path: filter-previews/*.png
+          retention-days: 7
+          if-no-files-found: error
