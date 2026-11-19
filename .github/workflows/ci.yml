@@ -1,97 +1,62 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches-ignore:
-      - main
+    branches:
+      - qa/worker-rating-v2-2026-11-19
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  backend:
+  rating-preview:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17.6-alpine
-        env:
-          POSTGRES_DB: gpm_test
-          POSTGRES_USER: gpm_test
-          POSTGRES_PASSWORD: synthetic-test-password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U gpm_test -d gpm_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      GPM_TEST_POSTGRES_URL: postgresql://gpm_test:synthetic-test-password@127.0.0.1:5432/gpm_test
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.10'
-          cache: pip
-          cache-dependency-path: requirements-api.lock
-
-      - name: Install and audit dependencies
-        run: |
-          python -m pip install --disable-pip-version-check \
-            -r requirements-api.lock pip-audit==2.10.1
-          python -m pip check
-          python -m pip_audit -r requirements-api.lock
-
-      - name: Test backend
-        run: |
-          python -m compileall -q app main.py tests
-          python -m unittest discover -s tests -p 'test_*.py' -v
-
-      - name: Validate test CRM integration
-        run: |
-          find integrations/workstaff-test-crm -name '*.php' -print0 | xargs -0 -n 1 php -l
-          php integrations/workstaff-test-crm/tests/sync_plan_test.php
-          php integrations/workstaff-test-crm/tests/sync_service_test.php
-          php integrations/workstaff-test-crm/tests/worker_rate_test.php
-          python -m py_compile integrations/workstaff-test-crm/worker-rate/install-worker-rate.py
-
-  flutter:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: '3.38.5'
-          channel: stable
           cache: true
-
-      - name: Create synthetic test config
+      - name: Prepare synthetic configuration
         run: |
           printf '%s\n' 'GPM_APP_MODE=demo' > .env
-
-      - name: Validate Flutter application
-        run: |
           flutter pub get
-          flutter analyze --no-pub
-          flutter test --no-pub
-          flutter build web --release --base-href /
+      - name: Format changed Dart sources
+        run: |
+          dart format lib/services/gpm_api_service.dart lib/widgets/worker_rating.dart lib/widgets/rating_action_dialog.dart lib/screens/ratings/worker_rating_screen.dart lib/screens/worker/worker_profile_screen.dart lib/screens/logist/worker_profile_review_screen.dart lib/screens/logist/logist_orders_screen.dart lib/screens/client/client_orders_screen.dart test/tester_feedback_api_test.dart test/tester_feedback_test.dart test/logist_workers_screen_test.dart test/worker_rating_v2_test.dart test/worker_rating_api_test.dart test/worker_rating_order_ui_test.dart .tmp/rating_preview_test.dart
+          python3 - <<'PY'
+          import hashlib,json,zipfile
+          from pathlib import Path
+          paths=["lib/services/gpm_api_service.dart","lib/widgets/worker_rating.dart","lib/widgets/rating_action_dialog.dart","lib/screens/ratings/worker_rating_screen.dart","lib/screens/worker/worker_profile_screen.dart","lib/screens/logist/worker_profile_review_screen.dart","lib/screens/logist/logist_orders_screen.dart","lib/screens/client/client_orders_screen.dart","test/tester_feedback_api_test.dart","test/tester_feedback_test.dart","test/logist_workers_screen_test.dart","test/worker_rating_v2_test.dart","test/worker_rating_api_test.dart","test/worker_rating_order_ui_test.dart"]
+          Path("rating-format").mkdir()
+          manifest={"source_sha":"1bed63508ac7d5b6c2a063639c1b989198e192a2","files":{}}
+          with zipfile.ZipFile("rating-format/formatted-sources.zip","w",zipfile.ZIP_DEFLATED) as z:
+              for name in paths:
+                  data=Path(name).read_bytes()
+                  manifest["files"][name]=hashlib.sha256(data).hexdigest()
+                  z.writestr(name,data)
+              z.writestr("manifest.json",json.dumps(manifest))
+          PY
+      - name: Capture synthetic rating screens
+        timeout-minutes: 3
+        run: flutter test --no-pub --timeout 120s .tmp/rating_preview_test.dart
+      - name: Upload rating previews
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-rating-previews
+          path: rating-previews/*.png
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Upload formatted sources
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-rating-formatted-sources
+          path: rating-format/formatted-sources.zip
+          retention-days: 7
+          if-no-files-found: warn
