@@ -88,6 +88,7 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -105,9 +106,8 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
             ],
           ),
         ),
-        Container(
-          color: GpmColors.surface,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -209,25 +209,15 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? GpmColors.red : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? GpmColors.red : GpmColors.line,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : GpmColors.black,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      showCheckmark: false,
+      selectedColor: GpmColors.brandSoft,
+      labelStyle: TextStyle(
+        color: isSelected ? GpmColors.redInk : GpmColors.muted,
       ),
+      onSelected: (_) => onTap(),
     );
   }
 }
