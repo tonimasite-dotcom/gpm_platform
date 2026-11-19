@@ -37,7 +37,7 @@ void main() {
   testWidgets('capture order filters at mobile and desktop sizes', (tester) async {
     dotenv.testLoad(fileInput: 'GPM_APP_MODE=production\n');
     app.gpmApi = PreviewApi();
-    await loadMobileTestFonts();
+    await tester.runAsync(loadMobileTestFonts);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
