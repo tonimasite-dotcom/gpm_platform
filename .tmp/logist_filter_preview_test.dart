@@ -62,11 +62,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-        final image = await boundary.toImage(pixelRatio: 1);
-        final data = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('${output.path}/orders-${size.width.toInt()}-${scale.toInt()}x.png')
-            .writeAsBytesSync(data!.buffer.asUint8List());
-        image.dispose();
+        await tester.runAsync(() async {
+          final image = await boundary.toImage(pixelRatio: 1);
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          File('${output.path}/orders-${size.width.toInt()}-${scale.toInt()}x.png')
+              .writeAsBytesSync(data!.buffer.asUint8List());
+          image.dispose();
+        });
         await tester.ensureVisible(find.text('В работе'));
         await tester.tap(find.text('В работе'));
         await tester.pumpAndSettle();
