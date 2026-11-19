@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/gpm_bottom_navigation_bar.dart';
 import '../../models/chat_models.dart';
 import '../chats/chat_threads_screen.dart';
 import 'logist_orders_screen.dart';
@@ -42,7 +43,7 @@ class _LogistHomeScreenState extends State<LogistHomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: GpmBottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         selectedFontSize: 11,
         unselectedFontSize: 11,

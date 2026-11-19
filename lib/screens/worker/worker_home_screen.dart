@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/gpm_bottom_navigation_bar.dart';
 import '../../models/chat_models.dart';
 import '../chats/chat_threads_screen.dart';
 import 'worker_dashboard_screen.dart';
@@ -44,7 +45,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: GpmBottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {

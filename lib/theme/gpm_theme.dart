@@ -181,6 +181,9 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
         ),
       ),
     ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: GpmColors.surface,
       selectedItemColor: ink,
