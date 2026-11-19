@@ -549,16 +549,16 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                                 'fail_requests',
                               ]) {
                                 if (fresh.containsKey(field)) {
-                                    _profile[field] = fresh[field];
+                                  _profile[field] = fresh[field];
                                 }
                               }
                             });
                           }
                         } catch (_) {
                           if (mounted) {
-                              _showError(
-                                'Не удалось обновить баллы. Обновите профиль позже.',
-                              );
+                            _showError(
+                              'Не удалось обновить баллы. Обновите профиль позже.',
+                            );
                           }
                         }
                       },

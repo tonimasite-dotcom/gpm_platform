@@ -111,7 +111,7 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                             'rating_summary',
                           ]) {
                             if (fresh.containsKey(field)) {
-                                _profile![field] = fresh[field];
+                              _profile![field] = fresh[field];
                             }
                           }
                         });

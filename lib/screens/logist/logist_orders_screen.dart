@@ -85,7 +85,7 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
     if (_selectedFilter == 'Без оценки') {
       return orders.where((order) {
         if (!{'DONE_PENDING', 'CONVERTED'}.contains(order['status'])) {
-            return false;
+          return false;
         }
         final assigned = (order['assigned_worker_ids'] as List? ?? const [])
             .map((id) => id.toString());

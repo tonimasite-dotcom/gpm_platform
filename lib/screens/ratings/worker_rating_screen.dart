@@ -88,17 +88,17 @@ class _WorkerRatingScreenState extends State<WorkerRatingScreen> {
       });
     } catch (_) {
       if (mounted) {
-          setState(
-            () => _error = 'Не удалось загрузить рейтинг. Попробуйте еще раз.',
-          );
+        setState(
+          () => _error = 'Не удалось загрузить рейтинг. Попробуйте еще раз.',
+        );
       }
     } finally {
       if (mounted) {
-          setState(() {
-            _loading = false;
-      }
+        setState(() {
+          _loading = false;
           _fetching = false;
         });
+      }
     }
   }
 
