@@ -21,7 +21,7 @@ void main() {
     expect(find.text('Активные заявки'), findsOneWidget);
     expect(find.text('Рейтинг'), findsOneWidget);
     expect(find.text('Выплаты'), findsOneWidget);
-    expect(find.text('Приведи друга — получи бонус'), findsOneWidget);
+    expect(find.text('Приведи друга - получи бонус от 3500 до 5000 рублей!'), findsOneWidget);
     expect(find.byIcon(Icons.card_giftcard), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -48,9 +48,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.text('Пригласить друга'), findsOneWidget);
+    expect(find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.text('Приведи друга - получи бонус от 3500 до 5000 рублей!'),
+    ), findsOneWidget);
     expect(find.textContaining('Джи Пи Эм'), findsOneWidget);
-    expect(find.byIcon(Icons.card_giftcard), findsNWidgets(2));
+    expect(find.byIcon(Icons.card_giftcard), findsOneWidget);
+    expect(find.byIcon(Icons.card_giftcard_rounded), findsOneWidget);
     expect(find.text('@GPMHRDaria'), findsOneWidget);
     expect(find.text('@GpmHREkaterina'), findsOneWidget);
     expect(tester.takeException(), isNull);
