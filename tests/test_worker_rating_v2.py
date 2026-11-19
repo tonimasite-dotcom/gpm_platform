@@ -229,6 +229,39 @@ class RatingV2Tests(unittest.TestCase):
             [f.result(timeout=20) for f in [pool.submit(execute, first), pool.submit(execute, second)]]
         self.assertEqual(api.get_account_profile(self.worker)["rating"], 4)
 
+    def test_history_order_filter_keeps_global_summary_and_returns_only_selected_order(self):
+        first, second = self.ready_for_review(), self.ready_for_review()
+        self.submit(first)
+        self.submit(second, "success")
+        view = ratings.history(self.worker["sub"], self.logist, order_id=second["id"])
+        self.assertEqual(view["summary"]["review_count"], 2)
+        self.assertEqual([item["order_id"] for item in view["history"]], [second["id"]])
+        self.assertFalse(view["has_more"])
+
+    def test_new_http_routes_enforce_roles_and_filter_worker_appeal_response(self):
+        def endpoint(path):
+            return next(route.endpoint for route in api.app.routes if getattr(route, "path", "") == path)
+        order = self.ready_for_review()
+        self.submit(order)
+        for actor in [self.client, self.worker]:
+            with patch.object(api, "authenticated_user", AsyncMock(return_value=actor)):
+                if actor == self.client:
+                    self.assert_status(403, lambda: asyncio.run(endpoint("/app-api/me/rating")(
+                        response=Response(), authorization=None, offset=0, limit=20, order_id=None)))
+                self.assert_status(403, lambda: asyncio.run(endpoint("/app-api/logist/workers/{worker_id}/rating")(
+                    worker_id=self.worker["sub"], response=Response(), authorization=None,
+                    offset=0, limit=20, order_id=None)))
+        payload = {"reason": "Прошу проверить данные", "expected_revision": 1, "request_id": "http-appeal"}
+        request = type("Request", (), {"headers": {}, "body": AsyncMock(return_value=json.dumps(payload).encode())})()
+        with patch.object(api, "authenticated_user", AsyncMock(return_value=self.worker)):
+            response = asyncio.run(endpoint("/app-api/me/order-rating-appeals/{order_id:path}")(
+                order_id=order["id"], request=request, authorization=None))
+        self.assertTrue(response["success"])
+        self.assertNotIn("reviewed_by", json.dumps(response))
+        self.assertNotIn("request_id", json.dumps(response))
+        self.assertEqual(response["review"]["appeals"][0]["status"], "open")
+
+
     @unittest.skipUnless(fixture.TEST_POSTGRES_URL, "isolated PostgreSQL is configured by CI")
     def test_postgres_rating_history_corrections_privacy_finance_and_concurrency(self):
         schema = "rating_v2_" + uuid4().hex

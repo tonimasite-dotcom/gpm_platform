@@ -103,7 +103,7 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                          });
                        }
                      } catch (_) {
-                       if (mounted) {
+                       if (context.mounted) {
                          ScaffoldMessenger.of(context).showSnackBar(
                            const SnackBar(content: Text('Не удалось обновить баллы')),
                          );

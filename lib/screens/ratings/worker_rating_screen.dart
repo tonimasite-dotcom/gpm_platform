@@ -64,7 +64,10 @@ class _WorkerRatingScreenState extends State<WorkerRatingScreen> {
       setState(() {
         _summary = _ratingMap(response['summary']);
         if (reset) _items.clear();
-        _items.addAll(rows);
+        final seen = _items.map((item) => item['order_id']).toSet();
+        for (final row in rows) {
+          if (seen.add(row['order_id'])) _items.add(row);
+        }
         _offset = _ratingNumber(response['next_offset']);
         _hasMore = response['has_more'] == true;
       });
@@ -274,7 +277,8 @@ class _WorkerRatingScreenState extends State<WorkerRatingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.workerName == null
-        ? 'Мой рейтинг' : 'Рейтинг · ${widget.workerName}')),
+        ? 'Мой рейтинг' : 'Рейтинг · ${widget.workerName}',
+        maxLines: 1, overflow: TextOverflow.ellipsis)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 840),
