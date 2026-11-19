@@ -372,6 +372,15 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
           final assignedApplications = allApplications
               .where((application) => assignedIds.contains(application['worker_id']?.toString()))
               .toList();
+          for (final worker in (order['assigned_workers'] as List? ?? const []).whereType<Map>()) {
+            if (!assignedApplications.any((item) => item['worker_id']?.toString() == worker['id']?.toString())) {
+              assignedApplications.add({
+                'worker_id': worker['id'],
+                'worker_name': worker['display_name'] ?? worker['full_name'] ?? 'Исполнитель',
+                'worker': Map<String, dynamic>.from(worker),
+              });
+            }
+          }
           final status = order['status']?.toString() ?? '';
 
           return SingleChildScrollView(

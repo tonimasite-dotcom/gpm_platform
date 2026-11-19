@@ -85,7 +85,7 @@ class WorkerPublicRating extends StatelessWidget {
       'Рейтинг: $score'
       '${known ? ' · Оценок: $count' : ''}'
       '${summary['positive_percent'] != null ? ' · Положительных: ${summary['positive_percent']}%' : ''}'
-      '${known && count == 0 ? (summary['has_legacy_balance'] == true ? ' · Есть более ранний баланс' : ' · Оценок пока нет') : ''}',
+      '${summary['has_legacy_balance'] == true ? ' · Есть более ранний баланс; статистика по сохраненным оценкам' : (known && count == 0 ? ' · Оценок пока нет' : '')}',
     );
   }
 }

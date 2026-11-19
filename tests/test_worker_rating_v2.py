@@ -183,6 +183,20 @@ class RatingV2Tests(unittest.TestCase):
         self.assertNotIn("reason", json.dumps(worker))
         self.assertNotIn("appeals", json.dumps(worker))
 
+    def test_client_gets_assigned_general_rating_even_without_application_record(self):
+        self.submit(self.ready_for_review())
+        order = self.active_order(owner=self.client)
+        self.assertFalse(order.get("applications"))
+        with patch.object(api, "authenticated_user", AsyncMock(return_value=self.client)):
+            response = asyncio.run(api.get_my_orders(None))
+        own = next(item for item in response["orders"] if item["id"] == order["id"])
+        public = own["assigned_workers"][0]
+        self.assertEqual(set(public), {"id", "display_name", "full_name", "rating", "rating_summary"})
+        self.assertEqual(public["rating"], 2)
+        self.assertEqual(public["rating_summary"]["review_count"], 1)
+        self.assertNotIn("worker_reviews", own)
+        self.assertNotIn("reason", json.dumps(public))
+
     def test_cancelled_work_gets_no_new_rating_and_existing_review_can_be_voided_explicitly(self):
         order = self.ready_for_review(workers=[self.worker, self.other])
         self.submit(order)

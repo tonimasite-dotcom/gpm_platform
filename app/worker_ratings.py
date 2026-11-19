@@ -15,6 +15,7 @@ def _text(value: Any, *, required: bool = False) -> str:
     api = _api()
     if not isinstance(value, str):
         raise HTTPException(status_code=422, detail="Причина должна быть текстом")
+    value = value.replace("\r\n", "\n")
     try:
         text = api.bounded_text(value, "reason", max_length=1000, required=required)
     except ValueError as error:
@@ -328,6 +329,7 @@ def summary(worker_id: str, *, profile: dict | None = None, orders: list[dict] |
         "concern_count": counts["good"], "unsuccessful_count": counts["fail"],
         "void_count": counts["void"],
         "has_legacy_balance": (
+            any(item.get("result") not in {*api.WORKER_RESULT_DELTAS, "void"} for item in reviews) or
             score != recorded_points or
             int(profile.get("success_requests") or 0) != positive or
             int(profile.get("fail_requests") or 0) != counts["fail"]

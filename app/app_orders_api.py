@@ -2539,6 +2539,17 @@ def enrich_order_worker_profiles(orders: list[dict[str, Any]]) -> list[dict[str,
             if worker_id not in summaries:
                 summaries[worker_id] = worker_summary(worker_id)
             application["worker"] = summaries[worker_id] or {}
+        assigned_workers = []
+        for assigned_id in order.get("assigned_worker_ids") or []:
+            worker_id = str(assigned_id)
+            if worker_id not in summaries:
+                summaries[worker_id] = worker_summary(worker_id)
+            worker = summaries[worker_id]
+            if worker is not None:
+                assigned_workers.append({key: worker[key] for key in (
+                    "id", "display_name", "full_name", "rating", "rating_summary"
+                ) if key in worker})
+        order["assigned_workers"] = assigned_workers
     return orders
 
 
@@ -4076,6 +4087,14 @@ def patch_order_atomically(
                 target_type="order",
                 target_id=str(order.get("id") or order_id),
                 details={"fields": edited_fields},
+            )
+        if actor is not None and target_status and target_status != current_status:
+            record_audit_event_in_connection(
+                connection, event_type="order_status_changed", outcome="success",
+                actor_account_id=str(actor.get("sub") or ""),
+                actor_username=str(actor.get("username") or ""),
+                target_type="order", target_id=str(order.get("id") or order_id),
+                details={"previous_status": current_status, "status": str(order.get("status") or "")},
             )
         if closes_recruitment:
             record_audit_event_in_connection(
