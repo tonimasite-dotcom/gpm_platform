@@ -53,6 +53,8 @@ class RatingV2Tests(unittest.TestCase):
         self.assertEqual(api.account_finance(self.worker), before)
         api.patch_order_atomically(order["id"], {"status": "CONVERTED"}, actor=self.client, integration=False)
         accepted = api.account_finance(self.worker)
+        api.patch_order_atomically(order["id"], {"status": "CONVERTED"}, actor=self.client, integration=False)
+        self.assertEqual(api.account_finance(self.worker), accepted)
         self.correction(order, "success")
         self.assertEqual(api.account_finance(self.worker), accepted)
         second = self.active_order(owner=self.client)

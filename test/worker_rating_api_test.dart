@@ -89,6 +89,6 @@ void main() {
     await expectLater(api.correctWorkerRating(
       orderId: '033/25', workerId: 'worker-id-1', result: 'good',
       reason: 'Другая причина', expectedRevision: 1, requestId: 'stale',
-    ), throwsException);
+    ), throwsA(isA<StateError>().having((error) => error.message, 'message', contains('Оценка изменилась'))));
   });
 }

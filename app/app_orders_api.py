@@ -2477,6 +2477,7 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
         visible["is_assigned_to_worker"] = account_id in assigned
         visible.pop("applications", None)
         visible.pop("assigned_worker_ids", None)
+        visible.pop("assigned_workers", None)
         own_review = (order.get("worker_reviews") or {}).get(account_id)
         visible["worker_reviews"] = (
             {account_id: _visible_worker_rating(own_review)}
@@ -3787,6 +3788,10 @@ def validate_order_patch(
             ) or (
                 current_status == "DONE_PENDING"
                 and target_status in {"CONVERTED", "IN_PROCESS"}
+            ) or (
+                current_status == "CONVERTED"
+                and target_status == "CONVERTED"
+                and set(patch) == {"status"}
             )
             if draft_fields and current_status != "NEW":
                 raise HTTPException(status_code=403, detail="insufficient permissions")
