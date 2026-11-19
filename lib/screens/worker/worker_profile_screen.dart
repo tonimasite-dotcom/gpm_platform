@@ -548,16 +548,18 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                                 'success_requests',
                                 'fail_requests',
                               ]) {
-                                if (fresh.containsKey(field))
-                                  _profile[field] = fresh[field];
+                                if (fresh.containsKey(field)) {
+                                    _profile[field] = fresh[field];
+                                }
                               }
                             });
                           }
                         } catch (_) {
-                          if (mounted)
-                            _showError(
-                              'Не удалось обновить баллы. Обновите профиль позже.',
-                            );
+                          if (mounted) {
+                              _showError(
+                                'Не удалось обновить баллы. Обновите профиль позже.',
+                              );
+                          }
                         }
                       },
                       child: const Text('История оценок и обращения'),

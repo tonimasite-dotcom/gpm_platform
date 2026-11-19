@@ -87,14 +87,16 @@ class _WorkerRatingScreenState extends State<WorkerRatingScreen> {
         _hasMore = response['has_more'] == true;
       });
     } catch (_) {
-      if (mounted)
-        setState(
-          () => _error = 'Не удалось загрузить рейтинг. Попробуйте еще раз.',
-        );
+      if (mounted) {
+          setState(
+            () => _error = 'Не удалось загрузить рейтинг. Попробуйте еще раз.',
+          );
+      }
     } finally {
-      if (mounted)
-        setState(() {
-          _loading = false;
+      if (mounted) {
+          setState(() {
+            _loading = false;
+      }
           _fetching = false;
         });
     }

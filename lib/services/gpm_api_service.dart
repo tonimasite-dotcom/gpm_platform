@@ -1983,8 +1983,9 @@ class GpmApiService {
                         : 'resolution_request_id'] ==
                     id,
           );
-    if (replay)
-      return {'success': true, 'already_recorded': true, 'order': order};
+    if (replay) {
+        return {'success': true, 'already_recorded': true, 'order': order};
+    }
     if (payload['expected_revision'] != revision) {
       throw Exception('Оценка изменилась. Обновите историю');
     }
@@ -2004,8 +2005,9 @@ class GpmApiService {
           (worker['fail_requests'] as int? ?? 0) +
           (result == 'fail' ? 1 : 0) -
           (previous == 'fail' ? 1 : 0);
-      if (success < 0 || failed < 0)
-        throw Exception('Счетчики требуют проверки');
+      if (success < 0 || failed < 0) {
+          throw Exception('Счетчики требуют проверки');
+      }
       worker['rating'] =
           (worker['rating'] as int? ?? 0) +
           _ratingDelta(result) -
