@@ -123,6 +123,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Штатный исполнитель').last);
     await tester.pumpAndSettle();
+    if (find.text('Сохранить').evaluate().isEmpty) {
+      await tester.scrollUntilVisible(find.text('Сохранить'), 160,
+        scrollable: find.byType(Scrollable).first);
+    }
     await tester.ensureVisible(find.text('Сохранить'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Сохранить'));
