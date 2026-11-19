@@ -13,8 +13,9 @@ import 'package:gpm_platform/theme/gpm_theme.dart';
 import '../test/support/load_test_fonts.dart';
 
 class PreviewApi extends GpmApiService {
+  bool empty = false;
   @override
-  Future<List<Map<String, dynamic>>> getOrders() async => [
+  Future<List<Map<String, dynamic>>> getOrders() async => empty ? [] : [
     {
       'id': 'preview-001',
       'title': 'Заявка № DEMO-001',
@@ -44,6 +45,7 @@ void main() {
     final output = Directory('filter-previews')..createSync();
     for (final size in [const Size(320, 568), const Size(390, 844), const Size(1360, 700)]) {
       for (final scale in [1.0, 2.0]) {
+        app.gpmApi = PreviewApi()..empty = scale == 2;
         tester.view.physicalSize = size;
         final key = GlobalKey();
         await tester.pumpWidget(MaterialApp(
