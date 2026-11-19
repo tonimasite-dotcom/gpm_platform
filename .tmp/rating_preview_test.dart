@@ -35,6 +35,7 @@ void main() {
       await tester.pumpWidget(RepaintBoundary(
         key: key,
         child: MaterialApp(
+          debugShowCheckedModeBanner: false,
           theme: buildGpmTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
@@ -99,7 +100,8 @@ void main() {
       await see(find.text('Исправить оценку'));
       await tester.tap(find.text('Исправить оценку'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await see(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).hitTestable());
       await tester.pumpAndSettle();
       await tester.tap(find.text('Справился хорошо').last);
       await tester.pumpAndSettle();
