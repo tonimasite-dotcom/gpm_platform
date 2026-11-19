@@ -96,6 +96,7 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
     return PopScope(
       canPop: !_saving,
       child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         scrollable: true,
         title: Text(widget.title),
         content: SizedBox(
