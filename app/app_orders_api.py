@@ -2443,6 +2443,11 @@ def merge_existing_workflow_state(
     return merged
 
 
+def _visible_worker_rating(review: dict[str, Any]) -> dict[str, Any]:
+    from app.worker_ratings import visible_review
+    return visible_review(review)
+
+
 def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
     role = str(user.get("role") or "")
     visible = dict(order)
@@ -2474,10 +2479,8 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
         visible.pop("assigned_worker_ids", None)
         own_review = (order.get("worker_reviews") or {}).get(account_id)
         visible["worker_reviews"] = (
-            {account_id: {
-                key: own_review[key]
-                for key in ("result", "rating_delta", "reviewed_at") if key in own_review
-            }} if isinstance(own_review, dict) else {}
+            {account_id: _visible_worker_rating(own_review)}
+            if isinstance(own_review, dict) else {}
         )
         for field in (
             "client_email",
@@ -5038,6 +5041,11 @@ def _worker_account(worker_id: str) -> dict[str, Any]:
     return {"sub": worker_id, "username": str(row[0]), "role": "worker"}
 
 
+def _worker_rating_summary(worker_id: str, profile: dict[str, Any]) -> dict[str, Any]:
+    from app.worker_ratings import summary
+    return summary(worker_id, profile=profile)
+
+
 def worker_summary(worker_id: str) -> dict[str, Any] | None:
     try:
         profile = get_account_profile(_worker_account(worker_id))
@@ -5056,6 +5064,7 @@ def worker_summary(worker_id: str) -> dict[str, Any] | None:
         "npd_status": profile.get("npd_status"),
         "employment_type": profile.get("employment_type"),
         "rating": profile.get("rating", 0),
+        "rating_summary": _worker_rating_summary(worker_id, profile),
         "success_requests": profile.get("success_requests", 0),
         "fail_requests": profile.get("fail_requests", 0),
     }
@@ -5341,62 +5350,10 @@ def decide_order_application_atomically(
 
 
 def review_order_worker_atomically(
-    order_id: str, worker_id: str, result: str, user: dict[str, Any]
+    order_id: str, worker_id: str, result: str, user: dict[str, Any], *, reason: str = "",
 ) -> dict[str, Any]:
-    require_role(user, "logist")
-    if result not in WORKER_RESULT_DELTAS:
-        raise HTTPException(status_code=422, detail="unknown worker result")
-    profile = get_account_profile(user)
-    with db_connection() as connection:
-        if _is_sqlite_connection(connection):
-            connection.execute("BEGIN IMMEDIATE")
-        order = read_order_in_connection(connection, order_id, for_update=True)
-        if order is None:
-            raise HTTPException(status_code=404, detail="order not found")
-        if not logist_owns_order(order, user, profile=profile):
-            raise HTTPException(status_code=403, detail="insufficient permissions")
-        assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
-        if worker_id not in assigned:
-            raise HTTPException(status_code=403, detail="worker is not assigned to this order")
-        reviews = dict(order.get("worker_reviews") or {})
-        existing = reviews.get(worker_id)
-        if existing is not None:
-            if existing.get("result") != result:
-                raise HTTPException(status_code=409, detail="worker has already been reviewed")
-            return {"order": order, "review": existing, "already_recorded": True}
-        if order.get("status") != "DONE_PENDING":
-            raise HTTPException(status_code=409, detail="order is not awaiting completion")
-        stored = _read_profile_in_connection(connection, worker_id)
-        stored["rating"] = int(stored.get("rating") or 0) + WORKER_RESULT_DELTAS[result]
-        if result in {"success", "excellent"}:
-            stored["success_requests"] = int(stored.get("success_requests") or 0) + 1
-        elif result == "fail":
-            stored["fail_requests"] = int(stored.get("fail_requests") or 0) + 1
-        _write_profile_in_connection(connection, worker_id, stored)
-        review = {
-            "result": result,
-            "rating_delta": WORKER_RESULT_DELTAS[result],
-            "reviewed_at": serialize_datetime(utc_now()),
-            "reviewed_by": str(user["sub"]),
-        }
-        reviews[worker_id] = review
-        order["worker_reviews"] = reviews
-        if all(assigned_id in reviews for assigned_id in assigned):
-            order["status"] = "CONVERTED"
-        write_order_in_connection(connection, order)
-        record_audit_event_in_connection(
-            connection,
-            event_type="order_worker_reviewed",
-            outcome="success",
-            actor_account_id=str(user["sub"]),
-            actor_username=str(user.get("username") or ""),
-            target_type="order",
-            target_id=order_id,
-            details={"worker_id": worker_id, "result": result, "rating_delta": review["rating_delta"]},
-        )
-        if not _is_sqlite_connection(connection):
-            connection.commit()
-    return {"order": order, "review": review, "already_recorded": False}
+    from app.worker_ratings import submit_review
+    return submit_review(order_id, worker_id, result, user, reason=reason)
 
 
 def _order_amount(order: dict[str, Any], worker_id: str | None = None) -> int:
@@ -6588,14 +6545,14 @@ async def review_my_order_worker(
     user = await authenticated_user(authorization)
     require_role(user, "logist")
     payload = await bounded_json_payload(request, max_bytes=2048)
-    if set(payload) != {"worker_id", "result"}:
+    if not {"worker_id", "result"} <= set(payload) or set(payload) - {"worker_id", "result", "reason"}:
         raise HTTPException(status_code=422, detail="worker_id and result are required")
     try:
         worker_id = bounded_text(payload["worker_id"], "worker_id", max_length=120, required=True)
         result = bounded_text(payload["result"], "result", max_length=30, required=True)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    reviewed = await asyncio.to_thread(review_order_worker_atomically, order_id, worker_id, result, user)
+    reviewed = await asyncio.to_thread(review_order_worker_atomically, order_id, worker_id, result, user, reason=payload.get("reason", ""))
     reviewed["order"] = order_for_user(reviewed["order"], user)
     return {"success": True, **reviewed}
 
@@ -6867,3 +6824,7 @@ async def update_order_payload(
         "success": True,
         "order": order_for_user(order, actor) if actor else order,
     }
+
+
+from app.worker_ratings import register_routes as _register_rating_routes
+_register_rating_routes(app)
