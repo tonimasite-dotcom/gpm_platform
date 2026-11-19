@@ -9,7 +9,12 @@ Future<bool?> showRatingActionDialog({
   required BuildContext context,
   required String title,
   required String submitLabel,
-  required Future<void> Function(String? result, String reason, String requestId) save,
+  required Future<void> Function(
+    String? result,
+    String reason,
+    String requestId,
+  )
+  save,
   Map<String, String>? results,
   String? initialResult,
   int? previousDelta,
@@ -19,17 +24,27 @@ Future<bool?> showRatingActionDialog({
   context: context,
   barrierDismissible: false,
   builder: (_) => _RatingActionDialog(
-    title: title, submitLabel: submitLabel, save: save, results: results,
-    initialResult: initialResult, previousDelta: previousDelta,
-    requireReason: requireReason, description: description,
+    title: title,
+    submitLabel: submitLabel,
+    save: save,
+    results: results,
+    initialResult: initialResult,
+    previousDelta: previousDelta,
+    requireReason: requireReason,
+    description: description,
   ),
 );
 
 class _RatingActionDialog extends StatefulWidget {
   const _RatingActionDialog({
-    required this.title, required this.submitLabel, required this.save,
-    required this.requireReason, this.results, this.initialResult,
-    this.previousDelta, this.description,
+    required this.title,
+    required this.submitLabel,
+    required this.save,
+    required this.requireReason,
+    this.results,
+    this.initialResult,
+    this.previousDelta,
+    this.description,
   });
 
   final String title;
@@ -72,9 +87,13 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
     final signature = jsonEncode([_result, reason]);
     if (_signature != signature) {
       _signature = signature;
-      _requestId = '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+      _requestId =
+          '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
     }
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       await widget.save(_result, reason, _requestId!);
       if (mounted) Navigator.pop(context, true);
@@ -82,7 +101,10 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = error.toString().replaceFirst(RegExp(r'^(Exception|Bad state):\s*'), '');
+          _error = error.toString().replaceFirst(
+            RegExp(r'^(Exception|Bad state):\s*'),
+            '',
+          );
         });
       }
     }
@@ -90,7 +112,8 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final reasonRequired = widget.requireReason || {'good', 'fail'}.contains(_result);
+    final reasonRequired =
+        widget.requireReason || {'good', 'fail'}.contains(_result);
     final delta = _result == 'void' ? 0 : workerResultDeltas[_result];
     String points(int value) => '${value > 0 ? '+' : ''}$value';
     return PopScope(
@@ -120,11 +143,17 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
                       for (final entry in widget.results!.entries)
                         DropdownMenuItem(
                           value: entry.key,
-                          child: Text(entry.value, overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            entry.value,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
-                    onChanged: _saving ? null : (value) => setState(() => _result = value),
-                    validator: (value) => value == null ? 'Выберите результат' : null,
+                    onChanged: _saving
+                        ? null
+                        : (value) => setState(() => _result = value),
+                    validator: (value) =>
+                        value == null ? 'Выберите результат' : null,
                   ),
                   const SizedBox(height: 12),
                 ] else if (_result != null) ...[
@@ -132,11 +161,13 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
                   const SizedBox(height: 8),
                 ],
                 if (delta != null) ...[
-                  Text(widget.previousDelta == null
-                    ? workerResultEffect(_result!)
-                    : 'Было: ${points(widget.previousDelta!)}. '
-                      'Станет: ${points(delta)}. '
-                      'Изменение общих баллов: ${points(delta - widget.previousDelta!)}.'),
+                  Text(
+                    widget.previousDelta == null
+                        ? workerResultEffect(_result!)
+                        : 'Было: ${points(widget.previousDelta!)}. '
+                              'Станет: ${points(delta)}. '
+                              'Изменение общих баллов: ${points(delta - widget.previousDelta!)}.',
+                  ),
                   const SizedBox(height: 8),
                 ],
                 const Text('Оценка не меняет завершение заявки и начисления.'),
@@ -148,16 +179,27 @@ class _RatingActionDialogState extends State<_RatingActionDialog> {
                   maxLines: 4,
                   maxLength: 1000,
                   decoration: InputDecoration(
-                    labelText: reasonRequired ? 'Причина' : 'Комментарий (необязательно)',
+                    labelText: reasonRequired
+                        ? 'Причина'
+                        : 'Комментарий (необязательно)',
                   ),
-                  validator: (value) => reasonRequired && (value?.trim().length ?? 0) < 5
-                    ? 'Укажите причину: не менее 5 символов' : null,
+                  validator: (value) =>
+                      reasonRequired && (value?.trim().length ?? 0) < 5
+                      ? 'Укажите причину: не менее 5 символов'
+                      : null,
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  const Text('Можно повторить запрос. Если оценка изменилась, закройте окно и обновите историю.'),
+                  const Text(
+                    'Можно повторить запрос. Если оценка изменилась, закройте окно и обновите историю.',
+                  ),
                 ],
               ],
             ),

@@ -525,30 +525,44 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         ),
                       ],
                     ),
-                                         const WorkerRatingRules(),
-                     OutlinedButton(
-                       onPressed: () async {
-                         await Navigator.push<void>(context, MaterialPageRoute(
-                           builder: (_) => const WorkerRatingScreen(),
-                         ));
-                         try {
-                           final fresh = gpmApi.isApiMode
-                               ? await gpmApi.getMyProfile()
-                               : await gpmApi.getWorkerProfile(GpmApiService.demoWorkerId) ?? {};
-                           if (mounted) {
-                             setState(() {
-                               for (final field in ['rating', 'success_requests', 'fail_requests']) {
-                                 if (fresh.containsKey(field)) _profile[field] = fresh[field];
-                               }
-                             });
-                           }
-                         } catch (_) {
-                           if (mounted) _showError('Не удалось обновить баллы. Обновите профиль позже.');
-                         }
-                       },
-                       child: const Text('История оценок и обращения'),
-                     ),
-                     const SizedBox(height: 16),
+                    const WorkerRatingRules(),
+                    OutlinedButton(
+                      onPressed: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const WorkerRatingScreen(),
+                          ),
+                        );
+                        try {
+                          final fresh = gpmApi.isApiMode
+                              ? await gpmApi.getMyProfile()
+                              : await gpmApi.getWorkerProfile(
+                                      GpmApiService.demoWorkerId,
+                                    ) ??
+                                    {};
+                          if (mounted) {
+                            setState(() {
+                              for (final field in [
+                                'rating',
+                                'success_requests',
+                                'fail_requests',
+                              ]) {
+                                if (fresh.containsKey(field))
+                                  _profile[field] = fresh[field];
+                              }
+                            });
+                          }
+                        } catch (_) {
+                          if (mounted)
+                            _showError(
+                              'Не удалось обновить баллы. Обновите профиль позже.',
+                            );
+                        }
+                      },
+                      child: const Text('История оценок и обращения'),
+                    ),
+                    const SizedBox(height: 16),
                     FilledButton(
                       onPressed: _saving ? null : _save,
                       child: GpmButtonContent(

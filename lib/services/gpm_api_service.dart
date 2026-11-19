@@ -1806,11 +1806,13 @@ class GpmApiService {
       final path = workerId == null
           ? '/app-api/me/rating'
           : '/app-api/logist/workers/${Uri.encodeComponent(workerId)}/rating';
-      final query = Uri(queryParameters: {
-        'offset': '$offset',
-        'limit': '$limit',
-        if (orderId != null) 'order_id': orderId,
-      }).query;
+      final query = Uri(
+        queryParameters: {
+          'offset': '$offset',
+          'limit': '$limit',
+          if (orderId != null) 'order_id': orderId,
+        },
+      ).query;
       return _authenticatedJsonRequest('$path?$query');
     }
     final items = <Map<String, dynamic>>[];
@@ -1829,7 +1831,9 @@ class GpmApiService {
         'order_title': order['title'],
         'order_status': order['status'],
         'can_manage': workerId != null,
-        'can_review': workerId != null && review == null &&
+        'can_review':
+            workerId != null &&
+            review == null &&
             {'DONE_PENDING', 'CONVERTED'}.contains(order['status']),
         'review': review,
         'date': review?['reviewed_at'] ?? order['created_at'] ?? '',
@@ -1849,7 +1853,11 @@ class GpmApiService {
   Map<String, dynamic> _demoRatingSummary(String workerId) {
     final worker = _demoWorkers[workerId] ?? {};
     final counts = <String, int>{
-      'success': 0, 'excellent': 0, 'good': 0, 'fail': 0, 'void': 0,
+      'success': 0,
+      'excellent': 0,
+      'good': 0,
+      'fail': 0,
+      'void': 0,
     };
     var recordedPoints = 0;
     for (final order in _demoOrders) {
@@ -1861,8 +1869,11 @@ class GpmApiService {
         recordedPoints += _ratingDelta(result);
       }
     }
-    final count = counts['success']! + counts['excellent']! +
-        counts['good']! + counts['fail']!;
+    final count =
+        counts['success']! +
+        counts['excellent']! +
+        counts['good']! +
+        counts['fail']!;
     final positive = counts['success']! + counts['excellent']!;
     return {
       'rating': worker['rating'] ?? 0,
@@ -1872,7 +1883,8 @@ class GpmApiService {
       'concern_count': counts['good'],
       'unsuccessful_count': counts['fail'],
       'void_count': counts['void'],
-      'has_legacy_balance': (worker['rating'] ?? 0) != recordedPoints ||
+      'has_legacy_balance':
+          (worker['rating'] ?? 0) != recordedPoints ||
           (worker['success_requests'] ?? 0) != positive ||
           (worker['fail_requests'] ?? 0) != counts['fail'],
     };
@@ -1887,62 +1899,92 @@ class GpmApiService {
   };
 
   Future<Map<String, dynamic>> correctWorkerRating({
-    required String orderId, required String workerId, required String result,
-    required String reason, required int expectedRevision, required String requestId,
+    required String orderId,
+    required String workerId,
+    required String result,
+    required String reason,
+    required int expectedRevision,
+    required String requestId,
   }) => _ratingMutation('corrections', orderId, {
-    'worker_id': workerId, 'result': result, 'reason': reason,
-    'expected_revision': expectedRevision, 'request_id': requestId,
+    'worker_id': workerId,
+    'result': result,
+    'reason': reason,
+    'expected_revision': expectedRevision,
+    'request_id': requestId,
   });
 
   Future<Map<String, dynamic>> appealWorkerRating({
-    required String orderId, required String reason,
-    required int expectedRevision, required String requestId,
+    required String orderId,
+    required String reason,
+    required int expectedRevision,
+    required String requestId,
   }) => _ratingMutation('appeals', orderId, {
-    'reason': reason, 'expected_revision': expectedRevision, 'request_id': requestId,
+    'reason': reason,
+    'expected_revision': expectedRevision,
+    'request_id': requestId,
   });
 
   Future<Map<String, dynamic>> resolveWorkerRatingAppeal({
-    required String orderId, required String workerId, required String reason,
-    required int expectedRevision, required String requestId,
+    required String orderId,
+    required String workerId,
+    required String reason,
+    required int expectedRevision,
+    required String requestId,
   }) => _ratingMutation('resolutions', orderId, {
-    'worker_id': workerId, 'reason': reason,
-    'expected_revision': expectedRevision, 'request_id': requestId,
+    'worker_id': workerId,
+    'reason': reason,
+    'expected_revision': expectedRevision,
+    'request_id': requestId,
   });
 
   Future<Map<String, dynamic>> _ratingMutation(
-    String operation, String orderId, Map<String, dynamic> payload,
+    String operation,
+    String orderId,
+    Map<String, dynamic> payload,
   ) async {
     if (isApiMode) {
       final response = await _authenticatedJsonRequest(
         '/app-api/me/order-rating-$operation/${Uri.encodeComponent(orderId)}',
-        method: 'POST', body: payload,
+        method: 'POST',
+        body: payload,
       );
       if (response['order'] is Map) {
         _upsertOrder(Map<String, dynamic>.from(response['order']));
       }
       return response;
     }
-    final order = _demoOrders.where((item) => item['id'] == orderId).firstOrNull;
+    final order = _demoOrders
+        .where((item) => item['id'] == orderId)
+        .firstOrNull;
     final workerId = payload['worker_id']?.toString() ?? demoWorkerId;
     final worker = _demoWorkers[workerId];
     final raw = (order?['worker_reviews'] as Map?)?[workerId];
     if (order == null || worker == null || raw is! Map) {
       throw Exception('Оценка не найдена');
     }
-    final review = Map<String, dynamic>.from(jsonDecode(jsonEncode(raw)) as Map);
+    final review = Map<String, dynamic>.from(
+      jsonDecode(jsonEncode(raw)) as Map,
+    );
     final reason = payload['reason'].toString().trim();
     if (reason.length < 5) throw Exception('Укажите причину подробнее');
     final revision = (review['revision'] as int?) ?? 1;
-    final revisions = (review['revisions'] as List?)?.toList() ?? [
-      Map<String, dynamic>.from(review)..remove('appeals'),
-    ];
+    final revisions =
+        (review['revisions'] as List?)?.toList() ??
+        [Map<String, dynamic>.from(review)..remove('appeals')];
     final appeals = (review['appeals'] as List?)?.toList() ?? [];
     final id = payload['request_id'];
     final replay = operation == 'corrections'
         ? revisions.any((item) => item is Map && item['request_id'] == id)
-        : appeals.any((item) => item is Map &&
-            item[operation == 'appeals' ? 'request_id' : 'resolution_request_id'] == id);
-    if (replay) return {'success': true, 'already_recorded': true, 'order': order};
+        : appeals.any(
+            (item) =>
+                item is Map &&
+                item[operation == 'appeals'
+                        ? 'request_id'
+                        : 'resolution_request_id'] ==
+                    id,
+          );
+    if (replay)
+      return {'success': true, 'already_recorded': true, 'order': order};
     if (payload['expected_revision'] != revision) {
       throw Exception('Оценка изменилась. Обновите историю');
     }
@@ -1954,44 +1996,75 @@ class GpmApiService {
       }
       final previous = review['result'].toString();
       if (result == previous) throw Exception('Выберите другую оценку');
-      final success = (worker['success_requests'] as int? ?? 0) +
+      final success =
+          (worker['success_requests'] as int? ?? 0) +
           (['success', 'excellent'].contains(result) ? 1 : 0) -
           (['success', 'excellent'].contains(previous) ? 1 : 0);
-      final failed = (worker['fail_requests'] as int? ?? 0) +
-          (result == 'fail' ? 1 : 0) - (previous == 'fail' ? 1 : 0);
-      if (success < 0 || failed < 0) throw Exception('Счетчики требуют проверки');
-      worker['rating'] = (worker['rating'] as int? ?? 0) +
-          _ratingDelta(result) - _ratingDelta(previous);
+      final failed =
+          (worker['fail_requests'] as int? ?? 0) +
+          (result == 'fail' ? 1 : 0) -
+          (previous == 'fail' ? 1 : 0);
+      if (success < 0 || failed < 0)
+        throw Exception('Счетчики требуют проверки');
+      worker['rating'] =
+          (worker['rating'] as int? ?? 0) +
+          _ratingDelta(result) -
+          _ratingDelta(previous);
       worker['success_requests'] = success;
       worker['fail_requests'] = failed;
       review.addAll({
-        'result': result, 'rating_delta': _ratingDelta(result),
-        'reason': reason, 'revision': revision + 1,
-        'reviewed_at': now, 'request_id': id,
+        'result': result,
+        'rating_delta': _ratingDelta(result),
+        'reason': reason,
+        'revision': revision + 1,
+        'reviewed_at': now,
+        'request_id': id,
       });
       revisions.add({
-        'result': result, 'rating_delta': _ratingDelta(result),
-        'reason': reason, 'revision': revision + 1,
-        'reviewed_at': now, 'request_id': id,
+        'result': result,
+        'rating_delta': _ratingDelta(result),
+        'reason': reason,
+        'revision': revision + 1,
+        'reviewed_at': now,
+        'request_id': id,
       });
       for (final item in appeals.whereType<Map>()) {
         if (item['status'] == 'open') {
-          item.addAll({'status': 'resolved', 'decision': 'changed',
-            'resolution': reason, 'resolved_at': now});
+          item.addAll({
+            'status': 'resolved',
+            'decision': 'changed',
+            'resolution': reason,
+            'resolved_at': now,
+          });
         }
       }
     } else if (operation == 'appeals') {
       if (review['result'] == 'void' ||
-          appeals.whereType<Map>().any((item) => item['status'] == 'open' || item['revision'] == revision)) {
+          appeals.whereType<Map>().any(
+            (item) => item['status'] == 'open' || item['revision'] == revision,
+          )) {
         throw Exception('Обращение по этой версии недоступно');
       }
-      appeals.add({'revision': revision, 'reason': reason,
-        'request_id': id, 'created_at': now, 'status': 'open'});
+      appeals.add({
+        'revision': revision,
+        'reason': reason,
+        'request_id': id,
+        'created_at': now,
+        'status': 'open',
+      });
     } else {
-      final open = appeals.whereType<Map>().where((item) => item['status'] == 'open').lastOrNull;
+      final open = appeals
+          .whereType<Map>()
+          .where((item) => item['status'] == 'open')
+          .lastOrNull;
       if (open == null) throw Exception('Нет открытого обращения');
-      open.addAll({'status': 'resolved', 'decision': 'upheld', 'resolution': reason,
-        'resolved_at': now, 'resolution_request_id': id});
+      open.addAll({
+        'status': 'resolved',
+        'decision': 'upheld',
+        'resolution': reason,
+        'resolved_at': now,
+        'resolution_request_id': id,
+      });
     }
     review['revisions'] = revisions;
     review['appeals'] = appeals;
@@ -1999,7 +2072,11 @@ class GpmApiService {
     reviews[workerId] = review;
     order['worker_reviews'] = reviews;
     _saveDemoState();
-    return {'success': true, 'order': Map<String, dynamic>.from(order), 'review': review};
+    return {
+      'success': true,
+      'order': Map<String, dynamic>.from(order),
+      'review': review,
+    };
   }
 
   Future<Map<String, dynamic>> completeOrderWithResult({
@@ -2013,7 +2090,11 @@ class GpmApiService {
         final response = await _authenticatedJsonRequest(
           '/app-api/me/order-reviews/${Uri.encodeComponent(orderId)}',
           method: 'POST',
-          body: {'worker_id': workerId, 'result': result, if (reason.trim().isNotEmpty) 'reason': reason.trim()},
+          body: {
+            'worker_id': workerId,
+            'result': result,
+            if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+          },
         );
         if (response['order'] is Map) {
           _upsertOrder(Map<String, dynamic>.from(response['order']));
@@ -2051,7 +2132,10 @@ class GpmApiService {
     }
 
     if ({'good', 'fail'}.contains(result) && reason.trim().length < 5) {
-      return {'success': false, 'error': 'Укажите причину: не менее 5 символов'};
+      return {
+        'success': false,
+        'error': 'Укажите причину: не менее 5 символов',
+      };
     }
     switch (result) {
       case 'success':
@@ -2076,11 +2160,16 @@ class GpmApiService {
     }
 
     final review = <String, dynamic>{
-      'result': result, 'rating_delta': _ratingDelta(result), 'reason': reason.trim(),
-      'revision': 1, 'reviewed_at': DateTime.now().toUtc().toIso8601String(),
+      'result': result,
+      'rating_delta': _ratingDelta(result),
+      'reason': reason.trim(),
+      'revision': 1,
+      'reviewed_at': DateTime.now().toUtc().toIso8601String(),
       'appeals': <Map<String, dynamic>>[],
     };
-    review['revisions'] = [Map<String, dynamic>.from(review)..remove('appeals')];
+    review['revisions'] = [
+      Map<String, dynamic>.from(review)..remove('appeals'),
+    ];
     reviews[workerId] = review;
     order['worker_reviews'] = reviews;
     _saveDemoState();

@@ -108,7 +108,10 @@ void main() {
     );
     await tester.tap(find.text('Рабочий без заказов'));
     await tester.pumpAndSettle();
-    expect(find.text('Рейтинг: -3 · Успешно: 2 · Не справился: 4'), findsOneWidget);
+    expect(
+      find.text('Рейтинг: -3 · Успешно: 2 · Не справился: 4'),
+      findsOneWidget,
+    );
     await tester.tap(find.byType(DropdownButtonFormField<bool>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Не РФ').last);
@@ -124,8 +127,11 @@ void main() {
     await tester.tap(find.text('Штатный исполнитель').last);
     await tester.pumpAndSettle();
     if (find.text('Сохранить').evaluate().isEmpty) {
-      await tester.scrollUntilVisible(find.text('Сохранить'), 160,
-        scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        find.text('Сохранить'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
     }
     await tester.ensureVisible(find.text('Сохранить'));
     await tester.pumpAndSettle();

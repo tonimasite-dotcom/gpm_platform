@@ -84,35 +84,50 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                 Text(profile['phone_number']?.toString() ?? ''),
                 const SizedBox(height: 12),
                 Text(workerRatingSummary(profile)),
-                                 const WorkerRatingRules(),
-                 OutlinedButton(
-                   onPressed: () async {
-                     await Navigator.push<void>(context, MaterialPageRoute(
-                       builder: (_) => WorkerRatingScreen(
-                         workerId: widget.workerId,
-                         workerName: profile['display_name']?.toString() ?? 'Исполнитель',
-                       ),
-                     ));
-                     try {
-                       final fresh = await gpmApi.getWorkerProfile(widget.workerId);
-                       if (mounted && fresh != null) {
-                         setState(() {
-                           for (final field in ['rating', 'success_requests', 'fail_requests', 'rating_summary']) {
-                             if (fresh.containsKey(field)) _profile![field] = fresh[field];
-                           }
-                         });
-                       }
-                     } catch (_) {
-                       if (context.mounted) {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           const SnackBar(content: Text('Не удалось обновить баллы')),
-                         );
-                       }
-                     }
-                   },
-                   child: const Text('Рейтинг, история и обращения'),
-                 ),
-                 const SizedBox(height: 12),
+                const WorkerRatingRules(),
+                OutlinedButton(
+                  onPressed: () async {
+                    await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => WorkerRatingScreen(
+                          workerId: widget.workerId,
+                          workerName:
+                              profile['display_name']?.toString() ??
+                              'Исполнитель',
+                        ),
+                      ),
+                    );
+                    try {
+                      final fresh = await gpmApi.getWorkerProfile(
+                        widget.workerId,
+                      );
+                      if (mounted && fresh != null) {
+                        setState(() {
+                          for (final field in [
+                            'rating',
+                            'success_requests',
+                            'fail_requests',
+                            'rating_summary',
+                          ]) {
+                            if (fresh.containsKey(field))
+                              _profile![field] = fresh[field];
+                          }
+                        });
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Не удалось обновить баллы'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Рейтинг, история и обращения'),
+                ),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<bool>(
                   isExpanded: true,
                   initialValue: _nationality,

@@ -61,7 +61,6 @@ class WorkerRatingRules extends StatelessWidget {
   );
 }
 
-
 String workerRatingResultLabel(Object? result) => result == 'void'
     ? 'Оценка аннулирована'
     : workerResultLabels[result] ?? 'Оценка сохранена';
