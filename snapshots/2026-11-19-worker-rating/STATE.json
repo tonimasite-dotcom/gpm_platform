@@ -1,0 +1,12 @@
+{
+  "status": "prepared_not_released",
+  "code_sha": "e39192dcc8b4495f8ba46b4ba97ae87b6fbc3f46",
+  "ci_run": 44611149719,
+  "visual_run": 44610068962,
+  "synthetic": true,
+  "sha256": {
+    "worker-390.png": "509c79b90158633542e74ae7fdeb767719c7792423cdb54d754a008303f8bb24",
+    "client-390.png": "aa4aea63aeb60efcc59c4e68a643235267429a8510cd725add2d54766d4697a7",
+    "correction-1360.png": "a5d9d54308c8e0d1d3311aee1d814fea0e0f940fb52e713c94943532e908f4a4"
+  }
+}

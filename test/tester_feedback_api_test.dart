@@ -24,11 +24,13 @@ void main() {
           orderId: '1002',
           workerId: GpmApiService.demoWorkerId,
           result: entry.key,
+          reason: 'Тестовая причина',
         );
         final repeated = await api.completeOrderWithResult(
           orderId: '1002',
           workerId: GpmApiService.demoWorkerId,
           result: entry.key,
+          reason: 'Тестовая причина',
         );
         expect(first['success'], true);
         expect(repeated['already_recorded'], true);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/worker_rating.dart';
 import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
@@ -359,15 +360,40 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
           }
 
           final order = snapshot.data!;
-          final applications = (order['applications'] as List? ?? const [])
+          final allApplications = (order['applications'] as List? ?? const [])
               .whereType<Map>()
-              .map(
-                (application) => application.map(
-                  (key, value) => MapEntry(key.toString(), value),
-                ),
-              )
+              .map((application) => Map<String, dynamic>.from(application))
+              .toList();
+          final applications = allApplications
               .where((application) => application['status'] == 'PENDING')
               .toList();
+          final assignedIds =
+              (order['assigned_worker_ids'] as List? ?? const [])
+                  .map((id) => id.toString())
+                  .toSet();
+          final assignedApplications = allApplications
+              .where(
+                (application) =>
+                    assignedIds.contains(application['worker_id']?.toString()),
+              )
+              .toList();
+          for (final worker
+              in (order['assigned_workers'] as List? ?? const [])
+                  .whereType<Map>()) {
+            if (!assignedApplications.any(
+              (item) =>
+                  item['worker_id']?.toString() == worker['id']?.toString(),
+            )) {
+              assignedApplications.add({
+                'worker_id': worker['id'],
+                'worker_name':
+                    worker['display_name'] ??
+                    worker['full_name'] ??
+                    'Исполнитель',
+                'worker': Map<String, dynamic>.from(worker),
+              });
+            }
+          }
           final status = order['status']?.toString() ?? '';
 
           return SingleChildScrollView(
@@ -430,6 +456,36 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(order['description'] ?? 'Нет описания'),
+                if (assignedApplications.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Назначенные исполнители',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  for (final application in assignedApplications)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              application['worker_name']?.toString() ??
+                                  'Исполнитель',
+                            ),
+                            const SizedBox(height: 4),
+                            WorkerPublicRating(
+                              worker: application['worker'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      application['worker'] as Map,
+                                    )
+                                  : {},
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
                 if (applications.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   const Text(
@@ -449,6 +505,14 @@ class _ClientOrderDetailsScreenState extends State<ClientOrderDetailsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(workerName),
+                            const SizedBox(height: 4),
+                            WorkerPublicRating(
+                              worker: application['worker'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      application['worker'] as Map,
+                                    )
+                                  : {},
+                            ),
                             const SizedBox(height: 8),
                             GpmActionButtons(
                               children: [

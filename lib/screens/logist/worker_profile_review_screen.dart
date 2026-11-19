@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../widgets/worker_rating.dart';
+import '../ratings/worker_rating_screen.dart';
 
 class WorkerProfileReviewScreen extends StatefulWidget {
   final String workerId;
@@ -84,6 +85,49 @@ class _WorkerProfileReviewScreenState extends State<WorkerProfileReviewScreen> {
                 const SizedBox(height: 12),
                 Text(workerRatingSummary(profile)),
                 const WorkerRatingRules(),
+                OutlinedButton(
+                  onPressed: () async {
+                    await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => WorkerRatingScreen(
+                          workerId: widget.workerId,
+                          workerName:
+                              profile['display_name']?.toString() ??
+                              'Исполнитель',
+                        ),
+                      ),
+                    );
+                    try {
+                      final fresh = await gpmApi.getWorkerProfile(
+                        widget.workerId,
+                      );
+                      if (mounted && fresh != null) {
+                        setState(() {
+                          for (final field in [
+                            'rating',
+                            'success_requests',
+                            'fail_requests',
+                            'rating_summary',
+                          ]) {
+                            if (fresh.containsKey(field)) {
+                              _profile![field] = fresh[field];
+                            }
+                          }
+                        });
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Не удалось обновить баллы'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Рейтинг, история и обращения'),
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<bool>(
                   isExpanded: true,

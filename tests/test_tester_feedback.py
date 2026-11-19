@@ -423,8 +423,9 @@ class TesterFeedbackTests(unittest.TestCase):
             self.assertEqual(api.account_finance(self.other)["pending"], 2800)
             self.assert_concurrent_review_is_counted_once(order)
             self.assertEqual(api.get_order(order["id"])["status"], "DONE_PENDING")
-            api.review_order_worker_atomically(order["id"], self.other["sub"], "good", self.logist)
-            self.assertEqual(api.get_order(order["id"])["status"], "CONVERTED")
+            api.review_order_worker_atomically(order["id"], self.other["sub"], "good", self.logist, reason="Тестовая причина")
+            self.assertEqual(api.get_order(order["id"])["status"], "DONE_PENDING")
+            api.patch_order_atomically(order["id"], {"status": "CONVERTED"}, actor=self.logist, integration=False)
             self.assertEqual(api.get_account_profile(self.other)["rating"], -1)
             self.assertEqual(api.account_finance(self.worker)["available"], 3500)
 
@@ -458,10 +459,10 @@ class TesterFeedbackTests(unittest.TestCase):
         expected_rating = 0
         for result, delta in (("success", 1), ("fail", -2), ("good", -1), ("excellent", 2)):
             order = self.ready_for_review()
-            reviewed = api.review_order_worker_atomically(order["id"], self.worker["sub"], result, self.logist)
+            reviewed = api.review_order_worker_atomically(order["id"], self.worker["sub"], result, self.logist, reason="Тестовая причина")
             expected_rating += delta
             self.assertEqual(reviewed["review"]["rating_delta"], delta)
-            self.assertEqual(reviewed["order"]["status"], "CONVERTED")
+            self.assertEqual(reviewed["order"]["status"], "DONE_PENDING")
             self.assertEqual(api.get_account_profile(self.worker)["rating"], expected_rating)
         api.update_account_profile(self.worker, {"cities": ["Москва"]})
         profile = api.get_account_profile(self.worker)
@@ -472,25 +473,26 @@ class TesterFeedbackTests(unittest.TestCase):
 
     def test_each_assigned_worker_is_reviewed_before_the_order_is_closed(self):
         order = self.ready_for_review(workers=[self.worker, self.other])
-        reviewed = api.review_order_worker_atomically(order["id"], self.worker["sub"], "success", self.logist)
+        reviewed = api.review_order_worker_atomically(order["id"], self.worker["sub"], "success", self.logist, reason="Тестовая причина")
         self.assertEqual(reviewed["order"]["status"], "DONE_PENDING")
         self.assertEqual(api.get_account_profile(self.worker)["rating"], 1)
         self.assertEqual(api.get_account_profile(self.other)["rating"], 0)
-        reviewed = api.review_order_worker_atomically(order["id"], self.other["sub"], "excellent", self.logist)
-        self.assertEqual(reviewed["order"]["status"], "CONVERTED")
+        reviewed = api.review_order_worker_atomically(order["id"], self.other["sub"], "excellent", self.logist, reason="Тестовая причина")
+        self.assertEqual(reviewed["order"]["status"], "DONE_PENDING")
         self.assertEqual(api.get_account_profile(self.other)["rating"], 2)
 
     def test_reviews_are_private_and_directory_reflects_saved_ratings(self):
         order = self.ready_for_review(workers=[self.worker, self.other])
-        api.review_order_worker_atomically(order["id"], self.worker["sub"], "fail", self.logist)
-        reviewed = api.review_order_worker_atomically(order["id"], self.other["sub"], "excellent", self.logist)
+        api.review_order_worker_atomically(order["id"], self.worker["sub"], "fail", self.logist, reason="Тестовая причина")
+        reviewed = api.review_order_worker_atomically(order["id"], self.other["sub"], "excellent", self.logist, reason="Тестовая причина")
         order = reviewed["order"]
         for actor, expected_delta in ((self.worker, -2), (self.other, 2)):
             visible = api.order_for_user(order, actor)
             self.assertEqual(set(visible["worker_reviews"]), {actor["sub"]})
             review = visible["worker_reviews"][actor["sub"]]
             self.assertEqual(review["rating_delta"], expected_delta)
-            self.assertEqual(set(review), {"result", "rating_delta", "reviewed_at"})
+            self.assertEqual(set(review), {"result", "rating_delta", "reviewed_at", "reason", "revision", "revisions", "appeals"})
+            self.assertNotIn("reviewed_by", str(review))
         self.assertEqual(api.order_for_user(order, self.logist)["worker_reviews"], order["worker_reviews"])
         self.assertNotIn("worker_reviews", api.order_for_user(order, self.client))
         self.assertEqual(api.order_for_user(order, self.actor("worker", "unassigned"))["worker_reviews"], {})
@@ -514,38 +516,38 @@ class TesterFeedbackTests(unittest.TestCase):
 
     def test_repeated_review_is_idempotent_and_different_review_is_rejected(self):
         order = self.ready_for_review()
-        api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist)
-        repeated = api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist)
+        api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist, reason="Тестовая причина")
+        repeated = api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist, reason="Тестовая причина")
         self.assertTrue(repeated["already_recorded"])
         self.assertEqual(api.get_account_profile(self.worker)["rating"], 2)
         self.assertEqual(api.get_account_profile(self.worker)["success_requests"], 1)
         with self.assertRaises(HTTPException) as caught:
-            api.review_order_worker_atomically(order["id"], self.worker["sub"], "good", self.logist)
+            api.review_order_worker_atomically(order["id"], self.worker["sub"], "good", self.logist, reason="Тестовая причина")
         self.assertEqual(caught.exception.status_code, 409)
         self.assertEqual(api.get_account_profile(self.worker)["rating"], 2)
 
     def test_review_requires_owner_assigned_worker_and_pending_completion(self):
         order = self.active_order(owner=self.logist)
         with self.assertRaises(HTTPException) as caught:
-            api.review_order_worker_atomically(order["id"], self.worker["sub"], "success", self.logist)
+            api.review_order_worker_atomically(order["id"], self.worker["sub"], "success", self.logist, reason="Тестовая причина")
         self.assertEqual(caught.exception.status_code, 409)
         order = self.ready_for_review()
         for actor in (self.worker, self.client, self.actor("logist", "other-reviewer")):
             with self.assertRaises(HTTPException) as caught:
-                api.review_order_worker_atomically(order["id"], self.worker["sub"], "success", actor)
+                api.review_order_worker_atomically(order["id"], self.worker["sub"], "success", actor, reason="Тестовая причина")
             self.assertEqual(caught.exception.status_code, 403)
         with self.assertRaises(HTTPException) as caught:
-            api.review_order_worker_atomically(order["id"], self.other["sub"], "success", self.logist)
+            api.review_order_worker_atomically(order["id"], self.other["sub"], "success", self.logist, reason="Тестовая причина")
         self.assertEqual(caught.exception.status_code, 403)
         with self.assertRaises(HTTPException) as caught:
-            api.review_order_worker_atomically(order["id"], self.worker["sub"], "neutral", self.logist)
+            api.review_order_worker_atomically(order["id"], self.worker["sub"], "neutral", self.logist, reason="Тестовая причина")
         self.assertEqual(caught.exception.status_code, 422)
 
     def test_review_and_rating_are_rolled_back_together_on_failure(self):
         order = self.ready_for_review()
         with patch.object(api, "record_audit_event_in_connection", side_effect=RuntimeError("synthetic write failure")):
             with self.assertRaises(RuntimeError):
-                api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist)
+                api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist, reason="Тестовая причина")
         self.assertEqual(api.get_account_profile(self.worker)["rating"], 0)
         self.assertEqual(api.get_order(order["id"])["status"], "DONE_PENDING")
         self.assertFalse(api.get_order(order["id"]).get("worker_reviews"))
@@ -555,7 +557,7 @@ class TesterFeedbackTests(unittest.TestCase):
 
         def review():
             barrier.wait(timeout=10)
-            return api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist)
+            return api.review_order_worker_atomically(order["id"], self.worker["sub"], "excellent", self.logist, reason="Тестовая причина")
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [executor.submit(review) for _ in range(2)]
