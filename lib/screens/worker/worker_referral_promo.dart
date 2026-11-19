@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme/gpm_theme.dart';
 
+const _referralTitle = 'Приведи друга - получи бонус от 3500 до 5000 рублей!';
+
 const _dialogBreakpoint = 600.0;
 const _promoBackground = GpmColors.surface;
 const _promoBorder = GpmColors.softLine;
@@ -78,16 +80,19 @@ class WorkerReferralPromoCard extends StatelessWidget {
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          color: GpmColors.surface,
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFE9E5), Color(0xFFFFF4D9)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _promoBorder, width: 1),
+          border: Border.all(color: const Color(0xFFFFD8C7), width: 1),
         ),
         child: InkWell(
           key: const Key('worker_referral_promo_card'),
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -98,12 +103,12 @@ class WorkerReferralPromoCard extends StatelessWidget {
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: GpmColors.brandSoft,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(7),
                       ),
                       child: const Icon(
                         Icons.card_giftcard,
-                        color: GpmColors.graphite,
+                        color: GpmColors.redAction,
                         size: 20,
                       ),
                     ),
@@ -113,7 +118,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Приведи друга — получи бонус',
+                            _referralTitle,
                             style: TextStyle(
                               color: GpmColors.black,
                               fontSize: 16,
@@ -184,8 +189,8 @@ class _RewardBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: GpmColors.surface.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: GpmColors.line),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFD8C7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,8 +210,8 @@ class _RewardBadge extends StatelessWidget {
             child: Text(
               amount,
               style: const TextStyle(
-                color: GpmColors.black,
-                fontSize: 18,
+                color: GpmColors.redInk,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -231,57 +236,58 @@ class _ReferralDetails extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: GpmColors.brandSoft,
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: const Icon(
-                  Icons.card_giftcard,
-                  color: GpmColors.graphite,
-                  size: 21,
-                ),
+Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFE9E5), Color(0xFFFFF4D9)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.zero,
-                  child: const Text(
-                    'Пригласить друга',
-                    style: TextStyle(
-                      color: GpmColors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFD8C7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle,
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(Icons.card_giftcard_rounded,
+                          color: GpmColors.redAction, size: 22),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    const Expanded(child: Text(
+                      'Бонус за рекомендацию',
+                      style: TextStyle(color: GpmColors.redInk, fontSize: 12,
+                        fontWeight: FontWeight.w700),
+                    )),
+                    IconButton(
+                      tooltip: 'Закрыть', onPressed: onClose,
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ],
                 ),
-              ),
-              IconButton(
-                tooltip: 'Закрыть',
-                onPressed: onClose,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                padding: const EdgeInsets.all(6),
-                icon: const Icon(Icons.close, size: 20),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Можно привести друга на работу в Джи Пи Эм и получить бонус после '
-            'того, как он отработает нужное количество смен.',
-            style: TextStyle(
-              color: GpmColors.graphite,
-              fontSize: 13,
-              height: 1.35,
+                const SizedBox(height: 12),
+                const Text(_referralTitle,
+                  style: TextStyle(color: GpmColors.black, fontSize: 20,
+                    fontWeight: FontWeight.w800, height: 1.3)),
+                const SizedBox(height: 10),
+                const Text(
+                  'Друг выходит на работу в Джи Пи Эм. '
+                  'Он получает работу, вы — бонус за его смены.',
+                  style: TextStyle(color: GpmColors.graphite, fontSize: 13, height: 1.45),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          const _DetailRewardRow(shifts: '5 смен', amount: '3 500 ₽'),
+          const SizedBox(height: 16),
+                    const _DetailRewardRow(shifts: '5 смен', amount: '3 500 ₽'),
           const SizedBox(height: 7),
           const _DetailRewardRow(shifts: '10 смен', amount: '5 000 ₽'),
           const SizedBox(height: 14),
@@ -324,7 +330,7 @@ class _DetailRewardRow extends StatelessWidget {
     final description = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.calendar_today_outlined, color: GpmColors.graphite, size: 18),
+        const Icon(Icons.calendar_today_outlined, color: Color(0xFF9A5700), size: 18),
         const SizedBox(width: 10),
         Flexible(child: Text(
           'Друг отработал $shifts',
@@ -335,14 +341,14 @@ class _DetailRewardRow extends StatelessWidget {
       ],
     );
     final reward = Text(amount, textAlign: TextAlign.center,
-      style: const TextStyle(color: GpmColors.black, fontSize: 18,
+      style: const TextStyle(color: GpmColors.redInk, fontSize: 20,
         fontWeight: FontWeight.w800, height: 1.3));
     return Container(
       constraints: const BoxConstraints(minHeight: 56),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: GpmColors.page, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _promoBorder),
+        color: const Color(0xFFFFF8ED), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
       ),
       child: stacked
         ? Column(children: [description, const SizedBox(height: 8), reward])
@@ -367,8 +373,8 @@ class _TelegramContactButton extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: GpmColors.graphite,
-          backgroundColor: GpmColors.surface,
-          side: const BorderSide(color: _promoBorder),
+          backgroundColor: const Color(0xFFF4FAFF),
+          side: const BorderSide(color: Color(0xFFCEE6F7)),
           minimumSize: const Size(48, 72),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -383,15 +389,15 @@ class _TelegramContactButton extends StatelessWidget {
                 child: Icon(Icons.telegram, color: Color(0xFF229ED9), size: 24)),
             ),
             const SizedBox(width: 12),
-            Flexible(child: Column(
+            Expanded(child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(name, textAlign: TextAlign.center,
+                Text(name, textAlign: TextAlign.right,
                   style: const TextStyle(color: GpmColors.black, fontSize: 15,
                     fontWeight: FontWeight.w700, height: 1.3)),
                 const SizedBox(height: 3),
-                Text('@$username', textAlign: TextAlign.center,
+                Text('@$username', textAlign: TextAlign.right,
                   style: const TextStyle(color: GpmColors.graphite, fontSize: 12,
                     fontWeight: FontWeight.w500, height: 1.3)),
               ],
