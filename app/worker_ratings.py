@@ -264,8 +264,13 @@ def resolve_appeal(order_id: str, worker_id: str, user: dict, *, reason: str,
 
 
 def visible_review(review: dict, *, staff: bool = False) -> dict:
+    review = deepcopy(review)
+    review.setdefault("revision", _version(review))
+    if review.get("result") in {*_api().WORKER_RESULT_DELTAS, "void"}:
+        review.setdefault("rating_delta", _contribution(review)[0])
+    review.setdefault("revisions", [_revision_snapshot(review)])
     if staff:
-        return deepcopy(review)
+        return review
     allowed = ("result", "rating_delta", "reviewed_at", "reason", "revision")
     result = {key: deepcopy(review[key]) for key in allowed if key in review}
     result["revision"] = _version(review)
@@ -330,7 +335,8 @@ def summary(worker_id: str, *, profile: dict | None = None, orders: list[dict] |
     }
 
 
-def history(worker_id: str, user: dict, *, offset: int = 0, limit: int = 20) -> dict:
+def history(worker_id: str, user: dict, *, offset: int = 0, limit: int = 20,
+            order_id: str | None = None) -> dict:
     api = _api()
     role = user.get("role")
     if role != "logist" and not (role == "worker" and str(user["sub"]) == worker_id):
@@ -342,6 +348,8 @@ def history(worker_id: str, user: dict, *, offset: int = 0, limit: int = 20) -> 
     orders = _worker_orders(worker_id)
     items = []
     for order in orders:
+        if order_id is not None and order_id not in {str(order.get("id") or ""), str(order.get("external_order_id") or "")}:
+            continue
         manages = role == "logist" and api.logist_owns_order(order, user, profile=actor_profile)
         if role == "logist" and not manages:
             continue
@@ -370,22 +378,24 @@ def register_routes(app) -> None:
 
     @app.get("/app-api/me/rating")
     async def own_rating(response: Response, authorization: str | None = Header(default=None),
-                         offset: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100)):
+                         offset: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100),
+                         order_id: str | None = Query(default=None, max_length=120)):
         api = _api()
         user = await api.authenticated_user(authorization)
         api.require_role(user, "worker")
         response.headers["Cache-Control"] = "no-store"
-        return await api.asyncio.to_thread(history, str(user["sub"]), user, offset=offset, limit=limit)
+        return await api.asyncio.to_thread(history, str(user["sub"]), user, offset=offset, limit=limit, order_id=order_id)
 
     @app.get("/app-api/logist/workers/{worker_id}/rating")
     async def staff_rating(worker_id: str, response: Response,
                            authorization: str | None = Header(default=None),
-                           offset: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100)):
+                           offset: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100),
+                           order_id: str | None = Query(default=None, max_length=120)):
         api = _api()
         user = await api.authenticated_user(authorization)
         api.require_role(user, "logist")
         response.headers["Cache-Control"] = "no-store"
-        return await api.asyncio.to_thread(history, worker_id, user, offset=offset, limit=limit)
+        return await api.asyncio.to_thread(history, worker_id, user, offset=offset, limit=limit, order_id=order_id)
 
     async def mutate(operation, order_id, request, authorization, *, worker_argument=True):
         api = _api()

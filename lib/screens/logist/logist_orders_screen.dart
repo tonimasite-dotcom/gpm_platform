@@ -5,6 +5,8 @@ import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
 import '../../utils/order_citizenship.dart';
 import '../../widgets/worker_rating.dart';
+import '../../widgets/rating_action_dialog.dart';
+import '../ratings/worker_rating_screen.dart';
 import '../../widgets/adaptive_buttons.dart';
 import '../attendance/order_attendance.dart';
 import 'worker_profile_review_screen.dart';
@@ -80,6 +82,26 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
 
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> orders) {
     if (_selectedFilter == 'Все') return orders;
+    if (_selectedFilter == 'Без оценки') {
+      return orders.where((order) {
+        if (!{'DONE_PENDING', 'CONVERTED'}.contains(order['status'])) return false;
+        final assigned = (order['assigned_worker_ids'] as List? ?? const [])
+            .map((id) => id.toString());
+        final reviews = order['worker_reviews'] is Map
+            ? Map<String, dynamic>.from(order['worker_reviews'] as Map)
+            : <String, dynamic>{};
+        return assigned.any((id) => !reviews.containsKey(id));
+      }).toList();
+    }
+    if (_selectedFilter == 'Оспоренные') {
+      return orders.where((order) {
+        final reviews = order['worker_reviews'] is Map
+            ? (order['worker_reviews'] as Map).values : const <Object?>[];
+        return reviews.whereType<Map>().any((review) =>
+            (review['appeals'] as List? ?? const []).whereType<Map>()
+                .any((appeal) => appeal['status'] == 'open'));
+      }).toList();
+    }
     return orders
         .where((order) => orderStatusText(order['status']) == _selectedFilter)
         .toList();
@@ -116,6 +138,18 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
                   label: 'Все',
                   isSelected: _selectedFilter == 'Все',
                   onTap: () => setState(() => _selectedFilter = 'Все'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Без оценки',
+                  isSelected: _selectedFilter == 'Без оценки',
+                  onTap: () => setState(() => _selectedFilter = 'Без оценки'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Оспоренные',
+                  isSelected: _selectedFilter == 'Оспоренные',
+                  onTap: () => setState(() => _selectedFilter = 'Оспоренные'),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
@@ -602,49 +636,71 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     }, 'Заявка отменена');
   }
 
-  Future<void> _confirmCompletion(
-    String workerId,
-    String result,
-    String workerName,
-  ) async {
-    if (_isUpdating) return;
-    setState(() => _isUpdating = true);
-    final confirmed = await showDialog<bool>(
+  Future<void> _finishOrder() async {
+    final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Сохранить оценку?'),
-        content: SingleChildScrollView(
-          child: Text(
-            '$workerName\n${workerResultLabels[result]}\n'
-            '${workerResultEffect(result)}\n\n'
-            'После сохранения изменить оценку нельзя.',
-          ),
-        ),
+        title: const Text('Принять выполненную работу?'),
+        content: const SingleChildScrollView(child: Text(
+          'Заявка будет завершена, а начисления станут доступными. '
+          'Оценки можно выставить позже; они не меняют деньги.',
+        )),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Сохранить оценку'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена')),
+          FilledButton(onPressed: () => Navigator.pop(context, true),
+            child: const Text('Принять работу')),
         ],
       ),
     );
-    if (!mounted) return;
-    if (confirmed != true) {
-      setState(() => _isUpdating = false);
-      return;
-    }
-    await _runAction(
-      () => gpmApi.completeOrderWithResult(
-        orderId: order['id'].toString(),
-        workerId: workerId,
-        result: result,
+    if (accepted != true || !mounted) return;
+    await _runAction(() async => {
+      'success': await gpmApi.updateOrderStatus(order['id'].toString(), 'CONVERTED'),
+    }, 'Работа принята. Оценки можно выставить отдельно.');
+  }
+
+  Future<void> _openWorkerRating(String workerId, String name) async {
+    await Navigator.push<void>(context, MaterialPageRoute(
+      builder: (_) => WorkerRatingScreen(
+        workerId: workerId, workerName: name, orderId: order['id'].toString(),
       ),
-      'Оценка сохранена',
-    );
+    ));
+    if (!mounted) return;
+    await _refreshDetails();
+    widget.onUpdate();
+  }
+
+  Future<void> _confirmCompletion(
+    String workerId, String result, String workerName,
+  ) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final saved = await showRatingActionDialog(
+        context: context,
+        title: 'Сохранить оценку?',
+        submitLabel: 'Сохранить оценку',
+        initialResult: result,
+        requireReason: false,
+        description: workerName,
+        save: (_, reason, requestId) async {
+          final response = await gpmApi.completeOrderWithResult(
+            orderId: order['id'].toString(), workerId: workerId,
+            result: result, reason: reason,
+          );
+          if (response['success'] != true) {
+            throw Exception(response['error'] ?? 'Не удалось сохранить оценку');
+          }
+        },
+      );
+      if (!mounted) return;
+      if (saved == true) {
+        await _refreshDetails();
+        widget.onUpdate();
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
   }
 
   Future<void> _runAction(
@@ -853,7 +909,20 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                 );
               },
             ),
+            if (order['status'] == 'DONE_PENDING') ...[
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isUpdating ? null : _finishOrder,
+                  child: const Text('Принять выполненную работу'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('Завершение заявки и начисления не зависят от оценки.'),
+            ],
             if (order['status'] == 'DONE_PENDING' ||
+                order['status'] == 'CONVERTED' ||
                 (order['worker_reviews'] is Map &&
                     (order['worker_reviews'] as Map).isNotEmpty)) ...[
               const SizedBox(height: 24),
@@ -893,9 +962,9 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                         const SizedBox(height: 8),
                         if (reviews[assigned[index]] is Map)
                           Text(
-                            'Оценка: ${workerResultLabels[reviews[assigned[index]]['result']] ?? 'Сохранена'}',
+                            'Оценка: ${workerRatingResultLabel(reviews[assigned[index]]['result'])}',
                           )
-                        else if (order['status'] == 'DONE_PENDING')
+                        else if (order['status'] == 'DONE_PENDING' || order['status'] == 'CONVERTED')
                           _WorkerResultButtons(
                             enabled: !_isUpdating,
                             onResult: (result) => _confirmCompletion(
@@ -906,6 +975,14 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
                                   : 'Исполнитель ${index + 1}',
                             ),
                           ),
+                        TextButton(
+                          onPressed: _isUpdating ? null : () => _openWorkerRating(
+                            assigned[index],
+                            names[assigned[index]]?.isNotEmpty == true
+                                ? names[assigned[index]]! : 'Исполнитель ${index + 1}',
+                          ),
+                          child: const Text('История оценки и обращения'),
+                        ),
                         const SizedBox(height: 16),
                       ],
                     ],

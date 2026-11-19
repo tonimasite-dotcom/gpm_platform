@@ -103,12 +103,12 @@ void main() {
     await tester.tap(find.text('Исполнители'));
     await tester.pumpAndSettle();
     expect(
-      find.textContaining('Рейтинг: -3 · Успешно: 2 · Срывы: 4'),
+      find.textContaining('Рейтинг: -3 · Успешно: 2 · Не справился: 4'),
       findsOneWidget,
     );
     await tester.tap(find.text('Рабочий без заказов'));
     await tester.pumpAndSettle();
-    expect(find.text('Рейтинг: -3 · Успешно: 2 · Срывы: 4'), findsOneWidget);
+    expect(find.text('Рейтинг: -3 · Успешно: 2 · Не справился: 4'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<bool>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Не РФ').last);

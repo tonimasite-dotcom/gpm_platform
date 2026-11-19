@@ -8,6 +8,7 @@ import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
 import '../../utils/date_time_input_formatters.dart';
 import '../../widgets/worker_rating.dart';
+import '../ratings/worker_rating_screen.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -517,15 +518,37 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: _MetricCard(
-                            label: 'Срывы',
+                            label: 'Не справился',
                             value: '${_asInt(_profile['fail_requests'])}',
                             color: Colors.red,
                           ),
                         ),
                       ],
                     ),
-                    const WorkerRatingRules(),
-                    const SizedBox(height: 16),
+                                         const WorkerRatingRules(),
+                     OutlinedButton(
+                       onPressed: () async {
+                         await Navigator.push<void>(context, MaterialPageRoute(
+                           builder: (_) => const WorkerRatingScreen(),
+                         ));
+                         try {
+                           final fresh = gpmApi.isApiMode
+                               ? await gpmApi.getMyProfile()
+                               : await gpmApi.getWorkerProfile(GpmApiService.demoWorkerId) ?? {};
+                           if (mounted) {
+                             setState(() {
+                               for (final field in ['rating', 'success_requests', 'fail_requests']) {
+                                 if (fresh.containsKey(field)) _profile[field] = fresh[field];
+                               }
+                             });
+                           }
+                         } catch (_) {
+                           if (mounted) _showError('Не удалось обновить баллы. Обновите профиль позже.');
+                         }
+                       },
+                       child: const Text('История оценок и обращения'),
+                     ),
+                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: _saving ? null : _save,
                       child: GpmButtonContent(

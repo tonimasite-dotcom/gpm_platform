@@ -119,6 +119,7 @@ class _ReviewApi extends _ProfileApi {
     required String orderId,
     required String workerId,
     required String result,
+    String reason = '',
   }) async {
     reviewed = {'worker_id': workerId, 'result': result};
     (order['worker_reviews'] as Map)[workerId] = {'result': result};
