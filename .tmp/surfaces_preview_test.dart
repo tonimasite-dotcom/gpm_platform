@@ -90,7 +90,7 @@ void main() {
         expect(find.text('Сообщение с телефона'), findsOneWidget);
       }
       if (expanded) {
-        await tester.tap(find.text('Тестовая заявка').last);
+        await tester.tap(find.descendant(of: find.byType(ExpansionTile), matching: find.text('Тестовая заявка')));
         await tester.pumpAndSettle();
         expect(find.text('Тестовый адрес, дом 7'), findsOneWidget);
       }
