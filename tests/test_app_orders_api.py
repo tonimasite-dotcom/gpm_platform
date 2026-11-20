@@ -124,6 +124,8 @@ class ActiveApiTests(unittest.TestCase):
         connection = api.psycopg2.connect(dsn)
         try:
             with connection.cursor() as cursor:
+                cursor.execute("DROP TABLE IF EXISTS gpm_app_company_logist_invitations")
+                cursor.execute("DROP TABLE IF EXISTS gpm_app_company_logists")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_READS_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_MESSAGES_TABLE_NAME}")
                 cursor.execute(f"DROP TABLE IF EXISTS {api.CHAT_THREADS_TABLE_NAME}")

@@ -20,6 +20,8 @@ from urllib.request import Request as UrlRequest, urlopen
 from uuid import UUID, uuid4
 
 import yaml
+
+from app import crm_logist_ids
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -1065,6 +1067,7 @@ def init_db() -> None:
                     """
                 )
             create_auth_schema(connection)
+            crm_logist_ids.ensure_schema(connection)
             bootstrap_configured_accounts(connection)
             connection.commit()
         return
@@ -1103,6 +1106,7 @@ def init_db() -> None:
             """
         )
         create_auth_schema(connection)
+        crm_logist_ids.ensure_schema(connection)
         bootstrap_configured_accounts(connection)
 
 
@@ -1375,6 +1379,7 @@ def create_account_invitation(
     role: str,
     *,
     created_by: str,
+    gpm_company_logist: bool = False,
     ttl: timedelta = INVITATION_TTL,
 ) -> dict[str, Any]:
     username = validate_invitation_username(username)
@@ -1386,6 +1391,9 @@ def create_account_invitation(
         raise ValueError("invitation lifetime must be between 5 minutes and 14 days")
     if not created_by.strip():
         raise ValueError("invitation creator is required")
+
+    if type(gpm_company_logist) is not bool or (gpm_company_logist and role != "logist"):
+        raise ValueError("Company invitations are only available for logists")
 
     token = secrets.token_urlsafe(32)
     token_digest = invitation_token_hash(token)
@@ -1462,6 +1470,8 @@ def create_account_invitation(
                         serialize_datetime(expires_at),
                     ),
                 )
+        if gpm_company_logist:
+            crm_logist_ids.mark_invitation(connection, invitation_id)
         record_audit_event_in_connection(
             connection,
             event_type="invitation_created",
@@ -1613,6 +1623,8 @@ def redeem_account_invitation(
                     )
             if role in ORDER_NUMBER_ACTOR_ROLES:
                 ensure_actor_code(connection, account_id, role)
+            if role == "logist" and crm_logist_ids.company_invitation(connection, str(row[0])):
+                crm_logist_ids.grant(connection, account_id, assigned_by="company-invitation:" + str(row[0]))
             if role == "worker" and isinstance(nationality, bool):
                 _write_profile_in_connection(connection, account_id, {"nationality": nationality})
             record_audit_event_in_connection(
@@ -3979,6 +3991,7 @@ def persist_published_order(
     *,
     actor: dict[str, Any] | None,
     preserve_existing_content: bool = False,
+    strict_crm_owner: bool = False,
 ) -> dict[str, Any]:
     init_db()
     with db_connection() as connection:
@@ -4008,6 +4021,8 @@ def persist_published_order(
         )
         if actor is not None and existing is not None:
             raise HTTPException(status_code=409, detail="order number already exists")
+        if strict_crm_owner and existing is not None and existing.get("logist_account_id") != incoming.get("logist_account_id"):
+            raise HTTPException(status_code=409, detail="Заявка уже закреплена за другим логистом")
         if preserve_existing_content and existing is not None:
             if (
                 existing.get("source") not in {"external", "crm"}
@@ -4138,6 +4153,7 @@ def crm_sync_snapshot(order: dict[str, Any]) -> dict[str, Any]:
         "source_instance": CRM_SYNC_INSTANCE,
         "order_id": str(order["external_order_id"]),
         "status": order.get("status"),
+        "logist_account_id": str(order.get("logist_account_id") or ""),
         "fields": fields,
         "revision": revision,
     }
@@ -4889,7 +4905,10 @@ def _invalidate_identity_verification_in_connection(
 def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
     account_id = str(user.get("sub") or "")
     role = str(user.get("role") or "")
+    crm_id = None
     with db_connection() as connection:
+        if role == "logist":
+            crm_id = crm_logist_ids.for_account(connection, account_id)
         if not _is_sqlite_connection(connection):
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -4905,6 +4924,9 @@ def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
                 ).fetchone()
             )
     result = {**default_profile(user), **profile}
+    if role == "logist":
+        result["crm_logist_id"] = crm_id
+        result["is_gpm_company_logist"] = crm_id is not None
     if role == "worker":
         result["nationality_recorded"] = "nationality" in profile
         latest = latest_worker_verifications(account_id)
@@ -6734,6 +6756,7 @@ async def publish_order_payload(
         if not isinstance(payload, dict):
             raise ValueError("payload must be an object")
         payload = dict(payload)
+        strict_crm_owner = False
         preserve_existing_content = integration and payload.get("preserve_existing_content") is True
         if actor is not None:
             payload["source"] = "manual"
@@ -6747,10 +6770,19 @@ async def publish_order_payload(
             require_order_number=actor is None,
         )
         if integration:
-            order["logist_account_id"] = await asyncio.to_thread(
-                resolve_active_logist_account_id,
-                order.get("logist_phone"),
-            )
+            if payload.get("logist_crm_id") not in (None, ""):
+                if payload.get("source_instance") != CRM_SYNC_INSTANCE:
+                    raise ValueError("ID логиста доступен только для тестовой CRM")
+                if str(payload.get("logist_phone") or "").strip():
+                    raise ValueError("Укажите ID логиста или телефон, а не оба поля")
+                recipient = await asyncio.to_thread(resolve_company_logist_recipient, payload["logist_crm_id"])
+                order["logist_account_id"] = recipient["account_id"]
+                strict_crm_owner = True
+            else:
+                order["logist_account_id"] = await asyncio.to_thread(
+                    resolve_active_logist_account_id,
+                    order.get("logist_phone"),
+                )
         elif actor is not None and str(actor.get("role") or "") == "logist":
             order["logist_account_id"] = str(actor.get("sub") or "")
     except (json.JSONDecodeError, ValueError, TypeError) as error:
@@ -6761,6 +6793,7 @@ async def publish_order_payload(
         order,
         actor=actor,
         preserve_existing_content=preserve_existing_content,
+        strict_crm_owner=strict_crm_owner,
     )
 
     response_order = order_for_user(order, actor) if actor else order
@@ -6855,3 +6888,23 @@ _register_rating_routes(app)
 
 from app.registration_preview import register_routes as _register_preview_routes
 _register_preview_routes(app)
+
+
+def resolve_company_logist_recipient(crm_id: Any) -> dict[str, Any]:
+    init_db()
+    with db_connection() as connection:
+        return crm_logist_ids.resolve(connection, crm_id)
+
+
+@app.get("/app-api/integration/crm-logists/{crm_id}")
+async def get_company_logist_recipient(
+    crm_id: str,
+    response: Response,
+    x_gpm_app_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    check_token(x_gpm_app_token)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await asyncio.to_thread(resolve_company_logist_recipient, crm_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
