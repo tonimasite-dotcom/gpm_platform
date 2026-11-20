@@ -30,9 +30,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     final screens = [
       WorkerDashboardScreen(
         onOpenOrders: () => _openSection(1),
-        onOpenChats: () => _openSection(2),
-        onOpenFinance: () => _openSection(3),
-        onOpenProfile: () => _openSection(4),
       ),
       const WorkerOrdersScreen(),
       const ChatThreadsScreen(role: ChatRole.worker),

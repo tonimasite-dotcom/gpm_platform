@@ -253,9 +253,7 @@ void main() {
   }
   testWidgets('chat search survives switching tabs', (tester) async {
     await open(tester, const WorkerHomeScreen(), const Size(390, 844));
-    final shortcut = find.widgetWithText(OutlinedButton, 'Чаты');
-    await tester.ensureVisible(shortcut);
-    await tester.tap(shortcut);
+    await tester.tap(find.text('Чаты').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Спасибо');
     await tester.pumpAndSettle();
