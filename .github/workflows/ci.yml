@@ -95,3 +95,4 @@ jobs:
           flutter analyze --no-pub
           flutter test --no-pub
           flutter build web --release --base-href /
+          flutter build web --release --target lib/registration_preview_main.dart --base-href /registration-preview/ --output build/registration-preview
