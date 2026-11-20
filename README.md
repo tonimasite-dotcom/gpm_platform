@@ -1,3 +1,5 @@
+20.11.2026: [С главной рабочего убраны дубли «Финансы», «Чаты», «Профиль»](PROJECT_HANDOFF_2026-11-20_WORKER_HOME_CLEANUP.md). Показатели, «Найти смену», акция и нижнее меню сохранены. CI/backup/frontend deployment SUCCESS.
+
 20.11.2026: [Подписанная кнопка «Сортировка» со стрелкой вниз опубликована](PROJECT_HANDOFF_2026-11-20_SORT_BUTTON.md). CI, свежий backup и frontend deployment SUCCESS.
 
 20.11.2026: [Этапы 1–2 замечаний опубликованы: форма клиента, мультисортировка и навигация рабочего](PROJECT_HANDOFF_2026-11-20_FEEDBACK_STAGES.md). Frontend ffa212b; CI/deploy/backup SUCCESS. Остальные этапы и ручная приемка остаются.
