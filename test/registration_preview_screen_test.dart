@@ -1,5 +1,8 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpm_platform/theme/gpm_theme.dart';
 import 'package:gpm_platform/registration/registration_phone_input.dart';
 import 'package:gpm_platform/registration_preview_main.dart';
 import 'support/registration_preview_fake.dart';
@@ -20,6 +23,60 @@ Future<void> enter(WidgetTester tester, String field, String value) async {
 }
 
 void main() {
+  testWidgets('answer labels center in full-height tiles and hover covers the tile', (tester) async {
+    tester.view.physicalSize = const Size(1000, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final gateway = FakeRegistrationGateway(step: 'citizenship_ru');
+    await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
+    await tester.pumpAndSettle();
+    final yes = find.byKey(const Key('choice_citizenship_ru_yes'));
+    final no = find.byKey(const Key('choice_citizenship_ru_no'));
+    Finder label(Finder button, String text) => find.descendant(of: button, matching: find.text(text));
+    for (final pair in [(yes, 'Да'), (no, 'Нет')]) {
+      expect(tester.getCenter(label(pair.$1, pair.$2)), tester.getCenter(pair.$1));
+    }
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getRect(yes).bottomCenter - const Offset(0, 4));
+    await tester.pumpAndSettle();
+    final surface = find.descendant(of: yes, matching: find.byType(Material));
+    expect(tester.widget<Material>(surface).color, GpmColors.redAction);
+    expect(tester.getRect(surface), tester.getRect(yes));
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Material>(surface).color, GpmColors.surface);
+    await tester.tapAt(tester.getRect(yes).bottomCenter - const Offset(0, 4));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Material>(surface).color, GpmColors.redAction);
+    expect(find.descendant(of: yes, matching: find.byIcon(Icons.check)), findsOneWidget);
+    expect(tester.getCenter(label(yes, 'Да')), tester.getCenter(yes));
+    expect(find.descendant(of: no, matching: find.byIcon(Icons.check)), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('large-text answer tiles stack and stay centered without overflow', (tester) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(RegistrationPreviewApp(gateway: FakeRegistrationGateway(step: 'citizenship_ru')));
+    await tester.pumpAndSettle();
+    final yes = find.byKey(const Key('choice_citizenship_ru_yes'));
+    final no = find.byKey(const Key('choice_citizenship_ru_no'));
+    await tester.ensureVisible(yes);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(no).top, greaterThan(tester.getRect(yes).bottom));
+    expect(tester.getCenter(find.descendant(of: yes, matching: find.text('Да'))), tester.getCenter(yes));
+    await tapVisible(tester, no);
+    expect(find.descendant(of: no, matching: find.byIcon(Icons.check)), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('phone paste and typing stop at the national digit limit', (
     tester,
   ) async {
