@@ -15,16 +15,15 @@ Future<List<ClientOrderSort>?> showClientOrderSortSheet(
           height: MediaQuery.sizeOf(context).height * 0.8,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
+            child: SingleChildScrollView(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Сортировка заказов', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 const Text('Выберите несколько критериев. Верхний применяется первым, остальные — при совпадении значений.'),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
+                Column(
                       children: [
                         for (final field in [
                           ...selected,
@@ -80,8 +79,6 @@ Future<List<ClientOrderSort>?> showClientOrderSortSheet(
                             ),
                         ],
                       ],
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -106,6 +103,7 @@ Future<List<ClientOrderSort>?> showClientOrderSortSheet(
                   ],
                 ),
               ],
+            ),
             ),
           ),
         ),

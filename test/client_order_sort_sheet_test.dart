@@ -16,6 +16,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Выше: По статусу'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Применить'));
     await tester.tap(find.text('Применить'));
     await tester.pumpAndSettle();
     expect(result, [ClientOrderSort.status, ClientOrderSort.dateDesc]);
@@ -24,6 +25,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('По статусу'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Отмена'));
     await tester.tap(find.text('Отмена'));
     await tester.pumpAndSettle();
     expect(result, isNull);
@@ -49,8 +51,10 @@ void main() {
     await tester.pumpAndSettle();
     final checked = tester.widgetList<CheckboxListTile>(find.byType(CheckboxListTile)).where((tile) => tile.value == true);
     expect(checked, hasLength(1));
+    await tester.ensureVisible(find.text('Сбросить'));
     await tester.tap(find.text('Сбросить'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Применить'));
     await tester.tap(find.text('Применить'));
     await tester.pumpAndSettle();
     expect(result, [ClientOrderSort.dateDesc]);
