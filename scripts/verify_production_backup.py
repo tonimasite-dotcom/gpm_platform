@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import subprocess
+import sqlite3
 import tarfile
 import tempfile
 import time
@@ -49,7 +50,10 @@ def inspect_tar(path, dump_destination=None):
                 raise ValueError('Unsupported archive entry')
             digest = hashlib.sha256()
             count = 0
-            output = dump_destination.open('wb') if member.name == 'backup/database.dump' and dump_destination else None
+            output_path = dump_destination if member.name == 'backup/database.dump' else (
+                dump_destination.with_name('registration-preview.sqlite3')
+                if dump_destination and member.name == 'backup/registration-preview.sqlite3' else None)
+            output = output_path.open('wb') if output_path else None
             try:
                 with archive.extractfile(member) as source:
                     for chunk in iter(lambda: source.read(1024*1024), b''):
@@ -62,6 +66,21 @@ def inspect_tar(path, dump_destination=None):
                 raise ValueError('Backup file checksum mismatch')
         if actual != set(expected):
             raise ValueError('Missing archive entries')
+        counts = manifest.get('registration_preview_counts')
+        if counts is not None and dump_destination:
+            preview = dump_destination.with_name('registration-preview.sqlite3')
+            if not preview.is_file():
+                raise ValueError('Preview database snapshot missing')
+            with sqlite3.connect(preview.as_uri() + '?mode=ro', uri=True) as db:
+                if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                    raise ValueError('Preview database is not recoverable')
+                allowed = {'preview_sessions', 'preview_profiles', 'preview_events'}
+                if set(counts) != allowed:
+                    raise ValueError('Unexpected preview snapshot scope')
+                for name in allowed:
+                    if db.execute('SELECT count(*) FROM ' + name).fetchone()[0] != counts[name]:
+                        raise ValueError('Preview snapshot row count differs')
+            manifest['registration_preview_verified'] = True
     return manifest
 
 def restore_and_compare(dump, manifest):
@@ -132,7 +151,8 @@ def main():
                 raise ValueError('Essential backup files missing')
             results.append({'component':component,'file_hashes_verified':True,'file_count':len(manifest['files']),
                             'restore_tables_verified':verified,'run_id':manifest['run_id'],
-                            'backend_head':manifest.get('backend_head')})
+                            'backend_head':manifest.get('backend_head'),
+                            'registration_preview_verified':manifest.get('registration_preview_verified', False)})
             plain.unlink()
             if dump:dump.unlink()
     summary={'ok':True,'decryption_verified':True,'isolated_database_restore':not args.skip_database_restore,

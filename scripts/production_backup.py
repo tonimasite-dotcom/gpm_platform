@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tarfile
@@ -136,6 +137,28 @@ def backend_dump(raw):
     return {'postgres_major':major,'table_counts':counts,
             'backend_head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()},uploads
 
+def snapshot_registration_preview(raw):
+    """A consistent online copy, not a live SQLite file mixed into the source tar."""
+    source = ROOT / '.registration_preview_private' / 'state.sqlite3'
+    configured = os.getenv('GPM_REGISTRATION_PREVIEW_DB')
+    if configured and Path(configured) != source:
+        raise RuntimeError('Preview storage outside the reviewed backup scope')
+    if not source.exists():
+        return {}
+    if source.is_symlink() or source.parent.is_symlink():
+        raise RuntimeError('Unsafe registration preview storage')
+    output = raw / 'registration-preview.sqlite3'
+    with sqlite3.connect(source.as_uri() + '?mode=ro', uri=True, timeout=15) as live:
+        with sqlite3.connect(output) as copied:
+            live.backup(copied, pages=256, sleep=0.05)
+            if copied.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                raise RuntimeError('Preview snapshot integrity check failed')
+            names = ('preview_sessions', 'preview_profiles', 'preview_events')
+            counts = {name: copied.execute('SELECT count(*) FROM ' + name).fetchone()[0] for name in names}
+    os.chmod(output, 0o600)
+    return {'registration_preview_counts': counts}
+
+
 def create_backup(component,run_id,recipient,age_binary):
     os.umask(0o077)
     validate_run(run_id)
@@ -160,6 +183,7 @@ def create_backup(component,run_id,recipient,age_binary):
             stage='database-dump'
             details,uploads = backend_dump(raw)
             manifest.update(details)
+            manifest.update(snapshot_registration_preview(raw))
             checked(['git','bundle','create',str(raw/'repository.bundle'),'--all'],raw/'private-diagnostics.log',cwd=ROOT,timeout=120)
         stage='archive-files'
         with tarfile.open(payload,'w:gz',dereference=False) as archive:
@@ -168,7 +192,7 @@ def create_backup(component,run_id,recipient,age_binary):
                     add_path(archive,path,'backup/'+path.name,manifest['files'])
             if component=='backend':
                 for child in sorted(ROOT.iterdir()):
-                    if child.name not in {'.git','.venv','__pycache__','.dart_tool','build'}:
+                    if child.name not in {'.git','.venv','__pycache__','.dart_tool','build','.registration_preview_private'}:
                         add_path(archive,child,'repository/'+child.name,manifest['files'])
                 add_path(archive,uploads,'filesystem'+str(uploads),manifest['files'])
                 config_paths = [Path('/root/gpm-app-env')]

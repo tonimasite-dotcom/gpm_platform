@@ -26,6 +26,7 @@ void main() {
           await tester.pumpAndSettle();
         }
         expect(MediaQuery.sizeOf(element).width, config.$1);
+        expect(MediaQuery.textScalerOf(element).scale(10), config.$3 * 10);
         Future<void> shot(String part) async {
           final render = boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
           final image = await render.toImage(pixelRatio: 1);

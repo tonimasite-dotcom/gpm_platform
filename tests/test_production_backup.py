@@ -67,4 +67,33 @@ class ProductionBackupTests(unittest.TestCase):
                 self.make_archive(target,*args)
                 with self.subTest(args=args),self.assertRaises(ValueError):verify.inspect_tar(target)
 
+    def test_registration_preview_online_snapshot_is_separate_and_recoverable(self):
+        import sqlite3
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'repo'; root.mkdir()
+            private = root / '.registration_preview_private'; private.mkdir()
+            live = private / 'state.sqlite3'
+            with sqlite3.connect(live) as db:
+                for name in ('preview_sessions','preview_profiles','preview_events'):
+                    db.execute('CREATE TABLE '+name+' (id TEXT)')
+                    db.execute('INSERT INTO '+name+' VALUES (?)', ('synthetic',))
+            stage = Path(temp) / 'snapshot'; stage.mkdir()
+            with patch.object(backup, 'ROOT', root), patch.dict('os.environ', {}, clear=True):
+                details = backup.snapshot_registration_preview(stage)
+            with sqlite3.connect(live) as db:
+                db.execute('INSERT INTO preview_sessions VALUES (?)', ('later',))
+            snapshot = stage / 'registration-preview.sqlite3'
+            with sqlite3.connect(snapshot) as db:
+                self.assertEqual(db.execute('SELECT count(*) FROM preview_sessions').fetchone()[0], 1)
+            target = Path(temp) / 'archive.tar.gz'; records = []
+            with tarfile.open(target,'w:gz') as archive:
+                backup.add_path(archive,snapshot,'backup/registration-preview.sqlite3',records)
+                data = json.dumps({'format':'gpm-production-backup-v1','files':records,**details}).encode()
+                member = tarfile.TarInfo('manifest.json'); member.size=len(data)
+                archive.addfile(member,io.BytesIO(data))
+            restored = Path(temp) / 'restored'; restored.mkdir()
+            manifest = verify.inspect_tar(target, restored/'database.dump')
+            self.assertTrue(manifest['registration_preview_verified'])
+
 if __name__=='__main__':unittest.main()

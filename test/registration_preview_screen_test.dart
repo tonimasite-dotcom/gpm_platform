@@ -89,8 +89,9 @@ void main() {
     tester.view.physicalSize = const Size(320, 568); tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize); addTearDown(tester.view.resetDevicePixelRatio);
     final gateway = FakeRegistrationGateway();
-    await tester.pumpWidget(MediaQuery(data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-      child: RegistrationPreviewApp(gateway: gateway)));
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
     await tester.pumpAndSettle();
     tester.view.viewInsets = const FakeViewPadding(bottom: 240); addTearDown(tester.view.resetViewInsets);
     await tester.pumpAndSettle();

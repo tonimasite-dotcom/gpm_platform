@@ -1,4 +1,6 @@
 import os
+import asyncio
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -135,3 +137,38 @@ class RegistrationPreviewTests(unittest.TestCase):
         self.error('AGE_UNDER_18', self.store.patch, self.sid, self.token, self.state['revision'], {'birth_date': '2008-11-21'})
         for value in ['2026-02-31', '2100-01-01', 'not-a-date']:
             self.error('INVALID_BIRTH_DATE', self.store.patch, self.sid, self.token, self.state['revision'], {'birth_date': value})
+
+    def test_http_contract_auth_and_no_production_routes_required(self):
+        from fastapi import FastAPI
+        app = FastAPI()
+        reg.register_routes(app)
+        async def request(method, path, body=None, token=None):
+            messages = []
+            raw = json.dumps(body).encode() if body is not None else b''
+            received = False
+            async def receive():
+                nonlocal received
+                if received: return {'type': 'http.disconnect'}
+                received = True
+                return {'type': 'http.request', 'body': raw, 'more_body': False}
+            async def send(value): messages.append(value)
+            headers = [(b'content-type', b'application/json')]
+            if token: headers.append((b'authorization', ('Bearer '+token).encode()))
+            await app({'type': 'http', 'asgi': {'version': '3.0'}, 'http_version': '1.1',
+                       'method': method, 'scheme': 'https', 'path': path, 'raw_path': path.encode(),
+                       'query_string': b'', 'headers': headers, 'server': ('test',443),
+                       'client': ('127.0.0.99',1234), 'root_path': ''}, receive, send)
+            status = next(v['status'] for v in messages if v['type']=='http.response.start')
+            value = json.loads(b''.join(v.get('body',b'') for v in messages if v['type']=='http.response.body'))
+            return status, value
+        status, created = asyncio.run(request('POST', reg.PREFIX+'/sessions'))
+        self.assertEqual(status, 200)
+        path = reg.PREFIX+'/sessions/'+created['registration_id']
+        status, _ = asyncio.run(request('GET', path))
+        self.assertEqual(status, 401)
+        status, saved = asyncio.run(request('PATCH', path, {'expected_revision':0,'answers':{'first_name':'Иван'}}, created['session_token']))
+        self.assertEqual(status, 200)
+        self.assertEqual(saved['answers']['first_name'], 'Иван')
+        status, value = asyncio.run(request('PATCH', path, {'expected_revision':1,'answers':{'phone_verified':True}}, created['session_token']))
+        self.assertEqual(status, 422)
+        self.assertEqual(value['detail']['code'], 'UNKNOWN_FIELD')
