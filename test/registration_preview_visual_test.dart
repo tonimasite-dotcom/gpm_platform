@@ -28,12 +28,14 @@ void main() {
         expect(MediaQuery.sizeOf(element).width, config.$1);
         expect(MediaQuery.textScalerOf(element).scale(10), config.$3 * 10);
         Future<void> shot(String part) async {
+          await tester.runAsync(() async {
           final render = boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
           final image = await render.toImage(pixelRatio: 1);
           final data = await image.toByteData(format: ui.ImageByteFormat.png);
           final file = File('build/registration-preview-shots/${step}_${config.$1.toInt()}_${config.$3}_$part.png');
           await file.parent.create(recursive: true); await file.writeAsBytes(data!.buffer.asUint8List());
           image.dispose();
+          });
         }
         await shot('top');
         final action = step == 'completed' ? find.text('Новая тестовая анкета') : find.byKey(const Key('registration_primary'));
@@ -41,7 +43,7 @@ void main() {
         await shot('bottom');
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
-      });
+      }, timeout: const Timeout(Duration(minutes: 2)));
     }
   }
 }
