@@ -27,6 +27,9 @@ jobs:
         run: |
           flutter pub get
           dart format lib/registration lib/registration_preview_main.dart test/registration_preview_api_test.dart test/registration_preview_screen_test.dart test/registration_preview_visual_test.dart test/support/registration_preview_fake.dart
+          dart fix --apply --code=curly_braces_in_flow_control_structures lib/registration
+          dart fix --apply --code=curly_braces_in_flow_control_structures test/support
+          dart format lib/registration lib/registration_preview_main.dart test/registration_preview_api_test.dart test/registration_preview_screen_test.dart test/registration_preview_visual_test.dart test/support/registration_preview_fake.dart
           flutter analyze --no-pub
           flutter test --no-pub test/registration_preview_api_test.dart test/registration_preview_screen_test.dart test/registration_preview_visual_test.dart
       - name: Store synthetic previews and formatted sources
