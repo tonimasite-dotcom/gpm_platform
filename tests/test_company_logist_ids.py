@@ -57,6 +57,14 @@ class CompanyLogistIdTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             api.create_account_invitation("invalid-company-worker", "worker", created_by="admin", gpm_company_logist=True)
 
+    def test_untrusted_registration_metadata_cannot_enable_company_membership(self):
+        invite = api.create_account_invitation("external-with-forged-metadata", "logist", created_by="admin")
+        account = api.redeem_account_invitation(invite["token"], "Synthetic password 123!",
+            audit_details={"gpm_company_logist": True, "crm_logist_id": 1})
+        profile = api.get_account_profile({"sub": account["account_id"], "role": "logist"})
+        self.assertIsNone(profile["crm_logist_id"])
+        self.assertFalse(profile["is_gpm_company_logist"])
+
     def test_worker_and_inactive_logist_cannot_be_granted(self):
         with self.assertRaises(ValueError):
             self.grant(self.worker)
