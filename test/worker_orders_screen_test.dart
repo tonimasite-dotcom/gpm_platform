@@ -39,6 +39,8 @@ void main() {
         const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Все'));
+      await tester.pumpAndSettle();
       expect(
         find.text('Заявка yes'),
         isRussian ? findsOneWidget : findsNothing,
@@ -145,6 +147,8 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Все'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(Tab).at(1));

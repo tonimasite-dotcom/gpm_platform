@@ -224,6 +224,8 @@ void main() {
         const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Все'));
+      await tester.pumpAndSettle();
       expect(find.text('Заказ для РФ'), findsOneWidget);
     },
   );

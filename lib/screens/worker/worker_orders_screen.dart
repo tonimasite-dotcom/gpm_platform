@@ -16,7 +16,7 @@ class WorkerOrdersScreen extends StatefulWidget {
 
 class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
   bool isLoading = true;
-  WorkerOrderDay _dayFilter = WorkerOrderDay.all;
+  WorkerOrderDay _dayFilter = WorkerOrderDay.today;
   List<Map<String, dynamic>> availableOrders = [];
   List<Map<String, dynamic>> activeOrders = [];
   List<Map<String, dynamic>> historyOrders = [];
