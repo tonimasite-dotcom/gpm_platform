@@ -57,6 +57,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   String _clientEmail = '';
   String _clientPhone = '';
   bool _isLoading = false;
+  bool _isProfileLoading = false;
+  String? _profileError;
   bool _isAddressLookupLoading = false;
   List<_AddressCandidate> _addressCandidates = const [];
   _AddressCandidate? _selectedAddress;
@@ -88,23 +90,40 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     super.dispose();
   }
 
-  void _loadClientType() {
-    if (gpmApi.isApiMode) return;
-    final raw = readDemoValue('gpm.client.profile.v1');
-    if (raw == null) return;
-
+  Future<void> _loadClientType() async {
+    // A logist profile belongs to staff, not to the customer of this order.
+    if (_isLogist) return;
+    setState(() {
+      _isProfileLoading = true;
+      _profileError = null;
+    });
     try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      final type = data['client_type']?.toString();
-      if (type == 'legal' || type == 'individual') {
-        _clientType = type!;
+      final Map<String, dynamic> data;
+      if (gpmApi.isApiMode) {
+        data = await gpmApi.getMyProfile();
+      } else {
+        final raw = readDemoValue('gpm.client.profile.v1');
+        data = raw == null ? {} : jsonDecode(raw) as Map<String, dynamic>;
       }
-      _clientEmail = data['email']?.toString().trim() ?? '';
-      _clientPhone = data['phone']?.toString().trim() ?? '';
+      if (!mounted) return;
+      setState(() {
+        _clientType = data['client_type'] == 'legal' ? 'legal' : 'individual';
+        _clientEmail = data['email']?.toString().trim() ?? '';
+        _clientPhone = data['phone']?.toString().trim() ?? '';
+        _isProfileLoading = false;
+      });
     } catch (_) {
-      _clientType = 'individual';
-      _clientEmail = '';
-      _clientPhone = '';
+      if (!mounted) return;
+      setState(() {
+        _isProfileLoading = false;
+        if (gpmApi.isApiMode) {
+          _profileError = 'Не удалось загрузить профиль клиента';
+        } else {
+          _clientType = 'individual';
+          _clientEmail = '';
+          _clientPhone = '';
+        }
+      });
     }
   }
 
@@ -423,6 +442,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading || _isProfileLoading || _profileError != null) return;
     final scheduledAt = _parseScheduledAt();
     final countersAreValid =
         _hours >= 1 &&
@@ -823,7 +843,23 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                           : null;
                     },
                   ),
-                  if (!_isLogist) ...[
+                  if (_isProfileLoading) ...[
+                    const SizedBox(height: 12),
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 8),
+                    const Text('Загружаем профиль клиента'),
+                  ],
+                  if (_profileError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(_profileError!),
+                    OutlinedButton(
+                      onPressed: _loadClientType,
+                      child: const Text('Повторить загрузку профиля'),
+                    ),
+                  ],
+                  if (!_isLogist &&
+                      !_isProfileLoading &&
+                      _profileError == null) ...[
                     const SizedBox(height: 12),
                     _ClientPriceSection(
                       clientType: _clientType,
@@ -834,7 +870,9 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   ],
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _submit,
+                    onPressed: _isLoading || _isProfileLoading || _profileError != null
+                        ? null
+                        : _submit,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
