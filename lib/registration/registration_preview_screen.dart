@@ -914,7 +914,9 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
         LayoutBuilder(
           builder: (context, constraints) {
             final style = Theme.of(context).textTheme.labelLarge!.merge(
-              Theme.of(context).segmentedButtonTheme.style?.textStyle?.resolve({}),
+              Theme.of(
+                context,
+              ).segmentedButtonTheme.style?.textStyle?.resolve({}),
             );
             var width = 48.0;
             var height = 56.0;
@@ -931,19 +933,21 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
             return SizedBox(
               height: height * (width * 2 > constraints.maxWidth ? 2 : 1),
               child: GpmSegmentedButton<bool>(
-          key: Key('answer_$field'),
-          segments: const [
-            ButtonSegment(value: true, label: Text('Да')),
-            ButtonSegment(value: false, label: Text('Нет')),
-          ],
-          selected: value == null ? <bool>{} : {value},
-          emptySelectionAllowed: true,
-          onSelectionChanged: _busy
-              ? null
-              : (values) {
-                  if (values.isNotEmpty) setState(() => update(values.first));
-                },
-        ),
+                key: Key('answer_$field'),
+                segments: const [
+                  ButtonSegment(value: true, label: Text('Да')),
+                  ButtonSegment(value: false, label: Text('Нет')),
+                ],
+                selected: value == null ? <bool>{} : {value},
+                emptySelectionAllowed: true,
+                onSelectionChanged: _busy
+                    ? null
+                    : (values) {
+                        if (values.isNotEmpty) {
+                          setState(() => update(values.first));
+                        }
+                      },
+              ),
             );
           },
         ),
@@ -997,7 +1001,12 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
         .map((item) {
           final name = item['name'].toString();
           if (item['kind'] == 'city') return name;
-          final city = _locations.where((parent) => parent['kind'] == 'city' && parent['id'] == item['city_id']).firstOrNull;
+          final city = _locations
+              .where(
+                (parent) =>
+                    parent['kind'] == 'city' && parent['id'] == item['city_id'],
+              )
+              .firstOrNull;
           return city == null ? name : '$name (${city['name']})';
         })
         .join(', ');

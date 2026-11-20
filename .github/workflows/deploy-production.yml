@@ -192,6 +192,20 @@ jobs:
           set +a
           "$NEW_VENV/bin/python" -c 'import app.app_orders_api as api; api.validate_runtime_configuration(); api.validate_account_source_configuration(); import fastapi, psycopg2, uvicorn, yaml'
 
+          # The registration laboratory uses its own private SQLite directory.
+          # Prepare only that new path for the existing runtime user; do not alter
+          # service accounts, the production database or application authentication.
+          PREVIEW_DIR=/opt/gpm/gpm_platform/.registration_preview_private
+          test ! -L "$PREVIEW_DIR"
+          API_USER=$(systemctl show -p User --value gpm-app-api.service)
+          API_USER=${API_USER:-root}
+          API_GROUP=$(id -gn "$API_USER")
+          if [ ! -d "$PREVIEW_DIR" ]; then
+            install -d -m 700 -o "$API_USER" -g "$API_GROUP" "$PREVIEW_DIR"
+          fi
+          test "$(stat -c %U "$PREVIEW_DIR")" = "$API_USER"
+          test "$(stat -c %a "$PREVIEW_DIR")" = 700
+
           # One-time-per-account backfill: assigns L#/C# actor codes (used by
           # the new order-numbering scheme) to any logist/client account that
           # doesn't have one yet, ordered by registration date. Idempotent

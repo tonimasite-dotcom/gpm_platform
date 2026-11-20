@@ -27,7 +27,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Нет'), findsNWidgets(3));
     expect(find.text('Иванович'), findsOneWidget);
-    expect(find.text('Москва, Центральный район (Санкт-Петербург)'), findsOneWidget);
+    expect(
+      find.text('Москва, Центральный район (Санкт-Петербург)'),
+      findsOneWidget,
+    );
     expect(find.byTooltip('Изменить: Телефон'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
