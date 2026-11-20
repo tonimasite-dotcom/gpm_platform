@@ -172,3 +172,12 @@ class RegistrationPreviewTests(unittest.TestCase):
         status, value = asyncio.run(request('PATCH', path, {'expected_revision':1,'answers':{'phone_verified':True}}, created['session_token']))
         self.assertEqual(status, 422)
         self.assertEqual(value['detail']['code'], 'UNKNOWN_FIELD')
+
+    def test_preview_token_cannot_log_into_main_gpm(self):
+        from app import app_orders_api as api
+        with patch.dict(os.environ, {'GPM_APP_SQLITE_DB_FILE': self.temp.name+'/main.sqlite3',
+                                    'GPM_APP_JWT_SECRET': 'x'*32}, clear=True):
+            api.init_db()
+            with self.assertRaises(HTTPException) as caught:
+                asyncio.run(api.authenticated_user('Bearer '+self.token))
+            self.assertEqual(caught.exception.status_code, 401)

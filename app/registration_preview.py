@@ -24,6 +24,9 @@ from fastapi import FastAPI, Header, HTTPException, Request, Response
 
 PREFIX = '/app-api/registration-preview'
 FLOW_VERSION = 'preview-1'
+MINIMUM_AGE = 18
+MIDDLE_NAME_REQUIRED = False
+AGE_TIMEZONE = 'Europe/Moscow'
 TTL = 30 * 24 * 3600
 TEST_CODE = '123456'
 LOCATIONS = [
@@ -86,7 +89,7 @@ def normalize_phone(raw, country='RU'):
 def normalize_name(value, field):
     if not isinstance(value, str): failure('INVALID_NAME', 'Введи имя текстом', field)
     value = unicodedata.normalize('NFC', value.strip())
-    if field == 'middle_name' and not value: return ''  # Unresolved policy: optional in preview only.
+    if field == 'middle_name' and not value and not MIDDLE_NAME_REQUIRED: return ''  # Unresolved policy: optional in preview only.
     parts = value.split('-')
     if not 1 <= len(value) <= 100 or any(
         not part or not any(unicodedata.category(c).startswith('L') for c in part)
@@ -113,10 +116,10 @@ def validate_answers(changes, previous):
                 failure('INVALID_BIRTH_DATE', 'Укажи существующую дату рождения', field)
             try: born = date.fromisoformat(value)
             except ValueError: failure('INVALID_BIRTH_DATE', 'Укажи существующую дату рождения', field)
-            today = datetime.fromtimestamp(clock(), ZoneInfo('Europe/Moscow')).date()
+            today = datetime.fromtimestamp(clock(), ZoneInfo(AGE_TIMEZONE)).date()
             if born > today: failure('INVALID_BIRTH_DATE', 'Дата рождения не может быть в будущем', field)
             age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-            if age < 18: failure('AGE_UNDER_18', 'Для регистрации должно исполниться 18 лет', field)
+            if age < MINIMUM_AGE: failure('AGE_UNDER_18', f'Для регистрации должно исполниться {MINIMUM_AGE} лет', field)
             result[field] = born.isoformat()
         elif field in ('citizenship_ru', 'has_straps', 'has_tools'):
             if type(value) is not bool: failure('INVALID_BOOLEAN', 'Выбери «Да» или «Нет»', field)
@@ -137,7 +140,9 @@ def validate_answers(changes, previous):
 def next_step(answers, verified_phone):
     if not answers.get('phone') or verified_phone != answers['phone']: return 'phone'
     if not (answers.get('city_ids') or answers.get('district_ids')): return 'locations'
-    for field in ('first_name', 'last_name', 'birth_date', 'citizenship_ru', 'has_straps', 'has_tools'):
+    required = ('first_name', 'last_name', 'birth_date', 'citizenship_ru', 'has_straps', 'has_tools')
+    if MIDDLE_NAME_REQUIRED: required += ('middle_name',)
+    for field in required:
         if field not in answers or answers[field] is None or answers[field] == '': return field
     return 'review'
 
@@ -178,7 +183,8 @@ class PreviewStore:
                 'revision': row['revision'], 'answers': answers, 'current_step': step, 'status': status,
                 'can_complete': status == 'review', 'phone_verified': bool(answers.get('phone') and row['verified_phone'] == answers['phone']),
                 'expires_at': row['expires'], 'profile_id': row['profile_id'], 'profile_active': False,
-                'notifications': 'unavailable', 'middle_name_required': False,
+                'notifications': 'unavailable', 'middle_name_required': MIDDLE_NAME_REQUIRED,
+                'minimum_age': MINIMUM_AGE, 'source_channel': 'website',
                 'challenge_active': bool(row['challenge_until'] and row['challenge_until'] > clock()),
                 'resend_after': max(0, int((row['challenge_sent'] or 0) + 60 - clock()))}
 
@@ -324,7 +330,7 @@ def register_routes(app: FastAPI):
     async def locations(response: Response):
         response.headers['Cache-Control'] = 'no-store'
         return {'preview': True, 'flow_version': FLOW_VERSION, 'locations': LOCATIONS,
-                'middle_name_required': False, 'minimum_age': 18}
+                'middle_name_required': MIDDLE_NAME_REQUIRED, 'minimum_age': MINIMUM_AGE}
 
     @router.post(PREFIX + '/sessions')
     async def create(request: Request, response: Response):
