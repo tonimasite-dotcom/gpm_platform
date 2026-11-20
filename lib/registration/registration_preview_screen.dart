@@ -8,6 +8,7 @@ import '../utils/date_time_input_formatters.dart';
 import '../widgets/adaptive_buttons.dart';
 import '../widgets/gpm_logo.dart';
 import 'registration_preview_api.dart';
+import 'registration_phone_input.dart';
 
 class RegistrationPreviewScreen extends StatefulWidget {
   final RegistrationPreviewGateway gateway;
@@ -276,6 +277,10 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
   }
 
   Future<void> _sendCode() async {
+    final error = registrationPhoneError(_phone.text, _country);
+    if (error != null) {
+      throw RegistrationPreviewError('INVALID_PHONE', error, 'phone');
+    }
     _accept(await _api.save({'phone': _phone.text, 'phone_country': _country}));
     if (!mounted) return;
     _phone.text = _answers['phone']?.toString() ?? _phone.text;
@@ -688,6 +693,11 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
               : (value) => setState(() {
                   _country = value!;
                   _phoneDirty = true;
+                  final error = registrationPhoneError(_phone.text, _country);
+                  _fieldErrors.remove('phone');
+                  if (_phone.text.isNotEmpty && error != null) {
+                    _fieldErrors['phone'] = error;
+                  }
                 }),
         ),
         const SizedBox(height: 16),
@@ -697,10 +707,23 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
           enabled: !_busy,
           keyboardType: TextInputType.phone,
           autofillHints: const [AutofillHints.telephoneNumber],
-          onChanged: (_) => setState(() => _phoneDirty = true),
+          inputFormatters: [RegistrationPhoneFormatter(_country)],
+          onChanged: (_) => setState(() {
+            _phoneDirty = true;
+            _fieldErrors.remove('phone');
+            if (_errorCode == 'INVALID_PHONE') {
+              _error = null;
+              _errorCode = null;
+            }
+          }),
           decoration: InputDecoration(
             labelText: 'Телефон',
-            hintText: '+7 000 000-00-00',
+            hintText: _country == 'RU' ? '+7 000 000-00-00' : '+49 000 0000000',
+            helperText: _country == 'RU'
+                ? '10 цифр или 11 с кодом 7/8'
+                : 'От 8 до 15 цифр после +',
+            helperMaxLines: 3,
+            errorMaxLines: 3,
             prefixIcon: const Icon(Icons.phone_outlined),
             errorText: _fieldErrors['phone'],
           ),
