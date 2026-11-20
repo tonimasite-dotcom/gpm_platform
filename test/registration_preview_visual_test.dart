@@ -78,6 +78,20 @@ void main() {
           await tester.ensureVisible(action);
           await tester.pumpAndSettle();
           await shot('bottom');
+          if (step == 'citizenship_ru' && config.$1 == 900) {
+            final yes = find.byKey(const Key('choice_citizenship_ru_yes'));
+            await tester.ensureVisible(yes);
+            final mouse = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
+            await mouse.addPointer(location: Offset.zero);
+            await mouse.moveTo(tester.getRect(yes).bottomCenter - const Offset(0, 4));
+            await tester.pumpAndSettle();
+            await shot('hover');
+            await mouse.moveTo(Offset.zero);
+            await tester.tap(yes);
+            await tester.pumpAndSettle();
+            await shot('selected');
+            await mouse.removePointer();
+          }
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox.shrink());
         },

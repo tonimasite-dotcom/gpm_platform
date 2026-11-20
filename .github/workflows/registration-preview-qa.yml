@@ -2,7 +2,7 @@ name: Registration preview visual QA
 on:
   workflow_dispatch:
   push:
-    branches: [work/registration-preview-2026-11-20, work/registration-phone-check-2026-11-20]
+    branches: [work/registration-preview-2026-11-20, work/registration-phone-check-2026-11-20, work/registration-answer-style-2026-11-20]
 permissions:
   contents: read
 concurrency:

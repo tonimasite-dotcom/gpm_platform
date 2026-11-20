@@ -8,6 +8,7 @@ import '../utils/date_time_input_formatters.dart';
 import '../widgets/adaptive_buttons.dart';
 import '../widgets/gpm_logo.dart';
 import 'registration_preview_api.dart';
+import 'registration_answer_choices.dart';
 import 'registration_phone_input.dart';
 
 class RegistrationPreviewScreen extends StatefulWidget {
@@ -934,45 +935,11 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final style = Theme.of(context).textTheme.labelLarge!.merge(
-              Theme.of(
-                context,
-              ).segmentedButtonTheme.style?.textStyle?.resolve({}),
-            );
-            var width = 48.0;
-            var height = 56.0;
-            for (final label in ['Да', 'Нет']) {
-              final painter = TextPainter(
-                text: TextSpan(text: label, style: style),
-                textDirection: Directionality.of(context),
-                textScaler: MediaQuery.textScalerOf(context),
-              )..layout();
-              width = max(width, painter.width + 72);
-              height = max(height, painter.height + 32);
-              painter.dispose();
-            }
-            return SizedBox(
-              height: height * (width * 2 > constraints.maxWidth ? 2 : 1),
-              child: GpmSegmentedButton<bool>(
-                key: Key('answer_$field'),
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Да')),
-                  ButtonSegment(value: false, label: Text('Нет')),
-                ],
-                selected: value == null ? <bool>{} : {value},
-                emptySelectionAllowed: true,
-                onSelectionChanged: _busy
-                    ? null
-                    : (values) {
-                        if (values.isNotEmpty) {
-                          setState(() => update(values.first));
-                        }
-                      },
-              ),
-            );
-          },
+        RegistrationAnswerChoices(
+          key: Key('answer_$field'),
+          field: field,
+          value: value,
+          onChanged: _busy ? null : (answer) => setState(() => update(answer)),
         ),
         if (_fieldErrors[field] != null)
           Text(
