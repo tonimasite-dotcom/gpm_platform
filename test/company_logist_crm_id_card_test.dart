@@ -26,7 +26,9 @@ void main() {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
-        if (call.method == 'Clipboard.setData') copied = call.arguments;
+        if (call.method == 'Clipboard.setData') {
+          copied = call.arguments;
+        }
         return null;
       },
     );

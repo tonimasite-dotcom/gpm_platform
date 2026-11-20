@@ -1,4 +1,6 @@
 import asyncio
+import os
+from uuid import uuid4
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
@@ -11,12 +13,12 @@ from starlette.responses import Response
 from app import app_orders_api as api
 from app import crm_logist_ids as ids
 from tests.test_app_orders_api import sample_payload
-from tests.test_tester_feedback import TesterFeedbackTests
+from tests import test_tester_feedback as feedback
 
 
 class CompanyLogistIdTests(unittest.TestCase):
-    setUp = TesterFeedbackTests.setUp
-    actor = TesterFeedbackTests.actor
+    setUp = feedback.TesterFeedbackTests.setUp
+    actor = feedback.TesterFeedbackTests.actor
 
     def grant(self, actor):
         with api.db_connection() as connection:
@@ -146,3 +148,67 @@ class CompanyLogistIdTests(unittest.TestCase):
         saved = self.publish(payload)["order"]
         self.assertEqual(saved["logist_account_id"], self.logist["sub"])
         self.assertIsNone(api.get_account_profile(self.logist)["crm_logist_id"])
+
+
+@unittest.skipUnless(os.getenv("GPM_TEST_POSTGRES_URL"), "PostgreSQL CI only")
+class CompanyIdPostgresTests(unittest.TestCase):
+    def setUp(self):
+        self.dsn = os.environ["GPM_TEST_POSTGRES_URL"]
+        self.schema = "crmids_" + uuid4().hex
+        connection = api.psycopg2.connect(self.dsn)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("CREATE SCHEMA " + self.schema)
+                cursor.execute("SET search_path TO " + self.schema)
+                cursor.execute("CREATE TABLE gpm_app_accounts(account_id TEXT PRIMARY KEY,role TEXT,is_active BOOLEAN)")
+                cursor.execute("CREATE TABLE gpm_app_account_invitations(invitation_id TEXT PRIMARY KEY)")
+                for account in ("company-one", "company-two", "external"):
+                    cursor.execute("INSERT INTO gpm_app_accounts VALUES (%s,'logist',TRUE)", (account,))
+            ids.ensure_schema(connection)
+            connection.commit()
+        finally:
+            connection.close()
+        self.addCleanup(self.drop_schema)
+
+    def connection(self):
+        return api.psycopg2.connect(self.dsn, options="-c search_path=" + self.schema)
+
+    def drop_schema(self):
+        connection = api.psycopg2.connect(self.dsn)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("DROP SCHEMA " + self.schema + " CASCADE")
+            connection.commit()
+        finally:
+            connection.close()
+
+    def test_concurrent_postgres_grants_allocate_distinct_company_ids(self):
+        barrier = Barrier(2)
+        def grant(account):
+            connection = self.connection()
+            try:
+                barrier.wait()
+                result = ids.grant(connection, account, assigned_by="synthetic-admin")
+                connection.commit()
+                return result["crm_logist_id"]
+            finally:
+                connection.close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            result = list(pool.map(grant, ["company-one", "company-two"]))
+        self.assertEqual(sorted(result), [1, 2])
+        connection = self.connection()
+        try:
+            self.assertIsNone(ids.for_account(connection, "external"))
+        finally:
+            connection.close()
+
+    def test_rollback_does_not_consume_an_id_or_leave_partial_membership(self):
+        connection = self.connection()
+        try:
+            self.assertEqual(ids.grant(connection, "company-one", assigned_by="test")["crm_logist_id"], 1)
+            connection.rollback()
+            self.assertIsNone(ids.for_account(connection, "company-one"))
+            self.assertEqual(ids.grant(connection, "company-two", assigned_by="test")["crm_logist_id"], 1)
+            connection.commit()
+        finally:
+            connection.close()
