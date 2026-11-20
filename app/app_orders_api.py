@@ -6852,3 +6852,6 @@ async def update_order_payload(
 
 from app.worker_ratings import register_routes as _register_rating_routes
 _register_rating_routes(app)
+
+from app.registration_preview import register_routes as _register_preview_routes
+_register_preview_routes(app)

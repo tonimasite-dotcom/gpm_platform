@@ -56,3 +56,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Private server-side registration laboratory; never publish answers or tokens.
+.registration_preview_private/
