@@ -26,7 +26,7 @@ class _ProfileApi extends GpmApiService {
   @override
   Future<List<Map<String, dynamic>>> suggestAddresses({
     required String query,
-    required String city,
+    String city = '',
   }) async => throw StateError('Synthetic unavailable address provider');
 
   @override
