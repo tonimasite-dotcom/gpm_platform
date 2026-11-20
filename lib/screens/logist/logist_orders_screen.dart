@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
+import '../../utils/order_date_filter.dart';
 import '../../utils/order_citizenship.dart';
 import '../../widgets/worker_rating.dart';
 import '../../widgets/rating_action_dialog.dart';
@@ -22,6 +23,7 @@ class LogistOrdersScreen extends StatefulWidget {
 
 class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
   String _selectedFilter = 'Все';
+  DateTimeRange? _publicationRange;
   late Future<List<Map<String, dynamic>>> _ordersFuture;
 
   @override
@@ -80,7 +82,47 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
     }
   }
 
+  Future<void> _pickPublicationDates() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _publicationRange,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100, 12, 31),
+      initialEntryMode: DatePickerEntryMode.input,
+      helpText: 'Дата публикации',
+      fieldStartLabelText: 'С даты',
+      fieldEndLabelText: 'По дату',
+      fieldStartHintText: 'ДД.ММ.ГГГГ',
+      fieldEndHintText: 'ДД.ММ.ГГГГ',
+      errorFormatText: 'Проверьте дату: ДД.ММ.ГГГГ',
+      errorInvalidRangeText: 'Конец периода раньше начала',
+      cancelText: 'Отмена',
+      confirmText: 'Применить',
+      saveText: 'Применить',
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _publicationRange = picked);
+  }
+
+  String get _publicationDateLabel {
+    final range = _publicationRange;
+    if (range == null) return 'Дата публикации';
+    String date(DateTime value) =>
+        '${value.day.toString().padLeft(2, '0')}.'
+        '${value.month.toString().padLeft(2, '0')}.${value.year}';
+    return 'Дата публикации: ${date(range.start)} — ${date(range.end)}';
+  }
+
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> orders) {
+    final range = _publicationRange;
+    return _filterOrdersByStatus(range == null ? orders : orders.where(
+      (order) => matchesOrderDateRange(
+        order['created_at'], from: range.start, to: range.end,
+      ),
+    ).toList());
+  }
+
+  List<Map<String, dynamic>> _filterOrdersByStatus(List<Map<String, dynamic>> orders) {
     if (_selectedFilter == 'Все') return orders;
     if (_selectedFilter == 'Без оценки') {
       return orders.where((order) {
@@ -191,6 +233,36 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              OutlinedButton(
+                key: const Key('logist_publication_dates'),
+                onPressed: _pickPublicationDates,
+                child: GpmButtonContent(
+                  icon: const Icon(Icons.date_range_outlined),
+                  label: Wrap(
+                    spacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(_publicationDateLabel),
+                      const Icon(Icons.expand_more, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              if (_publicationRange != null)
+                TextButton(
+                  onPressed: () => setState(() => _publicationRange = null),
+                  child: const Text('Сбросить даты'),
+                ),
+            ],
+          ),
+        ),
         Expanded(
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: _ordersFuture,
@@ -208,9 +280,11 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
               if (orders.isEmpty) {
                 return Center(
                   child: Text(
-                    _selectedFilter == 'Все'
-                        ? 'Заказов пока нет'
-                        : 'Нет заказов со статусом "$_selectedFilter"',
+                    _publicationRange != null
+                        ? 'Нет заказов по выбранным фильтрам'
+                        : _selectedFilter == 'Все'
+                            ? 'Заказов пока нет'
+                            : 'Нет заказов со статусом "$_selectedFilter"',
                     textAlign: TextAlign.center,
                   ),
                 );
