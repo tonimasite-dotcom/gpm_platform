@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../utils/order_display.dart';
+import '../../utils/order_date_filter.dart';
 import '../../utils/order_citizenship.dart';
 import '../attendance/order_attendance.dart';
 
@@ -15,6 +16,7 @@ class WorkerOrdersScreen extends StatefulWidget {
 
 class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
   bool isLoading = true;
+  WorkerOrderDay _dayFilter = WorkerOrderDay.all;
   List<Map<String, dynamic>> availableOrders = [];
   List<Map<String, dynamic>> activeOrders = [];
   List<Map<String, dynamic>> historyOrders = [];
@@ -81,6 +83,17 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
     return order['is_assigned_to_worker'] == true && status == 'CONVERTED';
   }
 
+  List<Map<String, dynamic>> _filterByDay(List<Map<String, dynamic>> orders) {
+    final now = DateTime.now();
+    return orders.where((order) => matchesWorkerOrderDay(
+      order['scheduled_at'], _dayFilter, now: now,
+    )).toList();
+  }
+
+  String _emptyText(String original) => _dayFilter == WorkerOrderDay.all
+      ? original
+      : 'На выбранную дату заказов в этой вкладке нет';
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -91,6 +104,25 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
       length: 3,
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final day in WorkerOrderDay.values)
+                    ChoiceChip(
+                      label: Text(day.label),
+                      selected: _dayFilter == day,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _dayFilter = day),
+                    ),
+                ],
+              ),
+            ),
+          ),
           const TabBar(
             tabs: [
               Tab(text: 'Доступные'),
@@ -104,24 +136,24 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
                 RefreshIndicator(
                   onRefresh: loadOrders,
                   child: OrdersList(
-                    orders: availableOrders,
-                    emptyText: 'Нет доступных заказов',
+                    orders: _filterByDay(availableOrders),
+                    emptyText: _emptyText('Нет доступных заказов'),
                     onChanged: loadOrders,
                   ),
                 ),
                 RefreshIndicator(
                   onRefresh: loadOrders,
                   child: OrdersList(
-                    orders: activeOrders,
-                    emptyText: 'Нет активных откликов и заказов',
+                    orders: _filterByDay(activeOrders),
+                    emptyText: _emptyText('Нет активных откликов и заказов'),
                     onChanged: loadOrders,
                   ),
                 ),
                 RefreshIndicator(
                   onRefresh: loadOrders,
                   child: OrdersList(
-                    orders: historyOrders,
-                    emptyText: 'История пуста',
+                    orders: _filterByDay(historyOrders),
+                    emptyText: _emptyText('История пуста'),
                     onChanged: loadOrders,
                   ),
                 ),
