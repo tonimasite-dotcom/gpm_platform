@@ -123,7 +123,7 @@ class CompanyLogistIdTests(unittest.TestCase):
         self.assertEqual(api.get_account_profile(self.logist)["phone"], "")
         repeat = self.publish(self.payload())["order"]
         self.assertEqual(repeat["logist_account_id"], self.logist["sub"])
-        self.assertEqual(len(api.get_orders()), 1)
+        self.assertEqual(len(api.list_orders()), 1)
 
     def test_id_rejects_ambiguous_phone_wrong_source_unknown_id_and_retargeting(self):
         self.grant(self.logist)

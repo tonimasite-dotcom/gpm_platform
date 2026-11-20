@@ -1,0 +1,42 @@
+name: Company logist CRM ID QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/company-logist-crm-id-2026-11-20]
+permissions:
+  contents: read
+concurrency:
+  group: company-logist-id-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+      - name: Configure synthetic assets
+        run: printf '%s\n' 'GPM_APP_MODE=demo' > .env
+      - name: Validate company profile card
+        run: |
+          flutter pub get
+          dart format lib/widgets/company_logist_crm_id_card.dart lib/screens/logist/logist_profile_screen.dart test/company_logist_crm_id_card_test.dart
+          flutter analyze --no-pub
+          flutter test --no-pub test/company_logist_crm_id_card_test.dart
+      - name: Save synthetic cards and formatted sources
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: company-logist-crm-id-checks
+          path: |
+            build/company-logist-crm-id-shots/*.png
+            lib/widgets/company_logist_crm_id_card.dart
+            lib/screens/logist/logist_profile_screen.dart
+            test/company_logist_crm_id_card_test.dart
+          retention-days: 7
