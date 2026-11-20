@@ -49,7 +49,7 @@ Future<void> _period(WidgetTester tester, DateTime from, DateTime to) async {
 }
 
 void main() {
-  testWidgets('worker day choices compose with tabs and do not reload orders', (tester) async {
+  testWidgets('worker defaults to today and day choices compose with tabs without reload', (tester) async {
     dotenv.testLoad(fileInput: 'GPM_APP_MODE=production\n');
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -63,9 +63,8 @@ void main() {
     ]);
     app.gpmApi = api;
     await _open(tester, const WorkerOrdersScreen());
-    expect(find.text('Без даты'), findsOneWidget);
-    await tester.tap(find.text('Сегодня'));
-    await tester.pumpAndSettle();
+    expect(tester.widgetList<ChoiceChip>(find.byType(ChoiceChip)).map((chip) => (chip.label as Text).data),
+        ['Сегодня', 'Завтра', 'Все']);
     expect(find.text('Сегодняшняя'), findsOneWidget);
     expect(find.text('Завтрашняя'), findsNothing);
     expect(find.text('Без даты'), findsNothing);
