@@ -18,11 +18,21 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   int _currentIndex = 0;
   final Set<int> _visited = {0};
 
+  void _openSection(int index) {
+    setState(() {
+      _currentIndex = index;
+      _visited.add(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
       WorkerDashboardScreen(
-        onOpenOrders: () => setState(() => _currentIndex = 1),
+        onOpenOrders: () => _openSection(1),
+        onOpenChats: () => _openSection(2),
+        onOpenFinance: () => _openSection(3),
+        onOpenProfile: () => _openSection(4),
       ),
       const WorkerOrdersScreen(),
       const ChatThreadsScreen(role: ChatRole.worker),
@@ -48,12 +58,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       bottomNavigationBar: GpmBottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            _visited.add(index);
-          });
-        },
+        onTap: _openSection,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
           BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Заказы'),
