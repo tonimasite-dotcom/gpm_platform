@@ -7,15 +7,9 @@ import 'worker_referral_promo.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   final VoidCallback? onOpenOrders;
-  final VoidCallback? onOpenChats;
-  final VoidCallback? onOpenFinance;
-  final VoidCallback? onOpenProfile;
   const WorkerDashboardScreen({
     super.key,
     this.onOpenOrders,
-    this.onOpenChats,
-    this.onOpenFinance,
-    this.onOpenProfile,
   });
 
   @override
@@ -154,19 +148,6 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 label: const Text('Найти смену'),
               ),
               const SizedBox(height: 16),
-              for (final shortcut in [
-                (Icons.account_balance_wallet_outlined, 'Финансы', widget.onOpenFinance),
-                (Icons.forum_outlined, 'Чаты', widget.onOpenChats),
-                (Icons.person_outline, 'Профиль', widget.onOpenProfile),
-              ]) ...[
-                OutlinedButton.icon(
-                  onPressed: shortcut.$3,
-                  icon: Icon(shortcut.$1),
-                  label: Text(shortcut.$2),
-                ),
-                const SizedBox(height: 8),
-              ],
-              const SizedBox(height: 8),
               WorkerReferralPromoCard(
                 onTap: () => showWorkerReferralPromo(context),
               ),
