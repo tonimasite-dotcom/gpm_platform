@@ -73,6 +73,10 @@ jobs:
           flutter analyze --no-pub
           flutter test --no-pub
           flutter build web --release --base-href /
+          flutter build web --release --target lib/registration_preview_main.dart --base-href /registration-preview/ --output build/registration-preview
+          cp -a build/registration-preview build/web/registration-preview
+          test -f build/web/registration-preview/index.html
+          test -f build/web/registration-preview/main.dart.js
           test -f build/web/index.html
           test -f build/web/main.dart.js
           test -f build/web/assets/.env
@@ -288,6 +292,8 @@ jobs:
           mkdir -p "$STAGE" "$BACKUP_DIR"
           tar -xzf "$ARCHIVE" -C "$STAGE"
 
+          test -f "$STAGE/registration-preview/index.html"
+          test -f "$STAGE/registration-preview/main.dart.js"
           test -f "$STAGE/index.html"
           test -f "$STAGE/main.dart.js"
           test -f "$STAGE/assets/.env"
