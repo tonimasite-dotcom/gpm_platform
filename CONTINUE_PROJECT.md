@@ -1,3 +1,5 @@
+20.11.2026 — ПАУЗА владельца: [промпт продолжения ID логистов](CONTINUE_PROJECT_PROMPT_2026-11-20_COMPANY_LOGIST_ID_PAUSED.md), [состояние и следующий шаг](PROJECT_HANDOFF_2026-11-20_COMPANY_LOGIST_ID_PAUSED.md). Рабочие системы этим этапом не обновлены.
+
 20.11.2026: [Актуальная точка: отправка из TS в GPM](CONTINUE_PROJECT_PROMPT_2026-11-20_TS_PUBLICATION.md), [результат и границы операции](PROJECT_HANDOFF_2026-11-20_TS_PUBLICATION.md). Конкретная отправка проверена; общая модернизация TS не возобновлена.
 
 20.11.2026: [Актуальная точка: плашки ответов регистрации](CONTINUE_PROJECT_PROMPT_2026-11-20_REGISTRATION_ANSWERS.md), [проверки, снимки и выпуск](PROJECT_HANDOFF_2026-11-20_REGISTRATION_ANSWERS.md). Центрирование и фирменное наведение опубликованы; владелец продолжает визуальную приемку.
