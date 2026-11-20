@@ -23,6 +23,8 @@ class RegistrationPreviewApp extends StatelessWidget {
     locale: const Locale('ru', 'RU'),
     supportedLocales: const [Locale('ru', 'RU')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    home: RegistrationPreviewScreen(gateway: gateway ?? RegistrationPreviewApi()),
+    home: RegistrationPreviewScreen(
+      gateway: gateway ?? RegistrationPreviewApi(),
+    ),
   );
 }
