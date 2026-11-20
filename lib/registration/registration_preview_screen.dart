@@ -115,7 +115,7 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
         if (error.field != null) _fieldErrors[error.field!] = error.message;
       });
     } catch (_) {
-      if (mounted) setState(() => _error = 'Не удалось выполнить действие. Попробуй еще раз');
+      if (mounted) { setState(() => _error = 'Не удалось выполнить действие. Попробуй еще раз'); }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -419,7 +419,9 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
     Text('Расскажи о себе', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 16),
     _input(_first, 'first_name', 'Имя', icon: Icons.person_outline), const SizedBox(height: 16),
     _input(_last, 'last_name', 'Фамилия', icon: Icons.badge_outlined), const SizedBox(height: 16),
-    _input(_middle, 'middle_name', _session['middle_name_required'] == true ? 'Отчество' : 'Отчество (необязательно в тесте)'), const SizedBox(height: 16),
+    _input(_middle, 'middle_name', 'Отчество'),
+    if (_session['middle_name_required'] != true) const Padding(padding: EdgeInsets.only(top: 8), child: Text('В тестовой анкете отчество необязательно', style: TextStyle(color: GpmColors.muted))),
+    const SizedBox(height: 16),
     TextFormField(key: const Key('registration_birth_date'), controller: _birth, enabled: !_busy,
       keyboardType: TextInputType.number, inputFormatters: dateAutoSeparatorFormatters,
       decoration: InputDecoration(labelText: 'Дата рождения', hintText: 'ДД.ММ.ГГГГ', errorText: _fieldErrors['birth_date'],

@@ -1,0 +1,45 @@
+name: Registration preview visual QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/registration-preview-2026-11-20]
+permissions:
+  contents: read
+concurrency:
+  group: registration-preview-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+      - name: Configure synthetic assets
+        run: printf '%s\n' 'GPM_APP_MODE=demo' > .env
+      - name: Format and validate standalone module
+        run: |
+          flutter pub get
+          dart format lib/registration lib/registration_preview_main.dart test/registration_preview_api_test.dart test/registration_preview_screen_test.dart test/registration_preview_visual_test.dart test/support/registration_preview_fake.dart
+          flutter analyze --no-pub
+          flutter test --no-pub test/registration_preview_api_test.dart test/registration_preview_screen_test.dart test/registration_preview_visual_test.dart
+      - name: Store synthetic previews and formatted sources
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: registration-preview-checks
+          path: |
+            build/registration-preview-shots/*.png
+            lib/registration/*.dart
+            lib/registration_preview_main.dart
+            test/registration_preview_api_test.dart
+            test/registration_preview_screen_test.dart
+            test/registration_preview_visual_test.dart
+            test/support/registration_preview_fake.dart
+          retention-days: 7
