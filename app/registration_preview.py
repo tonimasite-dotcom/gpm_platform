@@ -20,7 +20,7 @@ import unicodedata
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, FastAPI, Header, HTTPException, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 
 PREFIX = '/app-api/registration-preview'
 FLOW_VERSION = 'preview-1'
@@ -223,8 +223,8 @@ class PreviewStore:
             now = clock()
             if row['challenge_sent'] and now < row['challenge_sent'] + 60:
                 failure('RATE_LIMITED', 'Подожди перед повторным кодом', status=429, retry_after=max(1, int(row['challenge_sent'] + 60 - now)))
-            db.execute('UPDATE preview_sessions SET revision=revision+1,challenge_phone=?,challenge_sent=?,challenge_until=?,attempts=0 WHERE id=?',
-                       (phone, now, now + 300, session_id))
+            db.execute('UPDATE preview_sessions SET revision=revision+1,challenge_phone=?,challenge_sent=?,challenge_until=?,attempts=0,updated=?,expires=? WHERE id=?',
+                       (phone, now, now + 300, now, now + TTL, session_id))
             return {**self._snapshot(self._row(db, session_id, token)), 'test_code': TEST_CODE}
 
     def verify(self, session_id, token, revision, code):
@@ -313,31 +313,31 @@ async def _body(request):
 
 
 def register_routes(app: FastAPI):
-    router = APIRouter(prefix=PREFIX, tags=['registration-preview'])
+    router = app
     store = PreviewStore()
 
     async def guard(request: Request, response: Response):
         response.headers['Cache-Control'] = 'no-store'
         _limit(request, 'request')
 
-    @router.get('/locations')
+    @router.get(PREFIX + '/locations')
     async def locations(response: Response):
         response.headers['Cache-Control'] = 'no-store'
         return {'preview': True, 'flow_version': FLOW_VERSION, 'locations': LOCATIONS,
                 'middle_name_required': False, 'minimum_age': 18}
 
-    @router.post('/sessions')
+    @router.post(PREFIX + '/sessions')
     async def create(request: Request, response: Response):
         await guard(request, response)
         _limit(request, 'create')
         return await asyncio.to_thread(store.create)
 
-    @router.get('/sessions/{session_id}')
+    @router.get(PREFIX + '/sessions/{session_id}')
     async def read(session_id: str, request: Request, response: Response, authorization: str | None = Header(default=None)):
         await guard(request, response)
         return await asyncio.to_thread(store.read, session_id, (authorization or '').removeprefix('Bearer '))
 
-    @router.api_route('/sessions/{session_id}/{action}', methods=['POST'])
+    @router.api_route(PREFIX + '/sessions/{session_id}/{action}', methods=['POST'])
     async def action(session_id: str, action: str, request: Request, response: Response,
                      authorization: str | None = Header(default=None), idempotency_key: str | None = Header(default=None)):
         await guard(request, response)
@@ -352,7 +352,7 @@ def register_routes(app: FastAPI):
         if action == 'restart': return await asyncio.to_thread(store.restart, session_id, token, revision, data.get('confirmed'))
         failure('NOT_FOUND', 'Действие недоступно', status=404)
 
-    @router.patch('/sessions/{session_id}')
+    @router.patch(PREFIX + '/sessions/{session_id}')
     async def patch(session_id: str, request: Request, response: Response, authorization: str | None = Header(default=None)):
         await guard(request, response)
         data = await _body(request)
@@ -360,4 +360,3 @@ def register_routes(app: FastAPI):
         return await asyncio.to_thread(store.patch, session_id, (authorization or '').removeprefix('Bearer '),
                                       data.get('expected_revision'), data['answers'])
 
-    app.include_router(router)
