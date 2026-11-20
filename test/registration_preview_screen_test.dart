@@ -27,7 +27,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Нет'), findsNWidgets(3));
     expect(find.text('Иванович'), findsOneWidget);
-    expect(find.text('Москва, Центральный район'), findsOneWidget);
+    expect(find.text('Москва, Центральный район (Санкт-Петербург)'), findsOneWidget);
     expect(find.byTooltip('Изменить: Телефон'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
@@ -63,7 +63,7 @@ void main() {
         await tapVisible(tester, target);
       }
       await primary(tester);
-      expect(find.text('Центральный район'), findsOneWidget);
+      expect(find.text('Центральный район (Санкт-Петербург)'), findsOneWidget);
       expect(find.text('Не указано'), findsOneWidget);
       expect(find.text('Нет'), findsNWidgets(3));
       expect((gateway.state['answers'] as Map)['city_ids'], isEmpty);

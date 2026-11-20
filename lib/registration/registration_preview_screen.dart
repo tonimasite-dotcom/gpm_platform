@@ -911,7 +911,26 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
-        GpmSegmentedButton<bool>(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final style = Theme.of(context).textTheme.labelLarge!.merge(
+              Theme.of(context).segmentedButtonTheme.style?.textStyle?.resolve({}),
+            );
+            var width = 48.0;
+            var height = 56.0;
+            for (final label in ['Да', 'Нет']) {
+              final painter = TextPainter(
+                text: TextSpan(text: label, style: style),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+              )..layout();
+              width = max(width, painter.width + 72);
+              height = max(height, painter.height + 32);
+              painter.dispose();
+            }
+            return SizedBox(
+              height: height * (width * 2 > constraints.maxWidth ? 2 : 1),
+              child: GpmSegmentedButton<bool>(
           key: Key('answer_$field'),
           segments: const [
             ButtonSegment(value: true, label: Text('Да')),
@@ -924,6 +943,9 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
               : (values) {
                   if (values.isNotEmpty) setState(() => update(values.first));
                 },
+        ),
+            );
+          },
         ),
         if (_fieldErrors[field] != null)
           Text(
@@ -972,7 +994,12 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
     };
     final labels = _locations
         .where((item) => selected.contains(item['id']))
-        .map((item) => item['name'].toString())
+        .map((item) {
+          final name = item['name'].toString();
+          if (item['kind'] == 'city') return name;
+          final city = _locations.where((parent) => parent['kind'] == 'city' && parent['id'] == item['city_id']).firstOrNull;
+          return city == null ? name : '$name (${city['name']})';
+        })
         .join(', ');
     String yesNo(dynamic value) => value == true
         ? 'Да'
