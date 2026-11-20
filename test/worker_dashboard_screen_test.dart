@@ -6,6 +6,30 @@ import 'package:gpm_platform/screens/worker/worker_dashboard_screen.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
 
 void main() {
+  testWidgets('dashboard shortcuts invoke distinct sections and keep statistics', (tester) async {
+    dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
+    app.gpmApi = GpmApiService();
+    String? opened;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: WorkerDashboardScreen(
+      onOpenOrders: () => opened = 'orders',
+      onOpenChats: () => opened = 'chats',
+      onOpenFinance: () => opened = 'finance',
+      onOpenProfile: () => opened = 'profile',
+    ))));
+    await tester.pumpAndSettle();
+    expect(find.text('Активные заявки'), findsOneWidget);
+    expect(find.text('Рейтинг'), findsOneWidget);
+    expect(find.text('Выплаты'), findsOneWidget);
+    for (final entry in {'Найти смену': 'orders', 'Чаты': 'chats', 'Финансы': 'finance', 'Профиль': 'profile'}.entries) {
+      final button = find.text(entry.key);
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(opened, entry.value);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('worker dashboard renders the stat row without overflow', (
     tester,
   ) async {

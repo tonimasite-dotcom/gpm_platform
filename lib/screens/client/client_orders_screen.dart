@@ -4,10 +4,10 @@ import '../../widgets/adaptive_buttons.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../utils/order_display.dart';
+import '../../utils/client_order_sort.dart';
+import '../orders/client_order_sort_sheet.dart';
 import '../attendance/order_attendance.dart';
 import '../orders/order_draft_edit_screen.dart';
-
-enum _SortMode { dateDesc, dateAsc, byStatus, byWorkers }
 
 class ClientOrdersScreen extends StatefulWidget {
   const ClientOrdersScreen({super.key});
@@ -17,91 +17,25 @@ class ClientOrdersScreen extends StatefulWidget {
 }
 
 class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
-  _SortMode _sortMode = _SortMode.dateDesc;
+  List<ClientOrderSort> _sortPriorities = [ClientOrderSort.dateDesc];
+  late Future<List<Map<String, dynamic>>> _ordersFuture;
 
-  void _showSortSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _SortTile(
-            title: 'По дате (сначала новые)',
-            selected: _sortMode == _SortMode.dateDesc,
-            onTap: () {
-              setState(() => _sortMode = _SortMode.dateDesc);
-              Navigator.pop(context);
-            },
-          ),
-          _SortTile(
-            title: 'По дате (сначала старые)',
-            selected: _sortMode == _SortMode.dateAsc,
-            onTap: () {
-              setState(() => _sortMode = _SortMode.dateAsc);
-              Navigator.pop(context);
-            },
-          ),
-          _SortTile(
-            title: 'По статусу',
-            selected: _sortMode == _SortMode.byStatus,
-            onTap: () {
-              setState(() => _sortMode = _SortMode.byStatus);
-              Navigator.pop(context);
-            },
-          ),
-          _SortTile(
-            title: 'По количеству грузчиков',
-            selected: _sortMode == _SortMode.byWorkers,
-            onTap: () {
-              setState(() => _sortMode = _SortMode.byWorkers);
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _ordersFuture = gpmApi.getOrders();
   }
 
-  List<Map<String, dynamic>> _sorted(List<Map<String, dynamic>> orders) {
-    final list = [...orders];
-    switch (_sortMode) {
-      case _SortMode.dateDesc:
-        list.sort(
-          (a, b) => (b['created_at']?.toString() ?? '').compareTo(
-            a['created_at']?.toString() ?? '',
-          ),
-        );
-      case _SortMode.dateAsc:
-        list.sort(
-          (a, b) => (a['created_at']?.toString() ?? '').compareTo(
-            b['created_at']?.toString() ?? '',
-          ),
-        );
-      case _SortMode.byStatus:
-        list.sort(
-          (a, b) => (a['status']?.toString() ?? '').compareTo(
-            b['status']?.toString() ?? '',
-          ),
-        );
-      case _SortMode.byWorkers:
-        list.sort(
-          (a, b) => _readInt(
-            b['workers_count'],
-          ).compareTo(_readInt(a['workers_count'])),
-        );
-    }
-    return list;
-  }
-
-  int _readInt(Object? value) {
-    if (value is int) return value;
-    return int.tryParse(value?.toString() ?? '') ?? 0;
+  Future<void> _showSortSheet() async {
+    final result = await showClientOrderSortSheet(context, _sortPriorities);
+    if (!mounted || result == null) return;
+    setState(() => _sortPriorities = result);
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: gpmApi.getOrders(),
+      future: _ordersFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -111,11 +45,12 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
           return Center(child: Text('Ошибка загрузки: ${snapshot.error}'));
         }
 
-        final orders = _sorted(
+        final orders = sortClientOrders(
           (snapshot.data ?? []).where((order) {
             final source = order['source']?.toString().toLowerCase();
             return source != 'external' && source != 'crm';
           }).toList(),
+          _sortPriorities,
         );
 
         if (orders.isEmpty) {
@@ -209,7 +144,9 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                                 ClientOrderDetailsScreen(orderId: order['id']),
                           ),
                         );
-                        if (mounted) setState(() {});
+                        if (mounted) {
+                          setState(() => _ordersFuture = gpmApi.getOrders());
+                        }
                       },
                     ),
                   );
@@ -219,27 +156,6 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
           ],
         );
       },
-    );
-  }
-}
-
-class _SortTile extends StatelessWidget {
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _SortTile({
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      trailing: selected ? const Icon(Icons.check) : null,
-      onTap: onTap,
     );
   }
 }
