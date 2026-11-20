@@ -2,6 +2,7 @@ import asyncio
 import os
 from uuid import uuid4
 import unittest
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from types import SimpleNamespace
@@ -168,10 +169,16 @@ class CompanyIdPostgresTests(unittest.TestCase):
             with connection.cursor() as cursor:
                 cursor.execute("CREATE SCHEMA " + self.schema)
                 cursor.execute("SET search_path TO " + self.schema)
-                cursor.execute("CREATE TABLE gpm_app_accounts(account_id TEXT PRIMARY KEY,role TEXT,is_active BOOLEAN)")
-                cursor.execute("CREATE TABLE gpm_app_account_invitations(invitation_id TEXT PRIMARY KEY)")
-                for account in ("company-one", "company-two", "external"):
-                    cursor.execute("INSERT INTO gpm_app_accounts VALUES (%s,'logist',TRUE)", (account,))
+                cursor.execute(f"CREATE TABLE {api.TABLE_NAME}(order_id TEXT PRIMARY KEY,data JSONB NOT NULL,updated_at TIMESTAMPTZ DEFAULT NOW())")
+            with patch.object(api, "is_postgres_enabled", return_value=True):
+                api.create_auth_schema(connection)
+                with connection.cursor() as cursor:
+                    for account in ("company-one", "company-two", "external"):
+                        cursor.execute(f"""INSERT INTO {api.ACCOUNTS_TABLE_NAME}(
+                            account_id,username,username_normalized,password_hash,role,created_at,updated_at)
+                            VALUES (%s,%s,%s,'synthetic-unused-hash','logist',NOW(),NOW())""",
+                            (account, account, account))
+                        api.ensure_actor_code(connection, account, "logist")
             ids.ensure_schema(connection)
             connection.commit()
         finally:
@@ -220,3 +227,63 @@ class CompanyIdPostgresTests(unittest.TestCase):
             connection.commit()
         finally:
             connection.close()
+
+    def test_additive_schema_preserves_accounts_profiles_actor_numbers_and_orders(self):
+        connection = self.connection()
+        tables = [api.ACCOUNTS_TABLE_NAME, api.PROFILES_TABLE_NAME, api.ACTOR_CODES_TABLE_NAME,
+                  api.ACTOR_CODE_SEQUENCE_TABLE_NAME, api.TABLE_NAME]
+        def snapshot():
+            result = {}
+            with connection.cursor() as cursor:
+                for table in tables:
+                    cursor.execute("SELECT * FROM " + table + " ORDER BY 1")
+                    result[table] = cursor.fetchall()
+            return result
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("DROP TABLE " + ids.INVITES)
+                cursor.execute("DROP TABLE " + ids.MEMBERS)
+                cursor.execute(f"INSERT INTO {api.TABLE_NAME}(order_id,data) VALUES ('SYNTHETIC/26','{{\"number\":\"SYNTHETIC/26\"}}'::jsonb)")
+                cursor.execute(f"INSERT INTO {api.PROFILES_TABLE_NAME}(account_id,data) VALUES ('company-one','{{\"phone\":\"+70000000000\"}}'::jsonb)")
+            connection.commit()
+            before = snapshot()
+            ids.ensure_schema(connection)
+            self.assertEqual(ids.grant(connection, "company-one", assigned_by="synthetic-admin")["crm_logist_id"], 1)
+            self.assertEqual(snapshot(), before)
+            connection.rollback()
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=%s AND table_name IN (%s,%s)",
+                               (self.schema, ids.MEMBERS, ids.INVITES))
+                self.assertEqual(cursor.fetchone()[0], 0)
+            self.assertEqual(snapshot(), before)
+            ids.ensure_schema(connection)
+            self.assertEqual(ids.grant(connection, "company-one", assigned_by="synthetic-admin")["crm_logist_id"], 1)
+            connection.commit()
+            ids.ensure_schema(connection)
+            self.assertEqual(ids.for_account(connection, "company-one"), 1)
+            self.assertEqual(snapshot(), before)
+            connection.commit()
+        finally:
+            connection.close()
+
+    def test_company_invitation_redeems_atomically_on_real_postgres(self):
+        @contextmanager
+        def database():
+            connection = self.connection()
+            try:
+                yield connection
+                connection.commit()
+            except BaseException:
+                connection.rollback()
+                raise
+            finally:
+                connection.close()
+        with patch.object(api, "db_connection", side_effect=database), patch.object(api, "is_postgres_enabled", return_value=True):
+            invitation = api.create_account_invitation("invited-company-pg", "logist",
+                created_by="synthetic-admin", gpm_company_logist=True)
+            account = api.redeem_account_invitation(invitation["token"], "Synthetic password 123!")
+            profile = api.get_account_profile({"sub": account["account_id"], "role": "logist"})
+            self.assertEqual(profile["crm_logist_id"], 1)
+            external = api.create_account_invitation("invited-external-pg", "logist", created_by="synthetic-admin")
+            outsider = api.redeem_account_invitation(external["token"], "Synthetic password 123!")
+            self.assertIsNone(api.get_account_profile({"sub": outsider["account_id"], "role": "logist"})["crm_logist_id"])
