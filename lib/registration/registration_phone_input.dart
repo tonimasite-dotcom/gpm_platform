@@ -34,6 +34,7 @@ class RegistrationPhoneFormatter extends TextInputFormatter {
       final plus = hasPlus && before.contains('+') ? 1 : 0;
       return (count.clamp(0, limit) + plus).clamp(0, text.length).toInt();
     }
+
     return TextEditingValue(
       text: text,
       selection: TextSelection(
@@ -49,7 +50,9 @@ String? registrationPhoneError(String value, String country) {
     return 'Укажи номер телефона';
   }
   if (country == 'RU') {
-    if (!RegExp(r'^(?:\+7[0-9]{10}|[78][0-9]{10}|[0-9]{10})$').hasMatch(value)) {
+    if (!RegExp(
+      r'^(?:\+7[0-9]{10}|[78][0-9]{10}|[0-9]{10})$',
+    ).hasMatch(value)) {
       return 'Нужно 10 цифр или 11 с кодом 7/8';
     }
   } else if (!RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(value)) {

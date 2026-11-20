@@ -20,7 +20,9 @@ Future<void> enter(WidgetTester tester, String field, String value) async {
 }
 
 void main() {
-  testWidgets('phone paste and typing stop at the national digit limit', (tester) async {
+  testWidgets('phone paste and typing stop at the national digit limit', (
+    tester,
+  ) async {
     final gateway = FakeRegistrationGateway();
     await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
     await tester.pumpAndSettle();
@@ -43,49 +45,66 @@ void main() {
     expect(find.byKey(const Key('registration_code')), findsOneWidget);
   });
 
-  testWidgets('international paste is bounded and country changes validate existing input', (tester) async {
-    final gateway = FakeRegistrationGateway();
-    await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
-    await tester.pumpAndSettle();
-    await tapVisible(tester, find.byType(DropdownButtonFormField<String>));
-    await tapVisible(tester, find.text('Другая страна').last);
-    await enter(tester, 'phone', '+1234567890123456789012345');
-    final target = find.byKey(const Key('registration_phone'));
-    expect(tester.widget<TextFormField>(target).controller!.text, '+123456789012345');
-    await tapVisible(tester, find.byType(DropdownButtonFormField<String>));
-    await tapVisible(tester, find.text('Россия (+7)').last);
-    await primary(tester);
-    expect((gateway.state['answers'] as Map).containsKey('phone'), false);
-    expect(find.textContaining('Нужно 10 цифр'), findsWidgets);
-    await tapVisible(tester, find.byType(DropdownButtonFormField<String>));
-    await tapVisible(tester, find.text('Другая страна').last);
-    await enter(tester, 'phone', '12345678');
-    await primary(tester);
-    expect(find.textContaining('Укажи +'), findsWidgets);
-    await enter(tester, 'phone', '+12345678');
-    await primary(tester);
-    expect(find.byKey(const Key('registration_code')), findsOneWidget);
-  });
+  testWidgets(
+    'international paste is bounded and country changes validate existing input',
+    (tester) async {
+      final gateway = FakeRegistrationGateway();
+      await tester.pumpWidget(RegistrationPreviewApp(gateway: gateway));
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.byType(DropdownButtonFormField<String>));
+      await tapVisible(tester, find.text('Другая страна').last);
+      await enter(tester, 'phone', '+1234567890123456789012345');
+      final target = find.byKey(const Key('registration_phone'));
+      expect(
+        tester.widget<TextFormField>(target).controller!.text,
+        '+123456789012345',
+      );
+      await tapVisible(tester, find.byType(DropdownButtonFormField<String>));
+      await tapVisible(tester, find.text('Россия (+7)').last);
+      await primary(tester);
+      expect((gateway.state['answers'] as Map).containsKey('phone'), false);
+      expect(find.textContaining('Нужно 10 цифр'), findsWidgets);
+      await tapVisible(tester, find.byType(DropdownButtonFormField<String>));
+      await tapVisible(tester, find.text('Другая страна').last);
+      await enter(tester, 'phone', '12345678');
+      await primary(tester);
+      expect(find.textContaining('Укажи +'), findsWidgets);
+      await enter(tester, 'phone', '+12345678');
+      await primary(tester);
+      expect(find.byKey(const Key('registration_code')), findsOneWidget);
+    },
+  );
 
-  test('phone formatter preserves selection when editing inside a formatted paste', () {
-    const formatter = RegistrationPhoneFormatter('RU');
-    final result = formatter.formatEditUpdate(
-      TextEditingValue.empty,
-      const TextEditingValue(text: '+7 (999) 123-45-67', selection: TextSelection.collapsed(offset: 8)),
-    );
-    expect(result.text, '+79991234567');
-    expect(result.selection.baseOffset, 5);
-    for (final value in ['9991234567', '89991234567', '79991234567', '+79991234567']) {
-      expect(registrationPhoneError(value, 'RU'), isNull);
-    }
-    for (final value in ['', '999', '+49991234567', '99912345678']) {
-      expect(registrationPhoneError(value, 'RU'), isNotNull);
-    }
-    expect(registrationPhoneError('+12345678', 'INT'), isNull);
-    expect(registrationPhoneError('+123456789012345', 'INT'), isNull);
-    expect(registrationPhoneError('+1234567890123456', 'INT'), isNotNull);
-    expect(registrationPhoneError('+01234567', 'INT'), isNotNull);
-  });
+  test(
+    'phone formatter preserves selection when editing inside a formatted paste',
+    () {
+      const formatter = RegistrationPhoneFormatter('RU');
+      final result = formatter.formatEditUpdate(
+        TextEditingValue.empty,
+        const TextEditingValue(
+          text: '+7 (999) 123-45-67',
+          selection: TextSelection.collapsed(offset: 8),
+        ),
+      );
+      expect(result.text, '+79991234567');
+      expect(result.selection.baseOffset, 5);
+      for (final value in [
+        '9991234567',
+        '89991234567',
+        '79991234567',
+        '+79991234567',
+      ]) {
+        expect(registrationPhoneError(value, 'RU'), isNull);
+      }
+      for (final value in ['', '999', '+49991234567', '99912345678']) {
+        expect(registrationPhoneError(value, 'RU'), isNotNull);
+      }
+      expect(registrationPhoneError('+12345678', 'INT'), isNull);
+      expect(registrationPhoneError('+123456789012345', 'INT'), isNull);
+      expect(registrationPhoneError('+1234567890123456', 'INT'), isNotNull);
+      expect(registrationPhoneError('+01234567', 'INT'), isNotNull);
+    },
+  );
 
   testWidgets('nine answers are restored from server and false remains No', (
     tester,
