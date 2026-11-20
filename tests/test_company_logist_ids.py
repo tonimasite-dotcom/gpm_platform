@@ -1,5 +1,9 @@
 import asyncio
 import os
+import io
+import json
+from pathlib import Path
+from contextlib import redirect_stdout
 from uuid import uuid4
 import unittest
 from contextlib import contextmanager
@@ -13,6 +17,7 @@ from starlette.responses import Response
 
 from app import app_orders_api as api
 from app import crm_logist_ids as ids
+from app import company_logist_cli
 from tests.test_app_orders_api import sample_payload
 from tests import test_tester_feedback as feedback
 
@@ -65,6 +70,34 @@ class CompanyLogistIdTests(unittest.TestCase):
         profile = api.get_account_profile({"sub": account["account_id"], "role": "logist"})
         self.assertIsNone(profile["crm_logist_id"])
         self.assertFalse(profile["is_gpm_company_logist"])
+
+    def cli(self, *arguments):
+        output = io.StringIO()
+        with patch.object(api, "validate_runtime_configuration"), patch("sys.argv", ["company_logist_cli", *arguments]), redirect_stdout(output):
+            company_logist_cli.main()
+        return output.getvalue()
+
+    def test_trusted_cli_dry_run_does_not_enroll_and_grant_revoke_preserve_identity(self):
+        self.cli("grant", "--account-id", self.logist["sub"], "--by", "synthetic-admin")
+        self.assertIsNone(api.get_account_profile(self.logist)["crm_logist_id"])
+        before = api.get_account_profile(self.logist)
+        self.assertIn("#1", self.cli("grant", "--account-id", self.logist["sub"], "--by", "synthetic-admin", "--apply"))
+        profile = api.get_account_profile(self.logist)
+        self.assertEqual(profile["phone"], before["phone"])
+        self.assertEqual(profile["username"], before["username"])
+        self.assertEqual(profile["role"], "logist")
+        self.cli("revoke", "--account-id", self.logist["sub"], "--by", "synthetic-admin", "--apply")
+        self.assertIsNone(api.get_account_profile(self.logist)["crm_logist_id"])
+
+    def test_company_invitation_cli_writes_valid_private_json_and_never_prints_token(self):
+        path = Path(self.temp.name) / "private-company-invitation.json"
+        output = self.cli("invite", "--username", "cli-invited-company", "--by", "synthetic-admin", "--output", str(path))
+        invitation = json.loads(path.read_text())["invitation"]
+        self.assertNotIn(invitation["token"], output)
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        account = api.redeem_account_invitation(invitation["token"], "Synthetic password 123!")
+        profile = api.get_account_profile({"sub": account["account_id"], "role": "logist"})
+        self.assertEqual(profile["crm_logist_id"], 1)
 
     def test_worker_and_inactive_logist_cannot_be_granted(self):
         with self.assertRaises(ValueError):
