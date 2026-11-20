@@ -1,3 +1,5 @@
+20.11.2026: [Фильтры дат опубликованы](PROJECT_HANDOFF_2026-11-20_ORDER_DATE_FILTERS.md): грузчику «Сегодня / Завтра / Все», по умолчанию «Сегодня»; логисту период публикации. Чаты и клиентские списки сохранены. CI/backup/deploy SUCCESS.
+
 20.11.2026: [С главной рабочего убраны дубли «Финансы», «Чаты», «Профиль»](PROJECT_HANDOFF_2026-11-20_WORKER_HOME_CLEANUP.md). Показатели, «Найти смену», акция и нижнее меню сохранены. CI/backup/frontend deployment SUCCESS.
 
 20.11.2026: [Подписанная кнопка «Сортировка» со стрелкой вниз опубликована](PROJECT_HANDOFF_2026-11-20_SORT_BUTTON.md). CI, свежий backup и frontend deployment SUCCESS.
