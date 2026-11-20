@@ -63,10 +63,21 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
           children: [
             Align(
               alignment: Alignment.centerRight,
-              child: IconButton(
-                icon: const Icon(Icons.sort),
-                tooltip: 'Сортировка',
-                onPressed: _showSortSheet,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                child: OutlinedButton(
+                  onPressed: _showSortSheet,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sort, size: 20),
+                      SizedBox(width: 8),
+                      Flexible(child: Text('Сортировка')),
+                      SizedBox(width: 4),
+                      Icon(Icons.expand_more, size: 20),
+                    ],
+                  ),
+                ),
               ),
             ),
             Expanded(
