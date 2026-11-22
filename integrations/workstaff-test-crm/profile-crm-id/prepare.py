@@ -80,6 +80,7 @@ def transform(files, bundle):
     result[key] = once(result[key], "        email: '',", "        email: '',\n        gpm_app_crm_id: '',")
     result[key] = once(result[key], '  computed: {\n    title:', "  computed: {\n    gpmAppIdAllowed () {\n      return ['logist', 'admin'].includes(this.form.role)\n    },\n    title:")
     result[key] = once(result[key], "  watch: {\n    'form.fact_address':", "  watch: {\n    'form.role': function (newVal) {\n      if (!['logist', 'admin'].includes(newVal)) this.form.gpm_app_crm_id = ''\n    },\n    'form.fact_address':")
+    result[key] = once(result[key], "        await this.$toast.success(this.$t('saved'))", "        const current = this.$store.getters['auth/user']\n        if (this.modelId && current && String(current.id) === String(this.modelId)) {\n          await this.$store.dispatch('auth/fetchUser')\n        }\n        await this.$toast.success(this.$t('saved'))")
     key = 'resources/js/pages/app/orders/logist_orders/index.vue'
     result[key] = once(result[key], '    openGpmAppModal(item) {\n      this.currentItem = item;', "    openGpmAppModal(item) {\n      const profile = this.$store.getters['auth/user'];\n      this.gpmAppCrmId = profile && profile.gpm_app_crm_id ? String(profile.gpm_app_crm_id) : '';\n      this.gpmAppRecipientMode = 'id';\n      this.currentItem = item;")
     result[HELPER] = (bundle / 'GpmAppProfileId.php').read_text()

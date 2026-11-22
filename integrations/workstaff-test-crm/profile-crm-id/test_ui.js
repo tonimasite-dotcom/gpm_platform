@@ -34,3 +34,16 @@ for (const saved of ['#1', null]) {
   assert.strictEqual(JSON.stringify(item), before)
 }
 console.log('TS profile ID UI PASS: role visibility, stale field clearing, saved recipient prefill, no stale recipient reuse or order changes')
+
+const submit = vm.runInNewContext('({' + fragment(userForm, '    async submit (data) {', '    deleteDocument (num)') + '})')
+;(async () => {
+  for (const modelId of [7, 8]) {
+    let refreshed = 0
+    const view = { modelId, method: 'put', action: '/synthetic', form: { put: async () => {} },
+      $store: { getters: { 'auth/user': { id: 7 } }, dispatch: async name => { assert.strictEqual(name, 'auth/fetchUser'); refreshed++ } },
+      $toast: { success: async () => {}, error: message => { throw new Error(message) } }, $t: key => key }
+    await submit.submit.call(view, {})
+    assert.strictEqual(refreshed, modelId === 7 ? 1 : 0)
+  }
+  console.log('Own staff-card save refreshes cached profile ID; editing another user preserves the sender')
+})().catch(error => { console.error(error.message); process.exitCode = 1 })
