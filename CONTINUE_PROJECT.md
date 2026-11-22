@@ -1,3 +1,5 @@
+23.11.2026: [Минимальный снапшот для другого компьютера](PROJECT_HANDOFF_2026-11-23_TS_PROFILE_ID_WAITING_APPROVAL.md). PR #25 остается черновиком; поле профиля TS не опубликовано. Следующий шаг — отдельно согласовать одну необязательную колонку TS и выпуск. [Промпт продолжения](CONTINUE_PROJECT_PROMPT_2026-11-23_TS_PROFILE_ID_WAITING_APPROVAL.md).
+
 22.11.2026: [Ручное поле ID в профиле TS подготовлено](PROJECT_HANDOFF_2026-11-22_TS_PROFILE_ID_READY.md). [Черновой PR #25](https://github.com/tonimasite-dotcom/gpm_platform/pull/25). Только логист/администратор, без создания аккаунта приложения из CRM. Проверки, пакет и откат готовы. До публикации отдельно согласовать одно необязательное поле TS. [Точка продолжения](CONTINUE_PROJECT_PROMPT_2026-11-22_TS_PROFILE_ID_READY.md).
 
 22.11.2026: [ID сотрудников для CRM опубликованы](PROJECT_HANDOFF_2026-11-22_COMPANY_LOGIST_ID_RELEASED.md). Карточка ID в GPM и отдельное поле в TS работают; #1 назначен согласованному тестовому логисту. Проверки и повторная отправка без дубля успешны. [Точка продолжения](CONTINUE_PROJECT_PROMPT_2026-11-22_COMPANY_LOGIST_ID_RELEASED.md).
