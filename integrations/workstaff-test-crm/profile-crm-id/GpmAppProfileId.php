@@ -27,7 +27,7 @@ class GpmAppProfileId
         }
         if ((!is_string($value) && !is_int($value))
             || !preg_match('/^#?[1-9][0-9]{0,8}$/D', trim((string) $value))) {
-            self::invalid('РЈРєР°Р¶РёС‚Рµ ID РІ РїСЂРёР»РѕР¶РµРЅРёРё, РЅР°РїСЂРёРјРµСЂ #1');
+            self::invalid('Укажите ID в приложении, например #1');
         }
         return (int) ltrim(trim((string) $value), '#');
     }
@@ -44,7 +44,7 @@ class GpmAppProfileId
         if ($editor && $editor->can($creating ? 'create_users' : 'update_users')) {
             return;
         }
-        throw new AuthorizationException('РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РїСЂР°РІ РґР»СЏ РёР·РјРµРЅРµРЅРёСЏ ID РІ РїСЂРёР»РѕР¶РµРЅРёРё');
+        throw new AuthorizationException('Недостаточно прав для изменения ID в приложении');
     }
 
     private static function verify(int $id): void
@@ -52,20 +52,20 @@ class GpmAppProfileId
         $base = rtrim((string) env('GPM_APP_API_URL', ''), '/');
         $token = (string) env('GPM_APP_API_TOKEN', '');
         if ($base !== 'https://app-api.gpmbot.ru' || $token === '') {
-            self::invalid('РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ ID РІ РїСЂРёР»РѕР¶РµРЅРёРё. РџРѕРІС‚РѕСЂРёС‚Рµ РїРѕР·Р¶Рµ');
+            self::invalid('Не удалось проверить ID в приложении. Повторите позже');
         }
         try {
             $response = Http::timeout(8)->acceptJson()->withHeaders(['X-GPM-App-Token' => $token])
                 ->get($base . '/app-api/integration/crm-logists/' . $id);
         } catch (\Throwable $error) {
-            self::invalid('РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ ID РІ РїСЂРёР»РѕР¶РµРЅРёРё. РџРѕРІС‚РѕСЂРёС‚Рµ РїРѕР·Р¶Рµ');
+            self::invalid('Не удалось проверить ID в приложении. Повторите позже');
         }
         if ($response->status() === 404) {
-            self::invalid('ID РЅРµ РЅР°Р№РґРµРЅ СЃСЂРµРґРё Р°РєС‚РёРІРЅС‹С… Р»РѕРіРёСЃС‚РѕРІ Р”Р¶Рё РџРё Р­Рј');
+            self::invalid('ID не найден среди активных логистов Джи Пи Эм');
         }
         if (!$response->successful() || (int) $response->json('crm_logist_id') !== $id
             || !is_string($response->json('account_id')) || $response->json('account_id') === '') {
-            self::invalid('РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ ID РІ РїСЂРёР»РѕР¶РµРЅРёРё. РџРѕРІС‚РѕСЂРёС‚Рµ РїРѕР·Р¶Рµ');
+            self::invalid('Не удалось проверить ID в приложении. Повторите позже');
         }
     }
 
@@ -77,7 +77,7 @@ class GpmAppProfileId
         }
         $desired = $present ? self::normalize($data[self::FIELD]) : null;
         if (!self::allowedRole($role) && $desired !== null) {
-            self::invalid('ID РІ РїСЂРёР»РѕР¶РµРЅРёРё РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ Р»РѕРіРёСЃС‚Сѓ Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂСѓ');
+            self::invalid('ID в приложении доступен только логисту и администратору');
         }
         $existing = self::normalize($current);
         if (!$present && $existing === null) {
