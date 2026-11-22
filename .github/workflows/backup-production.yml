@@ -105,10 +105,14 @@ jobs:
             fi
             TOOLS="/root/gpm-backup-tools-$RUN_ID"
             HELPER="/root/gpm-backup-job-$RUN_ID.py"
-            "${SSH[@]}" "root@$HOST" "umask 077; mkdir -m 700 '$TOOLS'"
-            "${SCP[@]}" "$GPM_AGE_TOOL" "root@$HOST:$TOOLS/age"
-            "${SCP[@]}" scripts/production_backup.py "root@$HOST:$HELPER"
-            "${SSH[@]}" "root@$HOST" "COMPONENT='$COMPONENT' RUN_ID='$RUN_ID' RECIPIENT='$AGE_RECIPIENT' TOOLS='$TOOLS' HELPER='$HELPER' bash -se" <<'REMOTE'
+            printf 'Backup %s: prepare tools\n' "$COMPONENT"
+            timeout 45 "${SSH[@]}" "root@$HOST" "umask 077; mkdir -m 700 '$TOOLS'"
+            printf 'Backup %s: upload encryption tool\n' "$COMPONENT"
+            timeout 120 "${SCP[@]}" "$GPM_AGE_TOOL" "root@$HOST:$TOOLS/age"
+            printf 'Backup %s: upload helper\n' "$COMPONENT"
+            timeout 120 "${SCP[@]}" scripts/production_backup.py "root@$HOST:$HELPER"
+            printf 'Backup %s: capture and encrypt\n' "$COMPONENT"
+            timeout 1500 "${SSH[@]}" "root@$HOST" "COMPONENT='$COMPONENT' RUN_ID='$RUN_ID' RECIPIENT='$AGE_RECIPIENT' TOOLS='$TOOLS' HELPER='$HELPER' bash -se" <<'REMOTE'
           set -euo pipefail
           cleanup() { rm -f -- "$HELPER" "$TOOLS/age"; rmdir -- "$TOOLS"; }
           trap cleanup EXIT
@@ -125,8 +129,10 @@ jobs:
           fi
           "$PYTHON" "$HELPER" --operation backup --component "$COMPONENT" --run-id "$RUN_ID" --recipient "$RECIPIENT" --age-binary "$TOOLS/age"
           REMOTE
-            "${SCP[@]}" "root@$HOST:$BASE/$COMPONENT-$RUN_ID/$COMPONENT.tar.gz.age" "$RUNNER_TEMP/gpm-encrypted/$COMPONENT.tar.gz.age"
-            "${SCP[@]}" "root@$HOST:$BASE/$COMPONENT-$RUN_ID/encrypted-manifest.json" "$RUNNER_TEMP/gpm-encrypted/$COMPONENT-manifest.json"
+            printf 'Backup %s: collect encrypted archive\n' "$COMPONENT"
+            timeout 240 "${SCP[@]}" "root@$HOST:$BASE/$COMPONENT-$RUN_ID/$COMPONENT.tar.gz.age" "$RUNNER_TEMP/gpm-encrypted/$COMPONENT.tar.gz.age"
+            printf 'Backup %s: collect encrypted manifest\n' "$COMPONENT"
+            timeout 45 "${SCP[@]}" "root@$HOST:$BASE/$COMPONENT-$RUN_ID/encrypted-manifest.json" "$RUNNER_TEMP/gpm-encrypted/$COMPONENT-manifest.json"
           done
       - name: Verify decryption, file hashes and isolated PostgreSQL restore
         id: verify
