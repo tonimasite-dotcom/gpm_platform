@@ -1,3 +1,5 @@
+22.11.2026: [Подготовка ID логистов продолжена](PROJECT_HANDOFF_2026-11-22_COMPANY_LOGIST_ID_READY.md). [Черновой PR #24](https://github.com/tonimasite-dotcom/gpm_platform/pull/24). Проверки пройдены, функция не опубликована. Выпуск и добавление двух таблиц требуют отдельного согласования владельца. [Промпт продолжения](CONTINUE_PROJECT_PROMPT_2026-11-22_COMPANY_LOGIST_ID_READY.md).
+
 20.11.2026 — ПАУЗА владельца: [промпт продолжения ID логистов](CONTINUE_PROJECT_PROMPT_2026-11-20_COMPANY_LOGIST_ID_PAUSED.md), [состояние и следующий шаг](PROJECT_HANDOFF_2026-11-20_COMPANY_LOGIST_ID_PAUSED.md). Рабочие системы этим этапом не обновлены.
 
 20.11.2026: [Актуальная точка: отправка из TS в GPM](CONTINUE_PROJECT_PROMPT_2026-11-20_TS_PUBLICATION.md), [результат и границы операции](PROJECT_HANDOFF_2026-11-20_TS_PUBLICATION.md). Конкретная отправка проверена; общая модернизация TS не возобновлена.
