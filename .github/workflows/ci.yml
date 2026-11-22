@@ -66,6 +66,8 @@ jobs:
           php integrations/workstaff-test-crm/tests/sync_plan_test.php
           php integrations/workstaff-test-crm/tests/sync_service_test.php
           php integrations/workstaff-test-crm/tests/worker_rate_test.php
+          php integrations/workstaff-test-crm/tests/crm_logist_id_test.php
+          python -m py_compile integrations/workstaff-test-crm/crm-logist-id/prepare.py
           python -m py_compile integrations/workstaff-test-crm/worker-rate/install-worker-rate.py
 
   flutter:

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import '../../widgets/adaptive_buttons.dart';
+import '../../widgets/company_logist_crm_id_card.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/demo_storage.dart';
@@ -31,6 +32,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
   bool _canApproveWorkers = true;
   bool _notifyNewOrders = true;
   bool _profileLoaded = false;
+  int? _crmLogistId;
   bool _verificationLoading = false;
   List<Map<String, dynamic>> _verificationQueue = [];
   final Set<String> _reviewingSubmissions = {};
@@ -64,6 +66,9 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
           data = jsonDecode(raw) as Map<String, dynamic>;
         }
       }
+      _crmLogistId = data['is_gpm_company_logist'] == true
+          ? int.tryParse(data['crm_logist_id']?.toString() ?? '')
+          : null;
       _department = data['department']?.toString() ?? _department;
       _accessLevel = data['access_level']?.toString() ?? _accessLevel;
       _canPublishOrders = data['can_publish_orders'] != false;
@@ -298,6 +303,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
                 subtitle: 'Контакты, зона ответственности и права доступа',
               ),
               const SizedBox(height: 16),
+              CompanyLogistCrmIdCard(crmId: _crmLogistId),
               if (gpmApi.isApiMode) ...[
                 _ModerationSection(
                   submissions: _verificationQueue,

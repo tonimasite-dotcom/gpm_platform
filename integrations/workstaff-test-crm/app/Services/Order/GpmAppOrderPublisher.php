@@ -8,7 +8,20 @@ use Illuminate\Support\Facades\Log;
 
 class GpmAppOrderPublisher
 {
-    public function publish(Order $order, string $logistPhone = ''): bool
+    private $errorMessage = 'Не удалось отправить заявку в GPM';
+    private $errorStatus = 502;
+
+    public function errorMessage(): string { return $this->errorMessage; }
+    public function errorStatus(): int { return $this->errorStatus; }
+
+    private function fail(string $message, int $status = 422): bool
+    {
+        $this->errorMessage = $message;
+        $this->errorStatus = $status;
+        return false;
+    }
+
+    public function publish(Order $order, string $logistPhone = '', string $logistCrmId = ''): bool
     {
         if (rtrim((string) config('app.url'), '/') !== GpmAppOrderSync::INSTANCE) {
             return false;
@@ -16,16 +29,53 @@ class GpmAppOrderPublisher
         $baseUrl = rtrim((string) env('GPM_APP_API_URL', ''), '/');
         $token = (string) env('GPM_APP_API_TOKEN', '');
 
-        if ($baseUrl === '') {
+        if ($baseUrl !== 'https://app-api.gpmbot.ru' || $token === '') {
             return false;
         }
 
         $sync = new GpmAppOrderSync();
-        if ($sync->enabled() && $sync->linked($order)) {
-            return $sync->syncOrder($order);
-        }
-
         try {
+            $logistCrmId = trim($logistCrmId);
+            $code = null;
+            $recipient = null;
+            if ($logistCrmId !== '') {
+                if (trim($logistPhone) !== '') {
+                    return $this->fail('Укажите ID логиста или телефон, а не оба поля');
+                }
+                if (!preg_match('/^#?[1-9][0-9]{0,8}$/D', $logistCrmId)) {
+                    return $this->fail('Укажите ID в приложении, например #1');
+                }
+                $code = (int) ltrim($logistCrmId, '#');
+                $lookup = Http::timeout(8)->acceptJson()->withHeaders(['X-GPM-App-Token' => $token])
+                    ->get($baseUrl . '/app-api/integration/crm-logists/' . $code);
+                if ($lookup->status() === 404) {
+                    return $this->fail('ID не найден среди активных логистов Джи Пи Эм');
+                }
+                if (!$lookup->successful() || (int) $lookup->json('crm_logist_id') !== $code
+                    || !is_string($lookup->json('account_id')) || $lookup->json('account_id') === '') {
+                    return $this->fail('Не удалось проверить ID в GPM. Повторите отправку позже', 502);
+                }
+                $recipient = $lookup->json('account_id');
+            } elseif (trim($logistPhone) === '') {
+                return $this->fail('Укажите ID в приложении или телефон логиста');
+            }
+            if ($sync->enabled() && $sync->linked($order)) {
+                if ($recipient !== null) {
+                    $linked = Http::timeout(8)->acceptJson()->withHeaders(['X-GPM-App-Token' => $token])
+                        ->get($baseUrl . '/app-api/integration/order-sync/' . rawurlencode((string) $order->order_number));
+                    if (!$linked->successful()) {
+                        return $this->fail('Связь заявки с GPM недоступна. Сообщите администратору', 409);
+                    }
+                    if ($linked->json('logist_account_id') !== $recipient) {
+                        return $this->fail('Заявка уже закреплена за другим логистом', 409);
+                    }
+                }
+                $success = $sync->syncOrder($order);
+                return $success ?: $this->fail('Не удалось синхронизировать заявку с GPM', 502);
+            }
+            if (!is_numeric($order->workers_cost) || (float) $order->workers_cost <= 0) {
+                return $this->fail('Укажите положительную ставку рабочим перед отправкой');
+            }
             $order->loadMissing(['metroStation', 'contactPerson']);
             $publishedCrm = $sync->crmFields($order);
 
@@ -69,7 +119,10 @@ class GpmAppOrderPublisher
                 ],
             ];
 
-            $request = Http::timeout(5)->acceptJson()->asJson();
+            if ($code !== null) {
+                $payload['logist_crm_id'] = $code;
+            }
+            $request = Http::timeout(8)->acceptJson()->asJson();
 
             if ($token !== '') {
                 $request = $request->withHeaders(['X-GPM-App-Token' => $token]);
@@ -77,8 +130,12 @@ class GpmAppOrderPublisher
 
             $response = $request->post($baseUrl . '/app-api/orders', $payload);
 
-            if ($response->successful() && is_array($response->json('order'))) {
-                $sync->rememberPublication($order, $logistPhone, $response->json('order'), $publishedCrm);
+            if ($response->successful()) {
+                $appOrder = $response->json('order');
+                if (!is_array($appOrder) || ($recipient !== null && ($appOrder['logist_account_id'] ?? '') !== $recipient)) {
+                    return $this->fail('GPM вернул неполный результат отправки. Сообщите администратору', 502);
+                }
+                $sync->rememberPublication($order, $logistPhone, $appOrder, $publishedCrm);
             }
 
             if (!$response->successful()) {
@@ -86,16 +143,32 @@ class GpmAppOrderPublisher
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'error_type' => 'GpmApiRejection',
                 ]);
             }
 
-            return $response->successful();
+            if (!$response->successful()) {
+                $detail = $response->json('detail');
+                $messages = [
+                    'ID не найден среди активных логистов Джи Пи Эм',
+                    'Укажите ID логиста в приложении, например #1',
+                    'Заявка уже закреплена за другим логистом',
+                    'Укажите положительную ставку исполнителя за час или смену',
+                ];
+                if (is_string($detail) && in_array($detail, $messages, true)) {
+                    return $this->fail($detail, $response->status() === 409 ? 409 : 422);
+                }
+                if (is_string($detail) && strpos($detail, 'logist_phone') !== false) {
+                    return $this->fail('Телефон не соответствует активному логисту GPM. Проверьте его или используйте ID');
+                }
+                return $this->fail('GPM отклонил заявку. Проверьте ставку и заполнение полей', 422);
+            }
+            return true;
         } catch (\Throwable $e) {
             Log::warning('GPM app order publish exception', [
                 'order_id' => $order->id ?? null,
                 'order_number' => $order->order_number ?? null,
-                'error' => $e->getMessage(),
+                'error_type' => get_class($e),
             ]);
 
             return false;
