@@ -1,3 +1,5 @@
+22.11.2026: [Ручное поле ID в профиле TS подготовлено](PROJECT_HANDOFF_2026-11-22_TS_PROFILE_ID_READY.md). [Черновой PR #25](https://github.com/tonimasite-dotcom/gpm_platform/pull/25). Только логист/администратор, без создания аккаунта приложения из CRM. Проверки, пакет и откат готовы. До публикации отдельно согласовать одно необязательное поле TS. [Точка продолжения](CONTINUE_PROJECT_PROMPT_2026-11-22_TS_PROFILE_ID_READY.md).
+
 22.11.2026: [ID сотрудников для CRM опубликованы](PROJECT_HANDOFF_2026-11-22_COMPANY_LOGIST_ID_RELEASED.md). Карточка ID в GPM и отдельное поле в TS работают; #1 назначен согласованному тестовому логисту. Проверки и повторная отправка без дубля успешны. [Точка продолжения](CONTINUE_PROJECT_PROMPT_2026-11-22_COMPANY_LOGIST_ID_RELEASED.md).
 
 22.11.2026: [Подготовка ID логистов продолжена](PROJECT_HANDOFF_2026-11-22_COMPANY_LOGIST_ID_READY.md). [Черновой PR #24](https://github.com/tonimasite-dotcom/gpm_platform/pull/24). Проверки пройдены, функция не опубликована. Выпуск и добавление двух таблиц требуют отдельного согласования владельца. [Промпт продолжения](CONTINUE_PROJECT_PROMPT_2026-11-22_COMPANY_LOGIST_ID_READY.md).
