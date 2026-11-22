@@ -12,7 +12,7 @@ const userForm = fs.readFileSync(process.argv[3], 'utf8')
 const orders = fs.readFileSync(process.argv[4], 'utf8')
 assert(profile.includes('v-if="canUseGpmId"') && profile.includes('v-model="form.gpm_app_crm_id"'))
 assert(userForm.includes('v-if="gpmAppIdAllowed"') && userForm.includes('v-model="form.gpm_app_crm_id"'))
-const own = vm.runInNewContext('({' + fragment(profile, '    canUseGpmId () {', '\n  },\n\n  created') + '})')
+const own = vm.runInNewContext('({' + fragment(profile, '    canUseGpmId () {', '\n  }),\n\n  created') + '})')
 const staff = vm.runInNewContext('({' + fragment(userForm, '    gpmAppIdAllowed () {', '    title:') + '})')
 for (const role of ['logist', 'admin', 'loader', 'manager', 'client']) {
   const allowed = ['logist', 'admin'].includes(role)

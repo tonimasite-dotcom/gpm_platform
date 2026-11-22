@@ -61,7 +61,7 @@ def transform(files, bundle):
     key = 'resources/js/pages/app/profile/profile.vue'
     result[key] = once(result[key], '        <v-btn type="submit"', field + '        <v-btn type="submit"')
     result[key] = once(result[key], "      email: ''", "      email: '',\n      gpm_app_crm_id: ''")
-    result[key] = once(result[key], "  computed: mapGetters({\n    user: 'auth/user'\n  }),", "  computed: {\n    ...mapGetters({ user: 'auth/user' }),\n    canUseGpmId () {\n      return this.$store.getters['auth/role']('logist', 'admin')\n    }\n  },")
+    result[key] = once(result[key], "  computed: mapGetters({\n    user: 'auth/user'\n  }),", "  computed: Object.assign(mapGetters({ user: 'auth/user' }), {\n    canUseGpmId () {\n      return this.$store.getters['auth/role']('logist', 'admin')\n    }\n  }),")
     key = 'resources/js/pages/app/users/UserForm.vue'
     field = '''            <v-text-field
               v-if="gpmAppIdAllowed"
