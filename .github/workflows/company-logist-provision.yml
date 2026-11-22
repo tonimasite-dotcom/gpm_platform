@@ -1,0 +1,143 @@
+name: Provision approved company logist ID
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Inspect or apply the owner-approved private request
+        required: true
+        default: inspect
+        type: choice
+        options: [inspect, grant]
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  provision:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 8
+    steps:
+      - name: Configure verified GPM access
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" >/dev/null
+      - name: Process approved private request
+        shell: bash
+        env:
+          APPROVED_REQUEST: ${{ secrets.GPM_APPROVED_COMPANY_ID_RELEASE_20261122 }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          python3 - <<'RUNNER'
+          import json, os, re, subprocess
+          request = json.loads(os.environ['APPROVED_REQUEST'])
+          operation = os.environ['OPERATION']
+          assert operation in {'inspect', 'grant'}
+          assert request.get('owner_approved') is True and request.get('expected_id') == 1
+          assert isinstance(request.get('account_id'), str) and 0 < len(request['account_id']) <= 120
+          assert re.fullmatch('[0-9a-f]{40}', request['approved_code_commit'])
+          run_id = os.environ['GITHUB_RUN_ID'] + '-' + os.environ['GITHUB_RUN_ATTEMPT']
+          assert re.fullmatch('[0-9]+-[0-9]+', run_id)
+          source = r'''
+          import hashlib, json, os, subprocess, traceback
+          from pathlib import Path
+          from app import app_orders_api as api
+          from app import crm_logist_ids as ids
+          root = Path('/opt/gpm/gpm_platform')
+          assert Path.cwd() == root and root.resolve() == root
+          os.umask(0o077)
+          report = Path('/opt/gpm/backups') / ('company-logist-id-release-' + run_id + '.json')
+          if report.exists():
+              raise RuntimeError('Private operation report already exists')
+          def fingerprint(connection, table, account_id):
+              row = ids._run(connection, 'SELECT row_to_json(a)::text FROM ' + table + ' a WHERE account_id=%s', (account_id,), one=True)
+              return hashlib.sha256((row[0] if row else 'null').encode()).hexdigest()
+          try:
+              assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == request['approved_code_commit']
+              assert subprocess.run(['systemctl', 'is-active', '--quiet', 'gpm-app-api.service']).returncode == 0
+              api.validate_runtime_configuration()
+              account_id = request['account_id']
+              order_before = api.get_order(request['app_order_id'])
+              fields = ['external_order_id', 'logist_account_id', 'logist_phone', 'status', 'source_instance']
+              identity = {key: order_before.get(key) for key in fields}
+              assert identity['logist_account_id'] == account_id
+              assert str(identity['external_order_id']) == str(request['crm_order_number'])
+              assert identity['source_instance'] == 'https://ts.workstaffcrm.ru'
+              with api.db_connection() as connection:
+                  assert not api._is_sqlite_connection(connection)
+                  ids._run(connection, 'SELECT pg_advisory_xact_lock(%s)', (ids._LOCK,))
+                  account = ids._run(connection, 'SELECT role,is_active FROM gpm_app_accounts WHERE account_id=%s FOR UPDATE', (account_id,), one=True)
+                  assert account is not None and account[0] == 'logist' and account[1]
+                  assigned = ids._run(connection, 'SELECT account_id FROM ' + ids.MEMBERS + ' WHERE crm_id=1', one=True)
+                  maximum = ids._run(connection, 'SELECT COALESCE(MAX(crm_id),0) FROM ' + ids.MEMBERS, one=True)[0]
+                  assert (assigned is None and maximum == 0) or (assigned is not None and assigned[0] == account_id and maximum == 1)
+                  tables = [api.ACCOUNTS_TABLE_NAME, api.PROFILES_TABLE_NAME, api.ACTOR_CODES_TABLE_NAME]
+                  before = {table: fingerprint(connection, table, account_id) for table in tables}
+                  changed = False
+                  if operation == 'grant':
+                      result = ids.grant(connection, account_id, assigned_by='owner-approved-company-id-release')
+                      assert result['crm_logist_id'] == 1
+                      changed = result['changed']
+                      if changed:
+                          api.record_audit_event_in_connection(connection,
+                              event_type='company_logist_grant', outcome='success', actor_username='owner-approved-release',
+                              target_type='account', target_id=account_id, details={'crm_logist_id': 1})
+                      assert ids.for_account(connection, account_id) == 1
+                      assert ids.resolve(connection, 1)['account_id'] == account_id
+                      assert ids._run(connection, 'SELECT COUNT(*) FROM ' + ids.MEMBERS, one=True)[0] == 1
+                  after = {table: fingerprint(connection, table, account_id) for table in tables}
+                  assert before == after
+                  order_after = api.get_order(request['app_order_id'])
+                  assert {key: order_after.get(key) for key in fields} == identity
+                  connection.commit()
+              if operation == 'grant':
+                  profile = api.get_account_profile({'sub': account_id, 'role': 'logist'})
+                  assert profile['crm_logist_id'] == 1 and profile['is_gpm_company_logist']
+              summary = {'ok': True, 'operation': operation, 'crm_logist_id': 1 if operation == 'grant' else None,
+                  'changed': changed, 'approved_recipient_verified': True, 'account_profile_actor_preserved': True,
+                  'existing_order_identity_preserved': True, 'profile_card_data_verified': operation == 'grant'}
+              report.write_text(json.dumps({'summary': summary, 'request': request, 'before': before, 'after': after}, indent=2) + '\n')
+              report.chmod(0o600)
+              print(json.dumps(summary))
+          except BaseException as error:
+              report.write_text(json.dumps({'ok': False, 'error_type': type(error).__name__, 'private_traceback': traceback.format_exc()}, indent=2) + '\n')
+              report.chmod(0o600)
+              print(json.dumps({'ok': False, 'error_type': type(error).__name__}))
+              raise SystemExit(1)
+          '''
+          source = __import__('textwrap').dedent(source)
+          prefix = 'request = json.loads(' + repr(json.dumps(request)) + ')\noperation = ' + repr(operation) + '\nrun_id = ' + repr(run_id) + '\n'
+          program = prefix + source
+          compile(program, '<approved-provision>', 'exec')
+          shell = "set -euo pipefail\ncd /opt/gpm/gpm_platform\ntest ! -L /opt/gpm/gpm_platform\nset -a\n. /root/gpm-app-env\nset +a\n.venv/bin/python - <<'GPM_PROVISION'\n" + program + '\nGPM_PROVISION\n'
+          command = ['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'IdentitiesOnly=yes',
+              '-o', 'ConnectTimeout=15', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3',
+              'root@46.149.71.147', 'bash -se']
+          completed = subprocess.run(command, input=shell, text=True, capture_output=True, timeout=180)
+          summaries = []
+          for line in completed.stdout.splitlines():
+              try:
+                  value = json.loads(line)
+                  if isinstance(value, dict) and 'ok' in value:
+                      summaries.append(value)
+              except ValueError:
+                  pass
+          if completed.returncode != 0 or not summaries or not summaries[-1].get('ok'):
+              raise SystemExit('GPM operation failed; private diagnostics remain on the backend')
+          print(json.dumps(summaries[-1]))
+          RUNNER
+      - name: Remove runner SSH key
+        if: always()
+        shell: bash
+        run: rm -f "$HOME/.ssh/id_ed25519"
