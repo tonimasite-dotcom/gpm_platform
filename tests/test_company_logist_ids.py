@@ -89,6 +89,37 @@ class CompanyLogistIdTests(unittest.TestCase):
         self.cli("revoke", "--account-id", self.logist["sub"], "--by", "synthetic-admin", "--apply")
         self.assertIsNone(api.get_account_profile(self.logist)["crm_logist_id"])
 
+    def test_trusted_cli_can_revoke_inactive_logist_without_reusing_id(self):
+        self.cli("grant", "--account-id", self.logist["sub"], "--by", "synthetic-admin", "--apply")
+        with api.db_connection() as connection:
+            connection.execute(f"UPDATE {api.ACCOUNTS_TABLE_NAME} SET is_active=0 WHERE account_id=?", (self.logist["sub"],))
+            account_before = connection.execute(
+                f"SELECT * FROM {api.ACCOUNTS_TABLE_NAME} WHERE account_id=?", (self.logist["sub"],)).fetchone()
+            membership_before = connection.execute(
+                f"SELECT crm_id,assigned_by,assigned_at FROM {ids.MEMBERS} WHERE account_id=?", (self.logist["sub"],)).fetchone()
+            actor_before = api.get_actor_code(connection, self.logist["sub"])
+        with self.assertRaises(ValueError):
+            self.cli("grant", "--account-id", self.logist["sub"], "--by", "synthetic-admin", "--apply")
+        self.cli("revoke", "--account-id", self.logist["sub"], "--by", "synthetic-admin")
+        with api.db_connection() as connection:
+            self.assertTrue(connection.execute(
+                f"SELECT enabled FROM {ids.MEMBERS} WHERE account_id=?", (self.logist["sub"],)).fetchone()[0])
+        self.assertIn("#1", self.cli("revoke", "--account-id", self.logist["sub"], "--by", "synthetic-admin", "--apply"))
+        with api.db_connection() as connection:
+            self.assertFalse(connection.execute(
+                f"SELECT enabled FROM {ids.MEMBERS} WHERE account_id=?", (self.logist["sub"],)).fetchone()[0])
+            self.assertEqual(connection.execute(
+                f"SELECT crm_id,assigned_by,assigned_at FROM {ids.MEMBERS} WHERE account_id=?", (self.logist["sub"],)).fetchone(), membership_before)
+            self.assertEqual(connection.execute(
+                f"SELECT * FROM {api.ACCOUNTS_TABLE_NAME} WHERE account_id=?", (self.logist["sub"],)).fetchone(), account_before)
+            self.assertEqual(api.get_actor_code(connection, self.logist["sub"]), actor_before)
+            connection.execute(f"UPDATE {api.ACCOUNTS_TABLE_NAME} SET is_active=1 WHERE account_id=?", (self.logist["sub"],))
+        with self.assertRaises(ValueError):
+            api.resolve_company_logist_recipient("#1")
+        second = self.actor("logist", "company-after-inactive-revocation")
+        self.assertEqual(self.grant(second)["crm_logist_id"], 2)
+        self.assertEqual(self.grant(self.logist)["crm_logist_id"], 1)
+
     def test_company_invitation_cli_writes_valid_private_json_and_never_prints_token(self):
         path = Path(self.temp.name) / "private-company-invitation.json"
         output = self.cli("invite", "--username", "cli-invited-company", "--by", "synthetic-admin", "--output", str(path))

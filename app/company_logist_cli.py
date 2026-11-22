@@ -50,8 +50,10 @@ def main():
         if api._is_sqlite_connection(connection):
             connection.execute("BEGIN IMMEDIATE")
         row = ids._run(connection, "SELECT role,is_active FROM gpm_app_accounts WHERE account_id=%s", (args.account_id,), one=True)
-        if row is None or row[0] != "logist" or not row[1]:
-            raise ValueError("An existing active logist account is required")
+        if row is None or row[0] != "logist":
+            raise ValueError("An existing logist account is required")
+        if args.command == "grant" and not row[1]:
+            raise ValueError("An active logist account is required for enrollment")
         if not args.apply:
             print("Plan verified; no membership or ID changed. Use --apply to enroll or revoke.")
             return
