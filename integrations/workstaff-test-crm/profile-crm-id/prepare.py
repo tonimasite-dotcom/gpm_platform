@@ -47,9 +47,9 @@ def transform(files, bundle):
     field = '''        <v-text-field
           v-if="canUseGpmId"
           v-model="form.gpm_app_crm_id"
-          label="ID РІ РїСЂРёР»РѕР¶РµРЅРёРё"
+          label="ID в приложении"
           placeholder="#1"
-          hint="РЎРєРѕРїРёСЂСѓР№С‚Рµ СЃРІРѕР№ ID РёР· РїСЂРѕС„РёР»СЏ РІ РїСЂРёР»РѕР¶РµРЅРёРё GPM"
+          hint="Скопируйте свой ID из профиля в приложении GPM"
           persistent-hint
           maxlength="10"
           prepend-icon="mdi-cellphone-link"
@@ -66,9 +66,9 @@ def transform(files, bundle):
     field = '''            <v-text-field
               v-if="gpmAppIdAllowed"
               v-model="form.gpm_app_crm_id"
-              label="ID РІ РїСЂРёР»РѕР¶РµРЅРёРё"
+              label="ID в приложении"
               placeholder="#1"
-              hint="РЎРєРѕРїРёСЂСѓР№С‚Рµ ID РёР· РїСЂРѕС„РёР»СЏ СЃРѕС‚СЂСѓРґРЅРёРєР° РІ РїСЂРёР»РѕР¶РµРЅРёРё GPM"
+              hint="Скопируйте ID из профиля сотрудника в приложении GPM"
               persistent-hint
               maxlength="10"
               prepend-icon="mdi-cellphone-link"
