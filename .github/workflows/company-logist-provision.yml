@@ -134,7 +134,7 @@ jobs:
               except ValueError:
                   pass
           if completed.returncode != 0 or not summaries or not summaries[-1].get('ok'):
-              print(json.dumps({'backend_summary': summaries[-1] if summaries else None, 'exit_code': completed.returncode}))
+              print(json.dumps({'backend_summary': summaries[-1] if summaries else None, 'exit_code': completed.returncode, 'error_classes': [name for name in ['AssertionError', 'ModuleNotFoundError', 'ImportError', 'SyntaxError', 'IndentationError', 'Permission denied', 'unbound variable', 'No such file or directory'] if name in completed.stderr], 'stdin_trace_lines': re.findall(r'File "<stdin>", line ([0-9]+)', completed.stderr)}))
               raise SystemExit('GPM operation failed; private diagnostics remain on the backend')
           print(json.dumps(summaries[-1]))
           RUNNER
