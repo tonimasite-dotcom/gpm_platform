@@ -1,3 +1,5 @@
+Историческая точка до согласования. Выпуск уже разрешен и выполнен: [актуальный итог](PROJECT_HANDOFF_2026-11-23_WORKER_HOME_SBP_RELEASED.md).
+
 # Продолжение GPM — 23.11.2026
 
 Прочитай AGENTS.md, CONTINUE_PROJECT.md, обязательный навык GPM и PROJECT_HANDOFF_2026-11-23_WORKER_HOME_SBP_READY.md в ветке work/worker-home-sbp-2026-11-23.
