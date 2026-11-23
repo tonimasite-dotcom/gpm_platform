@@ -33,6 +33,16 @@ jobs:
           cache-dependency-path: requirements-api.lock
       - run: python -m pip install --disable-pip-version-check -r requirements-api.lock
       - run: python -m unittest tests.test_crew_attendance -v
+      - name: Validate deployment shell scripts
+        run: |
+          python - <<'PY'
+          import subprocess, yaml
+          workflow = yaml.safe_load(open('.github/workflows/deploy-production.yml'))
+          for job in workflow['jobs'].values():
+              for step in job['steps']:
+                  if 'run' in step:
+                      subprocess.run(['bash', '-n'], input=step['run'], text=True, check=True)
+          PY
       - run: python integrations/workstaff-test-crm/crew-attendance/test_prepare.py
       - run: php integrations/workstaff-test-crm/crew-attendance/test_policy.php
       - run: find integrations/workstaff-test-crm/crew-attendance -name '*.php' -print0 | xargs -0 -n 1 php -l
@@ -66,6 +76,8 @@ jobs:
             lib/services/gpm_api_service.dart
             test/crew_attendance_test.dart
             pubspec.lock
+            linux/flutter/generated_plugins.cmake
+            windows/flutter/generated_plugins.cmake
             linux/flutter/generated_plugin_registrant.cc
             windows/flutter/generated_plugin_registrant.cc
             macos/Flutter/GeneratedPluginRegistrant.swift

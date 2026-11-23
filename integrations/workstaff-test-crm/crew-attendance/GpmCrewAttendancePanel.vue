@@ -6,6 +6,7 @@
       <v-progress-linear v-if="busy" indeterminate />
       <template v-if="document.enabled">
         <p>Приход и уход подтверждаются через QR. Старший собирает исполнителей, заказчик подтверждает список.</p>
+        <p>Свяжите каждого рабочего CRM с его профилем GPM. В списке доступны исполнители, уже назначенные на эту заявку в GPM.</p>
         <v-simple-table dense>
           <thead><tr><th>Рабочий CRM</th><th>Профиль GPM</th><th>Связь</th></tr></thead>
           <tbody>

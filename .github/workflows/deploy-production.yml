@@ -12,6 +12,15 @@ on:
           - all
           - backend
           - frontend
+      crew_attendance:
+        description: QR crew availability (existing shifts remain unchanged)
+        required: true
+        default: keep
+        type: choice
+        options:
+          - keep
+          - enable
+          - disable
 
 permissions:
   contents: read
@@ -111,13 +120,15 @@ jobs:
           test -s "$HOME/.ssh/known_hosts"
 
       - name: Deploy backend
+        env:
+          CREW_ATTENDANCE_MODE: ${{ inputs.crew_attendance || 'keep' }}
         if: inputs.target == 'all' || inputs.target == 'backend'
         shell: bash
         run: |
           ssh -o BatchMode=yes -o ConnectTimeout=15 \
             -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
             "${SSH_USER}@${BACKEND_HOST}" \
-            "DEPLOY_SHA='${GITHUB_SHA}' bash -se" <<'REMOTE'
+            "DEPLOY_SHA='${GITHUB_SHA}' CREW_ATTENDANCE_MODE='$CREW_ATTENDANCE_MODE' bash -se" <<'REMOTE'
           set -euo pipefail
 
           cd /opt/gpm/gpm_platform
@@ -132,6 +143,8 @@ jobs:
           VENV_ROOT=/opt/gpm/venvs
           NEW_VENV="$VENV_ROOT/gpm-app-${DEPLOY_SHA}"
           mkdir -p "$BACKUP_DIR"
+          chmod 700 "$BACKUP_DIR"
+          install -m 600 /root/gpm-app-env "$BACKUP_DIR/runtime-env-before-deploy"
           mkdir -p "$VENV_ROOT"
           OLD_BACKEND_SHA=$(git rev-parse HEAD)
           OLD_VENV_KIND=directory
@@ -154,6 +167,13 @@ jobs:
             if [ "$status" -eq 0 ]; then status=1; fi
             trap - ERR TERM HUP
             echo "Backend deployment failed; restoring $OLD_BACKEND_SHA." >&2
+            if [ "$VENV_SWITCHED" -eq 1 ] && [ -f app/crew_maintenance.py ]; then
+              systemctl stop gpm-app-api.service
+              if ! GPM_APP_CREW_ATTENDANCE_ENABLED=false "$NEW_VENV/bin/python" -m app.crew_maintenance; then
+                echo "Crew QR quiescence failed; API stays stopped for safe recovery." >&2
+                exit "$status"
+              fi
+            fi
             git reset --hard "$OLD_BACKEND_SHA"
             if [ "$VENV_SWITCHED" -eq 1 ]; then
               unlink .venv
@@ -163,6 +183,7 @@ jobs:
                 mv "$BACKUP_DIR/venv-before-deploy" .venv
               fi
             fi
+            install -m 600 "$BACKUP_DIR/runtime-env-before-deploy" /root/gpm-app-env
             systemctl restart gpm-app-api.service
             exit "$status"
           }
@@ -187,6 +208,25 @@ jobs:
           "$NEW_VENV/bin/python" -m pip check
           "$NEW_VENV/bin/python" -m compileall -q app main.py tests
           "$NEW_VENV/bin/python" -m unittest discover -s tests -p 'test_*.py'
+          case "$CREW_ATTENDANCE_MODE" in
+            keep) ;;
+            enable|disable)
+              CREW_ATTENDANCE_MODE="$CREW_ATTENDANCE_MODE" python3 - <<'PYFLAG'
+          import os
+          from pathlib import Path
+          path = Path('/root/gpm-app-env')
+          original = path.read_text()
+          key = 'GPM_APP_CREW_ATTENDANCE_ENABLED'
+          lines = [line for line in original.splitlines() if not line.startswith(key + '=')]
+          lines.append(key + '=' + ('true' if os.environ['CREW_ATTENDANCE_MODE'] == 'enable' else 'false'))
+          temporary = path.with_name(path.name + '.pending')
+          temporary.write_text('\n'.join(lines) + '\n')
+          temporary.chmod(0o600)
+          os.replace(str(temporary), str(path))
+          PYFLAG
+              ;;
+            *) echo "Unsupported crew attendance mode" >&2; false ;;
+          esac
           set -a
           . /root/gpm-app-env
           set +a

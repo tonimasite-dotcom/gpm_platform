@@ -242,6 +242,25 @@ class CrewAttendanceTests(unittest.TestCase):
         self.assertEqual(sorted(results),[200,409])
         self.assertEqual(len(api.list_order_attendance(self.order["id"],self.client)["attendance"]),2)
 
+    def test_rollback_preparation_invalidates_frozen_qr_without_writing_hours(self):
+        from app.crew_maintenance import quiesce
+        _, _, token = self.batch()
+        with patch.dict(os.environ, {"GPM_APP_CREW_ATTENDANCE_ENABLED": "false"}):
+            self.assertEqual(quiesce()["expired_sessions"], 1)
+        with self.assertRaises(HTTPException) as caught:
+            api.confirm_attendance_by_client(self.client, token=token)
+        self.assertIn(caught.exception.status_code, [409, 410])
+        self.assertEqual(api.list_order_attendance(self.order["id"], self.client)["attendance"], [])
+
+    def test_rollback_preparation_preserves_confirmed_and_manual_review_rows(self):
+        from app.crew_maintenance import quiesce
+        _, proof, token = self.batch(bad=True)
+        api.confirm_attendance_by_client(self.client, token=token)
+        with patch.dict(os.environ, {"GPM_APP_CREW_ATTENDANCE_ENABLED": "false"}):
+            self.assertEqual(quiesce()["expired_sessions"], 0)
+            confirmation.review(proof["evidence_id"], self.logist, "approve", "Verified exception")
+        self.assertEqual(len(api.list_order_attendance(self.order["id"], self.client)["attendance"]), 2)
+
     def test_activation_preserves_an_already_started_legacy_shift(self):
         with self.db() as c:
             order=api.read_order_in_connection(c,self.order["id"])
