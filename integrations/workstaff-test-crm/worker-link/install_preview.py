@@ -53,9 +53,14 @@ def command(arguments, owner=None):
 def patched(text):
     if HOOK in text:
         return text
-    if text.count(ANCHOR) != 1:
+    disabled = "            return 0;"
+    synced = "        $result = $sync->syncLinkedOrders();"
+    if text.count(ANCHOR) != 1 or text.count(disabled) != 1 or text.count(synced) != 1:
         raise RuntimeError("Unsupported TS synchronization command")
-    return text.replace(ANCHOR, HOOK + ANCHOR)
+    # Existing order exchange always has priority. If it is disabled, the
+    # preview job still works independently without enabling order exchange.
+    indented = HOOK.replace("        ", "            ")
+    return text.replace(disabled, indented + disabled).replace(synced, synced + "\n" + HOOK.rstrip())
 
 
 def write_file(path, content, metadata):

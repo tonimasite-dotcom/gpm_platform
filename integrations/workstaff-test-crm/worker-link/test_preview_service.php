@@ -1,5 +1,6 @@
 <?php
 namespace Fixture {
+    final class Clock { public static $now=0.0; }
     final class Collection implements \IteratorAggregate {
         private $rows;
         public function __construct(array $rows) { $this->rows=array_values($rows); }
@@ -53,6 +54,7 @@ namespace Fixture {
                 throw new \RuntimeException('Wrong integration target');
             if ($input['source_instance']!=='https://ts.workstaffcrm.ru') throw new \RuntimeException('Wrong scope');
             \Illuminate\Support\Facades\Http::$calls++;
+            \Fixture\Clock::$now += \Illuminate\Support\Facades\Http::$latency;
             if ($input['operation']==='list') {
                 $profiles=array_values(array_filter(\Illuminate\Support\Facades\Http::$profiles,function($p){
                     return !isset(\Illuminate\Support\Facades\Http::$acknowledged[$p['profile_id']]);
@@ -69,6 +71,9 @@ namespace Fixture {
             return new Response(['success'=>true]);
         }
     }
+}
+namespace App\Services\Gpm {
+    function microtime($asFloat=true) { return \Fixture\Clock::$now; }
 }
 namespace App\Models {
     final class User {
@@ -101,7 +106,7 @@ namespace App\Models {
 }
 namespace Illuminate\Support\Facades {
     final class Http {
-        public static $profiles=[],$acknowledged=[],$receipts=[],$calls=0,$ackFailures=0;
+        public static $profiles=[],$acknowledged=[],$receipts=[],$calls=0,$ackFailures=0,$latency=0.0;
         public static function timeout($seconds) { return new \Fixture\Request(); }
     }
     final class Log { public static function warning($message,$details): void {} }
@@ -144,7 +149,7 @@ namespace {
             'GPM_APP_API_TOKEN'=>'synthetic-service-token'];
         User::$rows=[];User::$creates=0;User::$failRole=false;
         Branch::$rows=[new Branch(1,'Иная компания','Москва'),new Branch(2,'ООО "Джи Пи ЭМ"','Москва')];
-        Http::$profiles=[fixture()];Http::$acknowledged=[];Http::$receipts=[];Http::$calls=0;Http::$ackFailures=0;
+        Http::$profiles=[fixture()];Http::$acknowledged=[];Http::$receipts=[];Http::$calls=0;Http::$ackFailures=0;Http::$latency=0.0;\Fixture\Clock::$now=0.0;
     }
     register_shutdown_function(function()use(&$directories){
         foreach($directories as $base){
@@ -192,6 +197,15 @@ namespace {
     $r=(new GpmPreviewWorkerSync())->run();check(Http::$calls===0 && !$r['enabled'],'Main CRM touched');
     resetFixture();$environment['GPM_PREVIEW_WORKER_SYNC_ENABLED']='false';
     (new GpmPreviewWorkerSync())->run();check(Http::$calls===0,'Disabled sync ran');
+
+    resetFixture();
+    $second=fixture();$second['profile_id']='preview_'.str_repeat('b',32);$second['phone']='+79000000002';
+    $third=fixture();$third['profile_id']='preview_'.str_repeat('c',32);$third['phone']='+79000000003';
+    Http::$profiles=[fixture(),$second,$third];Http::$latency=7.0;
+    $sync=new GpmPreviewWorkerSync();$r=$sync->run();
+    check($r['created']===1 && $r['deferred']===1,'Slow preview consumed the whole job');
+    Http::$latency=0;\Fixture\Clock::$now=0.0;$r=$sync->run();
+    check(count(User::$rows)===3 && User::$creates===3,'Budget retry lost profiles or created duplicates');
 
     echo "Preview worker service: {$checks} checks passed\n";
 }
