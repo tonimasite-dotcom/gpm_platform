@@ -1,5 +1,6 @@
 """Validate the proposed additive schema in a disposable Actions database only."""
 import hashlib
+from contextlib import contextmanager
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -7,8 +8,8 @@ import unittest
 import uuid
 
 try:
-    import psycopg
-    from psycopg import sql
+    import psycopg2 as psycopg
+    from psycopg2 import sql
 except ImportError:
     psycopg = None
 
@@ -16,13 +17,40 @@ DSN = os.getenv("GPM_CREW_SCHEMA_TEST_URL", "")
 IS_DISPOSABLE = os.getenv("GITHUB_ACTIONS") == "true" and bool(DSN)
 
 
-@unittest.skipUnless(IS_DISPOSABLE and psycopg, "isolated Actions proposal database required")
+class ProposalDatabase:
+    def __init__(self, dsn):
+        self.raw = psycopg.connect(dsn)
+        self.raw.autocommit = True
+
+    def execute(self, statement, parameters=None):
+        cursor = self.raw.cursor()
+        cursor.execute(statement, parameters)
+        return cursor
+
+    @contextmanager
+    def transaction(self):
+        self.raw.autocommit = False
+        try:
+            yield
+            self.raw.commit()
+        except Exception:
+            self.raw.rollback()
+            raise
+        finally:
+            self.raw.autocommit = True
+
+    def close(self):
+        self.raw.close()
+
+
 class ProposedCrewSchemaTests(unittest.TestCase):
     def setUp(self):
+        self.assertTrue(IS_DISPOSABLE, "disposable Actions database required")
+        self.assertIsNotNone(psycopg, "locked PostgreSQL driver required")
         target = urlparse(DSN)
         self.assertIn(target.hostname, {"127.0.0.1", "localhost"})
         self.assertEqual(target.path, "/crew_proposal")
-        self.connection = psycopg.connect(DSN, autocommit=True)
+        self.connection = ProposalDatabase(DSN)
         self.schema = "crew_proposal_" + uuid.uuid4().hex
         self.connection.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
         self.connection.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(self.schema)))
@@ -181,4 +209,6 @@ class ProposedCrewSchemaTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    if not IS_DISPOSABLE or psycopg is None:
+        raise SystemExit("Configure the isolated Actions proposal database and locked driver")
     unittest.main(verbosity=2)
