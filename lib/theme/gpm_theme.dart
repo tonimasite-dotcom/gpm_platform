@@ -190,7 +190,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
         ),
         side: const WidgetStatePropertyAll(BorderSide(color: GpmColors.line)),
         shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     ),
