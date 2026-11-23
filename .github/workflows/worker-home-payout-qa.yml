@@ -20,9 +20,11 @@ jobs:
           cache: true
       - name: Configure synthetic demo
         run: printf '%s\n' 'GPM_APP_MODE=demo' > .env
-      - name: Format targeted sources
-        run: dart format lib/screens/worker/worker_home_screen.dart lib/screens/worker/worker_orders_screen.dart lib/screens/worker/worker_dashboard_screen.dart lib/screens/worker/worker_profile_screen.dart lib/screens/worker/worker_referral_promo.dart lib/screens/worker/worker_sbp_payout.dart test/worker_dashboard_screen_test.dart test/worker_home_payout_ux_test.dart
       - run: flutter pub get
+      - name: Format targeted sources
+        run: |
+          dart format lib/screens/worker/worker_home_screen.dart lib/screens/worker/worker_orders_screen.dart lib/screens/worker/worker_dashboard_screen.dart lib/screens/worker/worker_profile_screen.dart lib/screens/worker/worker_referral_promo.dart lib/screens/worker/worker_sbp_payout.dart test/worker_dashboard_screen_test.dart test/worker_home_payout_ux_test.dart
+          dart fix --apply --code=curly_braces_in_flow_control_structures
       - run: flutter analyze --no-pub
       - name: Check worker entry, application, promo and payout UX
         run: flutter test --no-pub test/worker_home_payout_ux_test.dart test/worker_dashboard_screen_test.dart test/worker_profile_screen_test.dart test/worker_orders_screen_test.dart
