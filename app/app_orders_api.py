@@ -22,6 +22,7 @@ from uuid import UUID, uuid4
 import yaml
 
 from app import crm_logist_ids, worker_payouts
+from app import crew_storage, crew_flow, crew_confirmation, crew_routes
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -1068,6 +1069,7 @@ def init_db() -> None:
                 )
             create_auth_schema(connection)
             crm_logist_ids.ensure_schema(connection)
+            crew_storage.ensure_schema(connection)
             bootstrap_configured_accounts(connection)
             connection.commit()
         return
@@ -1107,6 +1109,7 @@ def init_db() -> None:
         )
         create_auth_schema(connection)
         crm_logist_ids.ensure_schema(connection)
+        crew_storage.ensure_schema(connection)
         bootstrap_configured_accounts(connection)
 
 
@@ -2048,6 +2051,7 @@ def save_order(order: dict[str, Any]) -> None:
 
 
 def write_order_in_connection(connection: Any, order: dict[str, Any]) -> None:
+    crew_storage.guard_close(connection, order)
     serialized = json.dumps(order, ensure_ascii=False)
     if is_postgres_enabled():
         with connection.cursor() as cursor:
@@ -2783,6 +2787,8 @@ def create_attendance_challenge(
     public_api_url: str,
 ) -> dict[str, Any]:
     require_role(user, "worker")
+    if crew_storage.protected(get_order(order_id) or {}):
+        return crew_flow.presence(order_id, user, public_api_url=public_api_url)
     init_db()
     worker_account_id = str(user.get("sub") or "")
     now = utc_now()
@@ -2928,8 +2934,13 @@ def _complete_attendance_event_in_connection(
     challenge: dict[str, Any],
     *,
     confirmer: str,
+    event_at: datetime | None = None,
+    _crew_member: bool = False,
 ) -> dict[str, Any]:
+    if not _crew_member and crew_confirmation.for_challenge(connection, challenge["challenge_id"]):
+        return crew_confirmation.complete(connection, challenge, confirmer)
     now = utc_now()
+    event_at = event_at or now
     order_id = challenge["order_id"]
     worker_account_id = challenge["worker_account_id"]
     order = read_order_in_connection(connection, order_id, for_update=True)
@@ -2950,7 +2961,7 @@ def _complete_attendance_event_in_connection(
             attendance_id,
             order_id,
             worker_account_id,
-            now,
+            event_at,
             now,
             confirmer,
             now,
@@ -2981,7 +2992,7 @@ def _complete_attendance_event_in_connection(
                     attendance_id,
                     order_id,
                     worker_account_id,
-                    serialize_datetime(now),
+                    serialize_datetime(event_at),
                     serialize_datetime(now),
                     confirmer,
                     serialize_datetime(now),
@@ -3002,7 +3013,7 @@ def _complete_attendance_event_in_connection(
                         check_out_confirmed_by = %s, updated_at = %s
                     WHERE order_id = %s AND worker_account_id = %s
                     """,
-                    (now, now, confirmer, now, order_id, worker_account_id),
+                    (event_at, now, confirmer, now, order_id, worker_account_id),
                 )
         else:
             connection.execute(
@@ -3013,7 +3024,7 @@ def _complete_attendance_event_in_connection(
                 WHERE order_id = ? AND worker_account_id = ?
                 """,
                 (
-                    serialize_datetime(now),
+                    serialize_datetime(event_at),
                     serialize_datetime(now),
                     confirmer,
                     serialize_datetime(now),
@@ -3175,6 +3186,7 @@ def preview_attendance_for_client(
         "action": challenge["action"],
         "action_label": _attendance_action_label(challenge["action"]),
         "expires_at": serialize_datetime(challenge["expires_at"]),
+        **crew_confirmation.preview(challenge["challenge_id"]),
     }
 
 
@@ -3356,6 +3368,7 @@ def public_attendance_confirmation_context(
         "order_title": str(order.get("title") or challenge["order_id"]),
         "worker_name": worker_name,
         "expires_at": serialize_datetime(challenge["expires_at"]),
+        **crew_confirmation.preview(challenge["challenge_id"]),
         "already_confirmed": challenge["verifier_confirmed_at"] is not None,
     }
 
@@ -3440,6 +3453,7 @@ def _attendance_confirmation_form(context: dict[str, Any], action_url: str) -> s
       <div class="meta"><strong>{html.escape(context['order_title'])}</strong><br>
       Исполнитель: {html.escape(context['worker_name'])}</div>
       <p>Убедитесь, что этот исполнитель действительно находится рядом с вами.</p>
+      {crew_confirmation.guest_list_html(context)}
       <form method="post" action="{html.escape(action_url, quote=True)}">
         <button type="submit">Подтвердить {action_label}</button>
       </form>
@@ -6922,3 +6936,7 @@ async def get_company_logist_recipient(
         return await asyncio.to_thread(resolve_company_logist_recipient, crm_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+# Owner-approved crew attendance routes; feature activation is explicit.
+crew_routes.register(app)

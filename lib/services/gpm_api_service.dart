@@ -519,6 +519,29 @@ class GpmApiService {
     return _authenticatedJsonRequest('/app-api/me/finance');
   }
 
+  Future<Map<String, dynamic>> getCrewAttendance(String orderId) async {
+    if (usesLocalPersistence || _appAccessToken.trim().isEmpty) {
+      return {'enabled': false};
+    }
+    return _authenticatedJsonRequest(
+      '/app-api/me/crew-attendance/${Uri.encodeComponent(orderId)}/state',
+    );
+  }
+
+  Future<Map<String, dynamic>> crewAttendanceRequest(
+    String path, {
+    String method = 'POST',
+    Map<String, dynamic>? body,
+  }) async {
+    if (!path.startsWith('/app-api/me/crew-')) {
+      throw ArgumentError('Invalid attendance path');
+    }
+    if (usesLocalPersistence) {
+      throw StateError('Для онлайн-табеля требуется подключение к серверу');
+    }
+    return _authenticatedJsonRequest(path, method: method, body: body);
+  }
+
   Future<Map<String, dynamic>> getOrderAttendance(String orderId) async {
     if (usesLocalPersistence) {
       final order = await getOrderById(orderId);

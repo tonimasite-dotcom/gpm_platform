@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
+import 'crew_attendance.dart';
 
 String? attendanceTokenFromQr(String rawValue) {
   final raw = rawValue.trim();
@@ -148,11 +149,23 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
             children: [
               Text(preview['order_title']?.toString() ?? widget.orderId),
               const SizedBox(height: 12),
-              const Text('Исполнитель:'),
-              Text(
-                preview['worker_name']?.toString() ?? 'Исполнитель',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              if (preview['participants'] is List) ...[
+                const Text('Подтверждаемый список:'),
+                for (final person
+                    in (preview['participants'] as List).whereType<Map>())
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      '${person['worker_name']} · ${crewTime(person['collected_at'])}${person['geo_status'] == 'valid' ? '' : ' · геолокацию проверит логист'}',
+                    ),
+                  ),
+              ] else ...[
+                const Text('Исполнитель:'),
+                Text(
+                  preview['worker_name']?.toString() ?? 'Исполнитель',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
               const SizedBox(height: 12),
               const Text(
                 'Подтверждайте только если исполнитель находится рядом с вами.',
@@ -182,10 +195,15 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
       );
       if (!mounted) return;
       setState(_reload);
-      final action = attendance['status'] == 'completed' ? 'Уход' : 'Приход';
+      final action = preview['action'] == 'check_out' ? 'Уход' : 'Приход';
+      final pending = (attendance['pending_review'] as num? ?? 0) > 0;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$action подтвержден'),
+          content: Text(
+            pending
+                ? 'Список подтвержден. Спорные отметки проверит логист'
+                : '$action подтвержден',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -204,75 +222,79 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _future,
-          builder: (context, snapshot) {
-            final data = snapshot.data;
-            final rows = (data?['attendance'] as List? ?? const [])
-                .whereType<Map>()
-                .toList();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.fact_check_outlined),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Онлайн-табель',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Обновить',
-                      onPressed: () => setState(_reload),
-                      icon: const Icon(Icons.refresh),
-                    ),
-                  ],
-                ),
-                if (snapshot.connectionState == ConnectionState.waiting)
-                  const LinearProgressIndicator()
-                else if (snapshot.hasError)
-                  Text(
-                    'Не удалось загрузить табель: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
-                  )
-                else if (rows.isEmpty)
-                  const Text('Назначенных исполнителей пока нет')
-                else
-                  ...rows.map((row) => _AttendanceRow(row: row)),
-                if (widget.allowClientConfirmation) ...[
-                  const SizedBox(height: 12),
-                  GpmActionButtons(
+    return CrewAttendanceGate(
+      orderId: widget.orderId,
+
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _future,
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              final rows = (data?['attendance'] as List? ?? const [])
+                  .whereType<Map>()
+                  .toList();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      FilledButton(
-                        onPressed: _confirming ? null : _scan,
-                        child: const GpmButtonContent(
-                          icon: Icon(Icons.qr_code_scanner),
-                          label: Text('Сканировать QR'),
+                      const Icon(Icons.fact_check_outlined),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Онлайн-табель',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      OutlinedButton(
-                        onPressed: _confirming ? null : _enterCode,
-                        child: const GpmButtonContent(
-                          icon: Icon(Icons.password_outlined),
-                          label: Text('Ввести код'),
-                        ),
+                      IconButton(
+                        tooltip: 'Обновить',
+                        onPressed: () => setState(_reload),
+                        icon: const Icon(Icons.refresh),
                       ),
                     ],
                   ),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const LinearProgressIndicator()
+                  else if (snapshot.hasError)
+                    Text(
+                      'Не удалось загрузить табель: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    )
+                  else if (rows.isEmpty)
+                    const Text('Назначенных исполнителей пока нет')
+                  else
+                    ...rows.map((row) => _AttendanceRow(row: row)),
+                  if (widget.allowClientConfirmation) ...[
+                    const SizedBox(height: 12),
+                    GpmActionButtons(
+                      children: [
+                        FilledButton(
+                          onPressed: _confirming ? null : _scan,
+                          child: const GpmButtonContent(
+                            icon: Icon(Icons.qr_code_scanner),
+                            label: Text('Сканировать QR'),
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: _confirming ? null : _enterCode,
+                          child: const GpmButtonContent(
+                            icon: Icon(Icons.password_outlined),
+                            label: Text('Ввести код'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -344,57 +366,61 @@ class _WorkerAttendancePanelState extends State<WorkerAttendancePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _future,
-      builder: (context, snapshot) {
-        final rows = (snapshot.data?['attendance'] as List? ?? const [])
-            .whereType<Map>()
-            .toList();
-        final row = rows.isEmpty ? null : rows.first;
-        final status = row?['status']?.toString() ?? 'not_started';
-        final completed = status == 'completed';
-        final buttonText = status == 'checked_in'
-            ? 'Отметить уход'
-            : 'Отметить приход';
-        return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Учет рабочего времени',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                if (snapshot.connectionState == ConnectionState.waiting)
-                  const LinearProgressIndicator()
-                else if (snapshot.hasError)
-                  Text(
-                    'Не удалось загрузить отметки: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
-                  )
-                else if (row != null)
-                  _AttendanceRow(row: row),
-                if (!completed) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _creating ? null : _createChallenge,
-                      child: GpmButtonContent(
-                        icon: const Icon(Icons.qr_code_2),
-                        label: Text(buttonText),
+    return CrewAttendanceGate(
+      orderId: widget.orderId,
+      onChanged: widget.onChanged,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _future,
+        builder: (context, snapshot) {
+          final rows = (snapshot.data?['attendance'] as List? ?? const [])
+              .whereType<Map>()
+              .toList();
+          final row = rows.isEmpty ? null : rows.first;
+          final status = row?['status']?.toString() ?? 'not_started';
+          final completed = status == 'completed';
+          final buttonText = status == 'checked_in'
+              ? 'Отметить уход'
+              : 'Отметить приход';
+          return Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Учет рабочего времени',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const LinearProgressIndicator()
+                  else if (snapshot.hasError)
+                    Text(
+                      'Не удалось загрузить отметки: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    )
+                  else if (row != null)
+                    _AttendanceRow(row: row),
+                  if (!completed) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _creating ? null : _createChallenge,
+                        child: GpmButtonContent(
+                          icon: const Icon(Icons.qr_code_2),
+                          label: Text(buttonText),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
