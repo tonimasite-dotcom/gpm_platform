@@ -6,10 +6,7 @@ import '../../theme/gpm_theme.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   final VoidCallback? onOpenOrders;
-  const WorkerDashboardScreen({
-    super.key,
-    this.onOpenOrders,
-  });
+  const WorkerDashboardScreen({super.key, this.onOpenOrders});
 
   @override
   State<WorkerDashboardScreen> createState() => _WorkerDashboardScreenState();

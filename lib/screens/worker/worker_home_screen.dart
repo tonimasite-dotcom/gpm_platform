@@ -29,9 +29,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   Widget build(BuildContext context) {
     final screens = [
       const WorkerOrdersScreen(),
-      WorkerDashboardScreen(
-        onOpenOrders: () => _openSection(0),
-      ),
+      WorkerDashboardScreen(onOpenOrders: () => _openSection(0)),
       const ChatThreadsScreen(role: ChatRole.worker),
       const WorkerFinanceScreen(),
       const WorkerProfileScreen(),

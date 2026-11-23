@@ -46,6 +46,8 @@ void main() {
         isRussian ? findsOneWidget : findsNothing,
       );
       expect(find.text('Заявка every'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Заявка no'), 180, scrollable: find.descendant(of: find.byType(OrdersList).first, matching: find.byType(Scrollable)).first);
+      await tester.pumpAndSettle();
       expect(find.text('Заявка no'), findsOneWidget);
     });
   }

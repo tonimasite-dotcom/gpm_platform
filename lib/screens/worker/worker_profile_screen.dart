@@ -39,7 +39,11 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   bool _hasStraps = false;
   bool _hasTools = false;
   String _payoutMethod = '';
-  SbpPayoutDetails _sbpPayout = const SbpPayoutDetails(bankId: '', bankName: '', phone: '');
+  SbpPayoutDetails _sbpPayout = const SbpPayoutDetails(
+    bankId: '',
+    bankName: '',
+    phone: '',
+  );
 
   @override
   void initState() {
@@ -90,7 +94,11 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       _hasStraps = tools['straps'] == true;
       _hasTools = tools['tools'] == true;
       _payoutMethod = _text(raw['payout_method']);
-      _sbpPayout = SbpPayoutDetails(bankId: _text(raw['payout_bank_id']), bankName: _text(raw['payout_bank_name']), phone: _text(raw['payout_phone']));
+      _sbpPayout = SbpPayoutDetails(
+        bankId: _text(raw['payout_bank_id']),
+        bankName: _text(raw['payout_bank_name']),
+        phone: _text(raw['payout_phone']),
+      );
     } catch (_) {
       if (mounted) _showError('Не удалось загрузить профиль');
     } finally {
@@ -101,26 +109,43 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   Future<void> _saveSbpPayout(SbpPayoutDetails details) async {
     if (_saving) throw StateError('Profile is being saved');
     final patch = <String, dynamic>{
-      'payout_method': 'sbp', 'payout_bank_id': details.bankId, 'payout_phone': details.phone,
+      'payout_method': 'sbp',
+      'payout_bank_id': details.bankId,
+      'payout_phone': details.phone,
     };
     if (gpmApi.isApiMode) {
       final saved = await gpmApi.updateMyProfile(patch);
       if (mounted) _profile = Map<String, dynamic>.from(saved);
     } else {
-      final saved = await gpmApi.updateWorkerProfile(GpmApiService.demoWorkerId, {
-        ...patch, 'payout_bank_name': details.bankName,
-      });
+      final saved = await gpmApi.updateWorkerProfile(
+        GpmApiService.demoWorkerId,
+        {...patch, 'payout_bank_name': details.bankName},
+      );
       if (!saved) throw StateError('Could not save payout preferences');
-      if (mounted) _profile = {..._profile, ...patch, 'payout_bank_name': details.bankName};
+      if (mounted) {
+        _profile = {
+          ..._profile,
+          ...patch,
+          'payout_bank_name': details.bankName,
+        };
+      }
     }
     if (!mounted) return;
-    setState(() { _sbpPayout = details; _payoutMethod = 'sbp'; });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Реквизиты сохранены')));
+    setState(() {
+      _sbpPayout = details;
+      _payoutMethod = 'sbp';
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Реквизиты сохранены')));
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate() || _saving) return;
-    if (_payoutMethod == 'sbp' && !_sbpPayout.complete) { _showError('Добавьте банк и телефон для получения оплаты'); return; }
+    if (_payoutMethod == 'sbp' && !_sbpPayout.complete) {
+      _showError('Добавьте банк и телефон для получения оплаты');
+      return;
+    }
     setState(() => _saving = true);
     final patch = <String, dynamic>{
       'display_name': _name.text.trim(),
@@ -137,13 +162,16 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       'address_house': _addressHouse.text.trim(),
       'address_apartment': _addressApartment.text.trim(),
       'payout_method': _payoutMethod,
-      if (_payoutMethod == 'sbp') ...{'payout_bank_id': _sbpPayout.bankId, 'payout_phone': _sbpPayout.phone},
+      if (_payoutMethod == 'sbp') ...{
+        'payout_bank_id': _sbpPayout.bankId,
+        'payout_phone': _sbpPayout.phone,
+      },
       if (_payoutMethod != 'sbp') ...{
-      'card_last4': _payoutMethod == 'card' ? _cardLast4.text.trim() : '',
-      'payout_account': _payoutMethod == 'account'
-          ? _payoutAccount.text.trim()
-          : '',
-      'payout_bik': _payoutMethod == 'account' ? _payoutBik.text.trim() : '',
+        'card_last4': _payoutMethod == 'card' ? _cardLast4.text.trim() : '',
+        'payout_account': _payoutMethod == 'account'
+            ? _payoutAccount.text.trim()
+            : '',
+        'payout_bik': _payoutMethod == 'account' ? _payoutBik.text.trim() : '',
       },
     };
     try {
@@ -415,7 +443,11 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                           const SizedBox(height: 8),
                           GpmSegmentedButton<String>(
                             segments: const [
-                              ButtonSegment(value: 'sbp', icon: Icon(Icons.phone_android_outlined), label: Text('СБП')),
+                              ButtonSegment(
+                                value: 'sbp',
+                                icon: Icon(Icons.phone_android_outlined),
+                                label: Text('СБП'),
+                              ),
                               ButtonSegment(
                                 value: 'account',
                                 icon: Icon(Icons.account_balance_outlined),
@@ -439,7 +471,13 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                           ),
                           if (_payoutMethod == 'sbp') ...[
                             const SizedBox(height: 12),
-                            WorkerSbpPayoutField(details: _sbpPayout, profilePhone: _text(_profile['phone'] ?? _profile['phone_number']), onSave: _saveSbpPayout),
+                            WorkerSbpPayoutField(
+                              details: _sbpPayout,
+                              profilePhone: _text(
+                                _profile['phone'] ?? _profile['phone_number'],
+                              ),
+                              onSave: _saveSbpPayout,
+                            ),
                           ],
                           if (_payoutMethod == 'card') ...[
                             const SizedBox(height: 12),
