@@ -79,11 +79,21 @@ final class GpmPreviewWorkerSync
         return $result;
     }
 
-    private function people(array $links): array
+    private function people(array $profile, array $links, ?array $link = null): array
     {
         $index = [];
         foreach ($links as $id=>$link) $index[(string) $link['crm_worker_id']] = $id;
-        return User::withTrashed()->with('roles')->get(['id','phone','active','deleted_at','email','note'])
+        $phone = GpmWorkerMatchPolicy::phone($profile['phone'], $profile['phone_country']);
+        $ids = [];
+        foreach (DB::table('users')->get(['id','phone']) as $row) {
+            $candidate = GpmWorkerMatchPolicy::phone($row->phone);
+            if (!$candidate) $candidate = GpmWorkerMatchPolicy::phone($row->phone, 'INT');
+            if ($candidate === $phone) $ids[(string) $row->id] = true;
+        }
+        if ($link && !empty($link['crm_worker_id'])) $ids[(string) $link['crm_worker_id']] = true;
+        if (!$ids) return [];
+        return User::withTrashed()->whereIn('id', array_keys($ids))->with('roles')
+            ->get(['id','phone','active','deleted_at','email','note'])
             ->map(function ($user) use ($index) {
                 return ['id'=>(string) $user->id, 'phone'=>$user->phone,
                     'roles'=>$user->getRoleNames()->values()->all(),
@@ -130,13 +140,13 @@ final class GpmPreviewWorkerSync
             $wasRecovered = true;
         }
         $branchId = $this->branch($profile);
-        $decision = GpmPreviewWorkerPolicy::resolve($profile, $this->people($links), $link,
+        $decision = GpmPreviewWorkerPolicy::resolve($profile, $this->people($profile, $links, $link), $link,
             $branchId, $this->enabled(), (string) config('app.url'));
         if ($wasRecovered && $decision['action'] === 'link') $decision['reason'] = 'recovered_test_worker';
         if ($decision['action'] !== 'create' || $dry) return $decision;
         return DB::transaction(function () use ($profile, $links, $branchId, $email) {
             // Recheck immediately before creating; the job lock serializes TS imports.
-            $decision = GpmPreviewWorkerPolicy::resolve($profile, $this->people($links), null,
+            $decision = GpmPreviewWorkerPolicy::resolve($profile, $this->people($profile, $links), null,
                 $branchId, $this->enabled(), (string) config('app.url'));
             if ($decision['action'] !== 'create') return $decision;
             $worker = User::create([

@@ -17,6 +17,7 @@ class PreviewWorkerSyncTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.now = 1795431600.0
+        self.since = self.now-1
         environment = patch.dict(os.environ, {
             "GPM_REGISTRATION_PREVIEW_DB": self.temp.name+"/preview.sqlite3",
             "GPM_REGISTRATION_PREVIEW_CRM_ENABLED": "true",
@@ -41,7 +42,7 @@ class PreviewWorkerSyncTests(unittest.TestCase):
         return self.store.complete(sid, token, state["revision"], uuid4().hex)
 
     def listing(self, **extra):
-        return {"operation": "list", "source_instance": sync.INSTANCE, "since": self.now-1,
+        return {"operation": "list", "source_instance": sync.INSTANCE, "since": self.since,
                 "limit": 100, **extra}
 
     def ack(self, document, **extra):

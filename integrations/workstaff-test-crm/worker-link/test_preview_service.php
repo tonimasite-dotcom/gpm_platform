@@ -13,7 +13,9 @@ namespace Fixture {
     }
     final class UserQuery {
         private $email;
+        private $ids;
         public function with($relation): self { return $this; }
+        public function whereIn($column,$ids): self { $this->ids=array_map("strval",$ids);return $this; }
         public function where($column,$value): self {
             if ($column!=='email') throw new \RuntimeException('Unexpected query');
             $this->email=$value; return $this;
@@ -21,6 +23,7 @@ namespace Fixture {
         public function get($columns=[]): Collection {
             $rows=array_values(\App\Models\User::$rows);
             if ($this->email!==null) $rows=array_values(array_filter($rows,function($r){return $r->email===$this->email;}));
+            if ($this->ids!==null) $rows=array_values(array_filter($rows,function($r){return in_array((string)$r->id,$this->ids,true);}));
             return new Collection($rows);
         }
         public function first() { return $this->get()->first(); }
@@ -103,6 +106,10 @@ namespace Illuminate\Support\Facades {
     }
     final class Log { public static function warning($message,$details): void {} }
     final class DB {
+        public static function table($name) {
+            if ($name!=='users') throw new \RuntimeException('Unexpected table');
+            return new \Fixture\UserQuery();
+        }
         public static function transaction(callable $action) {
             $before=serialize(\App\Models\User::$rows);
             try{return $action();}catch(\Throwable $e){\App\Models\User::$rows=unserialize($before);throw $e;}

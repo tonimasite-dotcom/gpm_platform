@@ -177,7 +177,7 @@ jobs:
             if [ "$status" -eq 0 ]; then status=1; fi
             trap - ERR TERM HUP
             echo "Backend deployment failed; restoring $OLD_BACKEND_SHA." >&2
-            if [ "$VENV_SWITCHED" -eq 1 ] && [ -f app/crew_maintenance.py ]; then
+            if [ "$VENV_SWITCHED" -eq 1 ] && [ -f app/crew_maintenance.py ] && ! git cat-file -e "${OLD_BACKEND_SHA}:app/crew_maintenance.py" 2>/dev/null; then
               systemctl stop gpm-app-api.service
               if ! GPM_APP_CREW_ATTENDANCE_ENABLED=false "$NEW_VENV/bin/python" -m app.crew_maintenance; then
                 echo "Crew QR quiescence failed; API stays stopped for safe recovery." >&2
