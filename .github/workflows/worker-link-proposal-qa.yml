@@ -1,0 +1,17 @@
+name: Worker identity matching proposal QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/worker-identity-link-2026-11-23]
+permissions:
+  contents: read
+jobs:
+  matching:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: php -l integrations/workstaff-test-crm/worker-link/GpmWorkerMatchPolicy.php
+      - run: php integrations/workstaff-test-crm/worker-link/test_policy.php
