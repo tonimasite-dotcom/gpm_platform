@@ -195,8 +195,9 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
     chipTheme: ChipThemeData(
       selectedColor: action,
       secondarySelectedColor: action,
-      labelStyle: const TextStyle(color: GpmColors.graphite, fontSize: 14),
+      labelStyle: const TextStyle(fontFamily: 'Manrope', color: GpmColors.graphite, fontSize: 14),
       secondaryLabelStyle: TextStyle(
+        fontFamily: 'Manrope',
         color: actionInk,
         fontSize: 14,
         fontWeight: FontWeight.w700,

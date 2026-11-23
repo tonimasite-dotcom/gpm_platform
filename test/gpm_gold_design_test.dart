@@ -66,7 +66,9 @@ void main() {
       'enabled controls and selected text remain readable for ${audience.name}',
       () {
         final theme = buildGpmTheme(audience: audience);
-        final button = theme.filledButtonTheme.style!;
+        expect(theme.chipTheme.labelStyle!.fontFamily, theme.textTheme.labelLarge!.fontFamily);
+      expect(theme.chipTheme.secondaryLabelStyle!.fontFamily, theme.textTheme.labelLarge!.fontFamily);
+      final button = theme.filledButtonTheme.style!;
         final bg = button.backgroundColor!.resolve({});
         final fg = button.foregroundColor!.resolve({});
         expect(contrast(bg!, fg!), greaterThanOrEqualTo(4.5));
