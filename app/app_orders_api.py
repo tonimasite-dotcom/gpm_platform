@@ -21,7 +21,7 @@ from uuid import UUID, uuid4
 
 import yaml
 
-from app import crm_logist_ids
+from app import crm_logist_ids, worker_payouts
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -4261,6 +4261,8 @@ ROLE_PROFILE_FIELDS = {
         "card_last4",
         "payout_account",
         "payout_bik",
+        "payout_bank_id",
+        "payout_phone",
     },
     "logist": COMMON_PROFILE_FIELDS
     | {
@@ -4316,6 +4318,9 @@ def default_profile(user: dict[str, Any]) -> dict[str, Any]:
             "card_last4": "",
             "payout_account": "",
             "payout_bik": "",
+            "payout_bank_id": "",
+            "payout_bank_name": "",
+            "payout_phone": "",
             "identity_status": "not_submitted",
             "work_status": "not_submitted",
             "npd_status": "not_submitted",
@@ -4986,7 +4991,11 @@ def _clean_profile_value(field: str, value: Any) -> Any:
         raise ValueError("payment_type is invalid")
     if field == "employment_type" and text not in {"contract", "state"}:
         raise ValueError("employment_type is invalid")
-    if field == "payout_method" and text not in {"", "card", "account"}:
+    if field == "payout_bank_id":
+        return worker_payouts.clean_bank_id(text)
+    if field == "payout_phone":
+        return worker_payouts.normalize_phone(text)
+    if field == "payout_method" and text not in {"", "card", "account", "sbp"}:
         raise ValueError("payout_method is invalid")
     if field == "department" and text not in {
         "operations",
@@ -5056,6 +5065,11 @@ def update_account_profile(user: dict[str, Any], patch: dict[str, Any]) -> dict[
         if role == "worker" and "nationality" in stored and "nationality" in cleaned:
             if cleaned["nationality"] != stored["nationality"]:
                 raise HTTPException(status_code=403, detail="citizenship can only be changed by a logist")
+        if role == "worker":
+            try:
+                cleaned = worker_payouts.prepare_patch(stored, cleaned)
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error)) from error
         invalidates_identity = role == "worker" and any(
             field in cleaned and cleaned[field] != stored.get(field)
             for field in {"display_name", "date_birth", "nationality"}

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
 import '../../theme/gpm_theme.dart';
-import 'worker_referral_promo.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   final VoidCallback? onOpenOrders;
@@ -146,10 +145,6 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 onPressed: widget.onOpenOrders,
                 icon: const Icon(Icons.search),
                 label: const Text('Найти смену'),
-              ),
-              const SizedBox(height: 16),
-              WorkerReferralPromoCard(
-                onTap: () => showWorkerReferralPromo(context),
               ),
             ],
           ),

@@ -71,155 +71,43 @@ Future<void> showWorkerReferralPromo(BuildContext context) async {
 
 class WorkerReferralPromoCard extends StatelessWidget {
   final VoidCallback onTap;
-
   const WorkerReferralPromoCard({required this.onTap, super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return Material(
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    child: Material(
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFE9E5), Color(0xFFFFF4D9)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFFFD8C7), width: 1),
+          gradient: const LinearGradient(colors: [Color(0xFFFFE9E5), Color(0xFFFFF4D9)]),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFFD8C7)),
         ),
         child: InkWell(
-          key: const Key('worker_referral_promo_card'),
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          key: const Key('worker_referral_promo_card'), onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: const Icon(
-                        Icons.card_giftcard,
-                        color: GpmColors.redAction,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _referralTitle,
-                            style: TextStyle(
-                              color: GpmColors.black,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Чем больше смен отработает друг, тем больше бонус.',
-                            style: TextStyle(
-                              color: GpmColors.graphite,
-                              fontSize: 12,
-                              height: 1.25,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Row(
-                  children: [
-                    Expanded(
-                      child: _RewardBadge(shifts: '5 смен', amount: '3 500 ₽'),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _RewardBadge(shifts: '10 смен', amount: '5 000 ₽'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: onTap,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GpmColors.redAction,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(48, 44),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                    ),
-                    child: const Text('Подробнее и пригласить'),
-                  ),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.card_giftcard, color: GpmColors.redAction, size: 21),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Приведи друга', style: TextStyle(color: GpmColors.black, fontWeight: FontWeight.w800, fontSize: 14)),
+                SizedBox(height: 2),
+                Text('Бонус до 5 000 ₽', style: TextStyle(color: GpmColors.redInk, fontSize: 12, fontWeight: FontWeight.w600)),
+              ])),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right, color: GpmColors.redAction, size: 22),
+            ]),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RewardBadge extends StatelessWidget {
-  final String shifts;
-  final String amount;
-
-  const _RewardBadge({required this.shifts, required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: GpmColors.surface.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFD8C7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            shifts,
-            style: const TextStyle(
-              color: GpmColors.graphite,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              amount,
-              style: const TextStyle(
-                color: GpmColors.redInk,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class _ReferralDetails extends StatelessWidget {
