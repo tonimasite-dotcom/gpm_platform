@@ -97,11 +97,11 @@ class WorkerReferralPromoCard extends StatelessWidget {
                 width: wide ? 52 : 42,
                 height: wide ? 52 : 42,
                 decoration: BoxDecoration(
-                  color: GpmColors.helmetYellow,
+                  color: GpmColors.redAction,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x145F4500),
+                      color: Color(0x18DC2626),
                       blurRadius: 8,
                       offset: Offset(0, 3),
                     ),
@@ -113,7 +113,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.card_giftcard,
-                      color: GpmColors.black,
+                      color: Colors.white,
                       size: wide ? 27 : 24,
                     ),
                     const Positioned(
@@ -122,7 +122,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                       child: Icon(
                         Icons.auto_awesome,
                         size: 15,
-                        color: GpmColors.yellowInk,
+                        color: Colors.white,
                       ),
                     ),
                   ],

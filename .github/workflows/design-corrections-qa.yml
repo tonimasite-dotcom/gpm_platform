@@ -2,7 +2,7 @@ name: GPM design corrections QA
 on:
   workflow_dispatch:
   push:
-    branches: [work/gpm-design-corrections-2026-11-23, work/gpm-payout-label-fit-2026-11-23]
+    branches: [work/gpm-design-corrections-2026-11-23, work/gpm-payout-label-fit-2026-11-23, work/gpm-red-worker-actions-2026-11-23]
 permissions:
   contents: read
 jobs:

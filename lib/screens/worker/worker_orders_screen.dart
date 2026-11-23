@@ -367,8 +367,8 @@ class _WorkerOrderApplyButtonState extends State<_WorkerOrderApplyButton> {
     onPressed: _sending || _sent ? null : _apply,
     style: FilledButton.styleFrom(
       minimumSize: const Size.fromHeight(46),
-      backgroundColor: GpmColors.helmetYellow,
-      foregroundColor: GpmColors.black,
+      backgroundColor: GpmColors.redAction,
+      foregroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     child: GpmButtonContent(
