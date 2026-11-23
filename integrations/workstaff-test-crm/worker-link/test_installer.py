@@ -12,10 +12,12 @@ spec.loader.exec_module(installer)
 
 class InstallerTests(unittest.TestCase):
     def test_console_patch_is_idempotent_and_contains_no_ui_patch(self):
-        original = "before\n"+installer.ANCHOR+"\nafter\n"
+        original = ("before\n"+installer.ANCHOR+"\n            return 0;\n        }\n"
+                    "        $result = $sync->syncLinkedOrders();\nafter\n")
         result = installer.patched(original)
         self.assertEqual(installer.patched(result), result)
-        self.assertEqual(result.count(installer.HOOK), 1)
+        self.assertEqual(result.count("GpmPreviewWorkerSync::class"), 2)
+        self.assertLess(result.index("$result = $sync->syncLinkedOrders();"), result.rindex("GpmPreviewWorkerSync::class"))
         self.assertIn("\\App\\Services\\Gpm\\GpmPreviewWorkerSync", result)
         self.assertFalse(any(path.endswith(".vue") for path in installer.FILES.values()))
         with self.assertRaises(RuntimeError):

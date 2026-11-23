@@ -57,7 +57,7 @@ final class GpmPreviewWorkerSync
             throw new \RuntimeException('Test worker integration is not configured');
         }
         $payload = array_merge($input, ['source_instance'=>GpmPreviewWorkerPolicy::INSTANCE]);
-        $response = Http::timeout(12)->withOptions(['allow_redirects'=>false])
+        $response = Http::timeout(4)->withOptions(['allow_redirects'=>false])
             ->acceptJson()->asJson()->withHeaders(['X-GPM-App-Token'=>$token])
             ->post($base . '/app-api/integration/registration-preview/workers', $payload);
         if (!$response->successful() || !is_array($response->json())) {
@@ -179,11 +179,13 @@ final class GpmPreviewWorkerSync
             if (!is_finite($since) || $since <= 0 || $since > time()+30) {
                 throw new \RuntimeException('A test registration start time is required');
             }
+            $deadline = microtime(true)+12;
             $profiles = GpmPreviewWorkerPolicy::snapshot($this->request([
                 'operation'=>'list','since'=>$since,'limit'=>25,
             ]));
             $links = $this->links();
             foreach ($profiles as $profile) {
+                if (microtime(true) >= $deadline) { $counts['deferred']++; break; }
                 if ((float) $profile['created_at'] < $since) throw new \RuntimeException('Unexpected old test profile');
                 try {
                     $decision = $this->bind($profile, $links, $dry);
