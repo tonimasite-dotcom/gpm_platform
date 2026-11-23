@@ -44,6 +44,7 @@ jobs:
                       subprocess.run(['bash', '-n'], input=step['run'], text=True, check=True)
           PY
       - run: python integrations/workstaff-test-crm/crew-attendance/test_prepare.py
+      - run: python integrations/workstaff-test-crm/crew-attendance/test_assets.py
       - run: php integrations/workstaff-test-crm/crew-attendance/test_policy.php
       - run: find integrations/workstaff-test-crm/crew-attendance -name '*.php' -print0 | xargs -0 -n 1 php -l
   flutter:

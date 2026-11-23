@@ -118,6 +118,38 @@ def rollback(backup):
     print(json.dumps({"rolled_back": True, "crew_data_preserved": True}))
 
 
+def verify_assets(root):
+    # Vue routes are split into lazy chunks; the attendance panel need not be
+    # in app.js. Check every emitted JS chunk, including credential exclusion.
+    manifest = json.loads((root / "public/mix-manifest.json").read_text())
+    directory = root / "public/dist/js"
+    entry = root / "public" / manifest["/dist/js/app.js"].lstrip("/")
+    if not entry.is_file() or not str(entry.resolve()).startswith(str(directory) + "/"):
+        raise RuntimeError("Unexpected TS bundle target")
+    credentials = []
+    for line in (root / ".env").read_text().splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key in {"APP_KEY", "GPM_APP_API_TOKEN"}:
+            value = value.strip().strip(chr(34) + chr(39))
+            if len(value) >= 16:
+                credentials.append(value.encode())
+    markers = {b"GpmCrewAttendancePanel": False, b"logist_orders/gpm_crew/": False}
+    for asset in sorted(directory.rglob("*")):
+        if not asset.is_file() or asset.suffix not in {".js", ".map"}:
+            continue
+        if asset.is_symlink():
+            raise RuntimeError("Unexpected TS bundle symlink")
+        content = asset.read_bytes()
+        if any(secret in content for secret in credentials):
+            raise RuntimeError("Server credential detected in browser bundle")
+        if asset.suffix == ".js":
+            for marker in markers:
+                markers[marker] = markers[marker] or marker in content
+    if not all(markers.values()):
+        raise RuntimeError("Crew panel missing from TS bundle chunks")
+    return hashlib.sha256(entry.read_bytes()).hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rollback")
@@ -167,18 +199,9 @@ def main():
         app_path = ROOT / "public" / manifest["/dist/js/app.js"].lstrip("/")
         if not app_path.is_file() or not str(app_path.resolve()).startswith(str(ROOT / "public/dist") + "/"):
             raise RuntimeError("Unexpected TS bundle target")
-        bundle = app_path.read_bytes()
-        if "Онлайн-табель GPM".encode() not in bundle:
-            raise RuntimeError("Crew panel missing from TS bundle")
-        # Verify that server integration credentials did not enter browser JS.
-        for line in (ROOT / ".env").read_text().splitlines():
-            key, separator, value = line.partition("=")
-            if separator and key in {"APP_KEY", "GPM_APP_API_TOKEN"}:
-                value = value.strip().strip(chr(34) + chr(39))
-                if len(value) >= 16 and value.encode() in bundle:
-                    raise RuntimeError("Server credential detected in browser bundle")
+        bundle_hash = verify_assets(ROOT)
         run(["php", "artisan", "view:clear"], owner)
-        receipt.update({"complete": True, "bundle_sha256": hashlib.sha256(bundle).hexdigest()})
+        receipt.update({"complete": True, "bundle_sha256": bundle_hash})
         (backup / "release.json").write_text(json.dumps(receipt, indent=2))
         run(["php", "artisan", "up"], owner)
     except Exception:
