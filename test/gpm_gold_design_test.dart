@@ -10,6 +10,7 @@ import 'package:gpm_platform/screens/worker/worker_home_screen.dart';
 import 'package:gpm_platform/screens/worker/worker_referral_promo.dart';
 import 'package:gpm_platform/theme/gpm_theme.dart';
 import 'package:gpm_platform/widgets/gpm_logo.dart';
+import 'package:gpm_platform/widgets/adaptive_buttons.dart';
 import 'support/load_test_fonts.dart';
 import 'chat_threads_screen_test.dart' show ThreadsService;
 
@@ -228,6 +229,16 @@ void main() {
           expect(find.textContaining('Самозанятым по умолчанию'), findsNothing);
           await tester.ensureVisible(find.text('Выплаты'));
           await tester.pumpAndSettle();
+          final payoutChoices = find.ancestor(
+            of: find.text('Счет (для самозанятых)'),
+            matching: find.byWidgetPredicate((w) => w is GpmSegmentedButton<String>),
+          );
+          final choicesRect = tester.getRect(payoutChoices);
+          for (final label in ['Счет (для самозанятых)', 'СБП', 'Карта']) {
+            final labelRect = tester.getRect(find.text(label));
+            expect(labelRect.left, greaterThanOrEqualTo(choicesRect.left));
+            expect(labelRect.right, lessThanOrEqualTo(choicesRect.right));
+          }
           await captureGold(
             tester,
             key,

@@ -106,6 +106,36 @@ class GpmSegmentedButton<T> extends StatelessWidget {
         painter.dispose();
       }
       final vertical = segmentWidth * segments.length > constraints.maxWidth;
+      if (vertical) {
+        // A horizontal one-option group fills the bounded width and measures
+        // wrapped text correctly. Native vertical groups use intrinsic widths.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < segments.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              SegmentedButton<T>(
+                segments: [segments[i]],
+                selected: selected.contains(segments[i].value)
+                    ? {segments[i].value}
+                    : <T>{},
+                emptySelectionAllowed: true,
+                showSelectedIcon: showSelectedIcon,
+                style: style,
+                expandedInsets: EdgeInsets.zero,
+                onSelectionChanged: onSelectionChanged == null
+                    ? null
+                    : (value) {
+                        if (value.isEmpty && !emptySelectionAllowed) return;
+                        onSelectionChanged!(
+                          value.isEmpty ? <T>{} : {segments[i].value},
+                        );
+                      },
+              ),
+            ],
+          ],
+        );
+      }
       return SizedBox(
         width: constraints.hasBoundedWidth ? constraints.maxWidth : null,
         child: SegmentedButton<T>(
@@ -115,8 +145,7 @@ class GpmSegmentedButton<T> extends StatelessWidget {
           emptySelectionAllowed: emptySelectionAllowed,
           showSelectedIcon: showSelectedIcon,
           style: style,
-          expandedInsets: vertical ? null : EdgeInsets.zero,
-          direction: vertical ? Axis.vertical : Axis.horizontal,
+          expandedInsets: EdgeInsets.zero,
         ),
       );
     },

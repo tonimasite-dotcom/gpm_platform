@@ -160,6 +160,15 @@ void main() {
         await tester.pumpAndSettle();
         _expectWholeWords(tester, 'Физическое лицо');
         _expectWholeWords(tester, 'Юридическое лицо');
+        for (final label in ['Физическое лицо', 'Юридическое лицо']) {
+          final button = find.ancestor(
+            of: find.text(label),
+            matching: find.byType(TextButton),
+          ).first;
+          final rect = tester.getRect(button);
+          expect(rect.left, greaterThanOrEqualTo(32));
+          expect(rect.right, lessThanOrEqualTo(width - 32));
+        }
         await tester.tap(find.text('Юридическое лицо'));
         await tester.pumpAndSettle();
         expect(selected, {'company'});
