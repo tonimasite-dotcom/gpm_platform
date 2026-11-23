@@ -25,7 +25,7 @@ class _ClientOrdersListExampleState extends State<ClientOrdersListExample> {
         _ordersFuture = gpmApi.getOrders();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Статус обновлён')),
+        const SnackBar(content: Text('Статус обновлен')),
       );
     }
   }
@@ -79,7 +79,7 @@ class _ClientOrdersListExampleState extends State<ClientOrdersListExample> {
                     ),
                     const PopupMenuItem(
                       value: 'WON',
-                      child: Text('Завершён'),
+                      child: Text('Завершен'),
                     ),
                   ],
                 ),

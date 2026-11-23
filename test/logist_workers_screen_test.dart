@@ -155,16 +155,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       api.failNext = true;
-      await tester.tap(find.text('Показать ещё'));
+      await tester.tap(find.text('Показать еще'));
       await tester.pumpAndSettle();
       expect(find.text('Рабочий без заказов'), findsOneWidget);
       expect(find.text('Не удалось загрузить исполнителей'), findsOneWidget);
-      await tester.tap(find.text('Показать ещё'));
+      await tester.tap(find.text('Показать еще'));
       await tester.pumpAndSettle();
       expect(api.requests, [0, 1, 1]);
       expect(find.text('Рабочий без заказов'), findsOneWidget);
       expect(find.text('Другой рабочий'), findsOneWidget);
-      expect(find.text('Показать ещё'), findsNothing);
+      expect(find.text('Показать еще'), findsNothing);
       expect(find.text('Не удалось загрузить исполнителей'), findsNothing);
     },
   );

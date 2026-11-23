@@ -88,7 +88,8 @@ class QueryBuilder {
         return 'CONVERTED';
       case 'На подтверждении':
         return 'DONE_PENDING';
-      case 'Отклонён':
+      case 'Отклон\u0451н':
+      case 'Отклонен':
         return 'JUNK';
       default:
         return 'NEW';
@@ -169,7 +170,7 @@ class QueryBuilder {
       case 'DONE_PENDING':
         return 'На подтверждении';
       case 'JUNK':
-        return 'Отклонён';
+        return 'Отклонен';
       default:
         return 'На модерации';
     }

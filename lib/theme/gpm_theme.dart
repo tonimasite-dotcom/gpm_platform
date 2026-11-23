@@ -31,16 +31,18 @@ enum GpmAudience { personal, business }
 ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
   final isBusiness = audience == GpmAudience.business;
   final brand = isBusiness ? GpmColors.business : GpmColors.brandRed;
-  final action = isBusiness ? GpmColors.business : GpmColors.helmetYellow;
-  final actionInk = isBusiness ? Colors.white : GpmColors.black;
+  final action = isBusiness ? GpmColors.business : GpmColors.redAction;
+  const actionInk = Colors.white;
+  final selection = isBusiness ? GpmColors.business : GpmColors.helmetYellow;
+  final selectionInk = isBusiness ? Colors.white : GpmColors.black;
   final ink = isBusiness ? GpmColors.business : GpmColors.graphite;
   final focus = isBusiness ? GpmColors.business : GpmColors.yellowInk;
   final soft = isBusiness ? GpmColors.businessSoft : GpmColors.yellowSoft;
   final colorScheme = ColorScheme.fromSeed(
     seedColor: brand,
     primary: brand,
-    secondary: action,
-    onSecondary: actionInk,
+    secondary: selection,
+    onSecondary: selectionInk,
     secondaryContainer: soft,
     onSecondaryContainer: ink,
     error: GpmColors.red,
@@ -121,7 +123,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
         foregroundColor: actionInk,
         minimumSize: const Size(48, 56),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(
           fontFamily: 'Manrope',
           fontSize: 15,
@@ -135,7 +137,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
         foregroundColor: actionInk,
         minimumSize: const Size(48, 56),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(
           fontFamily: 'Manrope',
           fontSize: 15,
@@ -149,7 +151,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
         side: const BorderSide(color: GpmColors.line),
         minimumSize: const Size(48, 56),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(
           fontFamily: 'Manrope',
           fontSize: 15,
@@ -193,31 +195,31 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
       ),
     ),
     chipTheme: ChipThemeData(
-      selectedColor: action,
-      secondarySelectedColor: action,
+      selectedColor: selection,
+      secondarySelectedColor: selection,
       labelStyle: const TextStyle(fontFamily: 'Manrope', color: GpmColors.graphite, fontSize: 14),
       secondaryLabelStyle: TextStyle(
         fontFamily: 'Manrope',
-        color: actionInk,
+        color: selectionInk,
         fontSize: 14,
         fontWeight: FontWeight.w700,
       ),
-      checkmarkColor: actionInk,
+      checkmarkColor: selectionInk,
       side: const BorderSide(color: GpmColors.softLine),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: GpmColors.surface,
-      selectedItemColor: ink,
+      selectedItemColor: isBusiness ? GpmColors.business : GpmColors.redInk,
       unselectedItemColor: GpmColors.muted,
       type: BottomNavigationBarType.fixed,
       elevation: 0,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
     ),
     tabBarTheme: TabBarThemeData(
       labelColor: ink,
       unselectedLabelColor: GpmColors.graphite,
-      indicatorColor: action,
+      indicatorColor: selection,
       indicatorSize: TabBarIndicatorSize.label,
       labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
     ),

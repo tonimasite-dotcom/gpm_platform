@@ -148,7 +148,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Профиль клиента сохранён'),
+          content: Text('Профиль клиента сохранен'),
           backgroundColor: Colors.green,
         ),
       );

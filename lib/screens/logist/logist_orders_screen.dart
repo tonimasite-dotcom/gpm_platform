@@ -691,7 +691,7 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Отменить заявку?'),
         content: const Text(
-          'Исполнители потеряют доступ к отметкам прихода и ухода. Начисление по отменённой заявке не создаётся.',
+          'Исполнители потеряют доступ к отметкам прихода и ухода. Начисление по отмененной заявке не создается.',
         ),
         actions: [
           TextButton(

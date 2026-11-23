@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../services/gpm_api_service.dart';
+import '../../theme/gpm_theme.dart';
 import '../../utils/order_display.dart';
 import '../../utils/order_date_filter.dart';
 import '../../utils/order_citizenship.dart';
@@ -364,7 +365,12 @@ class _WorkerOrderApplyButtonState extends State<_WorkerOrderApplyButton> {
   Widget build(BuildContext context) => FilledButton(
     key: ValueKey('worker_apply_${widget.order['id']}'),
     onPressed: _sending || _sent ? null : _apply,
-    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+    style: FilledButton.styleFrom(
+      minimumSize: const Size.fromHeight(46),
+      backgroundColor: GpmColors.helmetYellow,
+      foregroundColor: GpmColors.black,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
     child: GpmButtonContent(
       icon: _sending
           ? const SizedBox.square(

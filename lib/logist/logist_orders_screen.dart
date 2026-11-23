@@ -228,7 +228,7 @@ class LogistOrderCard extends StatelessWidget {
                         await supabase
                             .from('orders')
                             .eq('id', order['id'])
-                            .update({'status': 'Отклонён'});
+                            .update({'status': 'Отклон\u0451н'});
                         onUpdate();
                       },
                       style: OutlinedButton.styleFrom(

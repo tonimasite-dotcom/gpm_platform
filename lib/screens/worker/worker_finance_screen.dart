@@ -122,7 +122,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: GpmColors.brandSoft,
+                        color: GpmColors.yellowSoft,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: GpmColors.softLine),
                       ),
@@ -148,7 +148,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                     ),
                     const SizedBox(height: 6),
                     _BreakdownRow(
-                      label: 'Завершённых заказов',
+                      label: 'Завершенных заказов',
                       value: '$completedCount',
                     ),
                     const SizedBox(height: 14),

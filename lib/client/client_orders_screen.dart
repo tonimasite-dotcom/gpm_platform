@@ -8,7 +8,7 @@ class ClientOrdersScreen extends StatelessWidget {
     if (status.contains('модерации')) return Colors.orange;
     if (status.contains('работе')) return Colors.blue;
     if (status.contains('Завершен')) return Colors.green;
-    if (status.contains('Отменён')) return Colors.red;
+    if ((status.contains('Отменен') || status.contains('Отмен\u0451н'))) return Colors.red;
     return Colors.grey;
   }
 

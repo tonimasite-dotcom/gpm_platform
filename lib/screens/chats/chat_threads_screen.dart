@@ -104,13 +104,13 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen>
         .toList();
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 800),
+        constraints: const BoxConstraints(maxWidth: 1120),
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
             key: PageStorageKey('chat-threads-${widget.role.name}'),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
             children: [
               Text('Чаты', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 14),

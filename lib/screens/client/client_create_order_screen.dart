@@ -363,7 +363,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       return 'Выберите дату и время минимум через 30 минут';
     }
     if (scheduledAt.isAfter(now.add(const Duration(days: 365)))) {
-      return 'Заказ можно запланировать максимум на 1 год вперёд';
+      return 'Заказ можно запланировать максимум на 1 год вперед';
     }
     return null;
   }
