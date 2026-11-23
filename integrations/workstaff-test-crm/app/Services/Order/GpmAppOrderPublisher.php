@@ -21,6 +21,33 @@ class GpmAppOrderPublisher
         return false;
     }
 
+    private function profileCrmId(string $requested, string $phone): ?int
+    {
+        $sender = auth()->user();
+        $sender = $sender ? $sender->fresh() : null;
+        if (!$sender || !$sender->hasAnyRole(['logist', 'admin'])) {
+            $this->fail('Отправка доступна логисту или администратору с ID в профиле', 403);
+            return null;
+        }
+        $saved = $sender->gpm_app_crm_id;
+        if ((!is_int($saved) && !is_string($saved))
+            || !preg_match('/^[1-9][0-9]{0,8}$/D', (string) $saved)) {
+            $this->fail('Сначала добавьте ID в приложении в настройках профиля');
+            return null;
+        }
+        if (trim($phone) !== '') {
+            $this->fail('Отправка доступна только по ID из настроек профиля');
+            return null;
+        }
+        $requested = trim($requested);
+        if ($requested !== '' && (!preg_match('/^#?[1-9][0-9]{0,8}$/D', $requested)
+            || (int) ltrim($requested, '#') !== (int) $saved)) {
+            $this->fail('ID изменился. Обновите профиль и повторите отправку');
+            return null;
+        }
+        return (int) $saved;
+    }
+
     public function publish(Order $order, string $logistPhone = '', string $logistCrmId = ''): bool
     {
         if (rtrim((string) config('app.url'), '/') !== GpmAppOrderSync::INSTANCE) {
@@ -35,30 +62,21 @@ class GpmAppOrderPublisher
 
         $sync = new GpmAppOrderSync();
         try {
-            $logistCrmId = trim($logistCrmId);
-            $code = null;
-            $recipient = null;
-            if ($logistCrmId !== '') {
-                if (trim($logistPhone) !== '') {
-                    return $this->fail('Укажите ID логиста или телефон, а не оба поля');
-                }
-                if (!preg_match('/^#?[1-9][0-9]{0,8}$/D', $logistCrmId)) {
-                    return $this->fail('Укажите ID в приложении, например #1');
-                }
-                $code = (int) ltrim($logistCrmId, '#');
-                $lookup = Http::timeout(8)->acceptJson()->withHeaders(['X-GPM-App-Token' => $token])
-                    ->get($baseUrl . '/app-api/integration/crm-logists/' . $code);
-                if ($lookup->status() === 404) {
-                    return $this->fail('ID не найден среди активных логистов Джи Пи Эм');
-                }
-                if (!$lookup->successful() || (int) $lookup->json('crm_logist_id') !== $code
-                    || !is_string($lookup->json('account_id')) || $lookup->json('account_id') === '') {
-                    return $this->fail('Не удалось проверить ID в GPM. Повторите отправку позже', 502);
-                }
-                $recipient = $lookup->json('account_id');
-            } elseif (trim($logistPhone) === '') {
-                return $this->fail('Укажите ID в приложении или телефон логиста');
+            $code = $this->profileCrmId($logistCrmId, $logistPhone);
+            if ($code === null) {
+                return false;
             }
+            $logistPhone = '';
+            $lookup = Http::timeout(8)->acceptJson()->withHeaders(['X-GPM-App-Token' => $token])
+                ->get($baseUrl . '/app-api/integration/crm-logists/' . $code);
+            if ($lookup->status() === 404) {
+                return $this->fail('ID не найден среди активных логистов Джи Пи Эм');
+            }
+            if (!$lookup->successful() || (int) $lookup->json('crm_logist_id') !== $code
+                || !is_string($lookup->json('account_id')) || $lookup->json('account_id') === '') {
+                return $this->fail('Не удалось проверить ID в GPM. Повторите отправку позже', 502);
+            }
+            $recipient = $lookup->json('account_id');
             if ($sync->enabled() && $sync->linked($order)) {
                 if ($recipient !== null) {
                     $linked = Http::timeout(8)->acceptJson()->withHeaders(['X-GPM-App-Token' => $token])

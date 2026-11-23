@@ -25,11 +25,10 @@ const change = { form: { gpm_app_crm_id: '#1' } }
 watch['form.role'].call(change, 'loader'); assert.strictEqual(change.form.gpm_app_crm_id, '')
 const methods = vm.runInNewContext('({' + fragment(orders, '    openGpmAppModal(item) {', '    closeGpmAppModal()') + '})')
 for (const saved of ['#1', null]) {
-  const view = { $store: { getters: { 'auth/user': { gpm_app_crm_id: saved } } }, gpmAppCrmId: '#999', gpmAppRecipientMode: 'phone' }
+  const view = { $store: { getters: { 'auth/user': { gpm_app_crm_id: saved } } }, gpmAppCrmId: '#999' }
   const item = { id: 42, order_number: 'SYNTHETIC/26' }; const before = JSON.stringify(item)
   methods.openGpmAppModal.call(view, item)
   assert.strictEqual(view.gpmAppCrmId, saved || '')
-  assert.strictEqual(view.gpmAppRecipientMode, 'id')
   assert.strictEqual(view.showGpmAppModal, true)
   assert.strictEqual(JSON.stringify(item), before)
 }

@@ -1,0 +1,26 @@
+name: TS publication profile ID QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/ts-profile-id-required-2026-11-23]
+  pull_request:
+    paths:
+      - integrations/workstaff-test-crm/**
+      - .github/workflows/ts-publication-profile-qa.yml
+permissions:
+  contents: read
+jobs:
+  publication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check saved profile ID boundary and existing ID validation
+        run: |
+          php -l integrations/workstaff-test-crm/app/Services/Order/GpmAppOrderPublisher.php
+          php integrations/workstaff-test-crm/tests/crm_logist_id_test.php
+          php integrations/workstaff-test-crm/profile-crm-id/test_profile_id.php
+          python3 -m py_compile integrations/workstaff-test-crm/profile-required-publication/prepare.py
+          node --check integrations/workstaff-test-crm/profile-required-publication/test_ui.js
