@@ -12,12 +12,17 @@ class GpmColors {
   static const redInk = Color(0xFFB91C1C);
   static const muted = Color(0xFF64748B);
   static const softLine = Color(0xFFE2E8F0);
-  static const yellow = Color(0xFFF8B800);
+  // Helmet fill sampled from the bundled GPM logo.
+  static const helmetYellow = Color(0xFFFFCC00);
+  static const yellow = helmetYellow;
+  static const yellowSoft = Color(0xFFFFF3C2);
+  static const yellowLine = Color(0xFFE8C75A);
+  static const yellowInk = Color(0xFF705000);
   static const black = Color(0xFF020617);
   static const graphite = Color(0xFF1E293B);
   static const line = Color(0xFFCBD5E1);
   static const surface = Color(0xFFFFFFFF);
-  static const page = Color(0xFFF1F5F9);
+  static const page = Color(0xFFF5F6F8);
 }
 
 // Opt-in only: client role alone does not identify a legal entity.
@@ -26,13 +31,19 @@ enum GpmAudience { personal, business }
 ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
   final isBusiness = audience == GpmAudience.business;
   final brand = isBusiness ? GpmColors.business : GpmColors.brandRed;
-  final action = isBusiness ? GpmColors.business : GpmColors.redAction;
-  final ink = isBusiness ? GpmColors.business : GpmColors.redInk;
-  final soft = isBusiness ? GpmColors.businessSoft : GpmColors.brandSoft;
+  final action = isBusiness ? GpmColors.business : GpmColors.helmetYellow;
+  final actionInk = isBusiness ? Colors.white : GpmColors.black;
+  final ink = isBusiness ? GpmColors.business : GpmColors.graphite;
+  final focus = isBusiness ? GpmColors.business : GpmColors.yellowInk;
+  final soft = isBusiness ? GpmColors.businessSoft : GpmColors.yellowSoft;
   final colorScheme = ColorScheme.fromSeed(
     seedColor: brand,
     primary: brand,
-    secondary: GpmColors.business,
+    secondary: action,
+    onSecondary: actionInk,
+    secondaryContainer: soft,
+    onSecondaryContainer: ink,
+    error: GpmColors.red,
     surface: GpmColors.surface,
   );
 
@@ -85,7 +96,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
     inputDecorationTheme: InputDecorationTheme(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       labelStyle: const TextStyle(color: GpmColors.muted),
-      floatingLabelStyle: TextStyle(color: ink),
+      floatingLabelStyle: TextStyle(color: focus),
       prefixIconColor: GpmColors.muted,
       suffixIconColor: GpmColors.muted,
       filled: true,
@@ -100,14 +111,14 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: brand, width: 1.4),
+        borderSide: BorderSide(color: focus, width: 1.8),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         elevation: 0,
         backgroundColor: action,
-        foregroundColor: Colors.white,
+        foregroundColor: actionInk,
         minimumSize: const Size(48, 56),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -121,7 +132,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: action,
-        foregroundColor: Colors.white,
+        foregroundColor: actionInk,
         minimumSize: const Size(48, 56),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -182,6 +193,17 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
       ),
     ),
     chipTheme: ChipThemeData(
+      selectedColor: action,
+      secondarySelectedColor: action,
+      labelStyle: const TextStyle(fontFamily: 'Manrope', color: GpmColors.graphite, fontSize: 14),
+      secondaryLabelStyle: TextStyle(
+        fontFamily: 'Manrope',
+        color: actionInk,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+      checkmarkColor: actionInk,
+      side: const BorderSide(color: GpmColors.softLine),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
@@ -190,13 +212,14 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
       unselectedItemColor: GpmColors.muted,
       type: BottomNavigationBarType.fixed,
       elevation: 0,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
     ),
     tabBarTheme: TabBarThemeData(
       labelColor: ink,
       unselectedLabelColor: GpmColors.graphite,
-      indicatorColor: brand,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      indicatorColor: action,
+      indicatorSize: TabBarIndicatorSize.label,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: GpmColors.surface,
