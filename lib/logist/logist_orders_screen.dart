@@ -58,25 +58,23 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: _selectedFilter == 'Все'
                 ? supabase
-                    .from('orders')
-                    .select()
-                    .order('created_at', ascending: false)
-                    .execute()
+                      .from('orders')
+                      .select()
+                      .order('created_at', ascending: false)
+                      .execute()
                 : supabase
-                    .from('orders')
-                    .select()
-                    .eq('status', _selectedFilter)
-                    .order('created_at', ascending: false)
-                    .execute(),
+                      .from('orders')
+                      .select()
+                      .eq('status', _selectedFilter)
+                      .order('created_at', ascending: false)
+                      .execute(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
 
               if (snapshot.hasError) {
-                return Center(
-                  child: Text('Ошибка: ${snapshot.error}'),
-                );
+                return Center(child: Text('Ошибка: ${snapshot.error}'));
               }
 
               final orders = snapshot.data ?? [];
@@ -183,8 +181,10 @@ class LogistOrderCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -203,7 +203,8 @@ class LogistOrderCard extends StatelessWidget {
                 Text(order['address'] ?? ''),
                 const SizedBox(height: 2),
                 Text(
-                    '${order['workers_count']} грузчиков × ${order['hours']} ч'),
+                  '${order['workers_count']} грузчиков × ${order['hours']} ч',
+                ),
               ],
             ),
             trailing: const Icon(Icons.chevron_right),
@@ -212,7 +213,9 @@ class LogistOrderCard extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => LogistOrderDetailsScreen(
-                      order: order, onUpdate: onUpdate),
+                    order: order,
+                    onUpdate: onUpdate,
+                  ),
                 ),
               );
             },
@@ -228,7 +231,7 @@ class LogistOrderCard extends StatelessWidget {
                         await supabase
                             .from('orders')
                             .eq('id', order['id'])
-                            .update({'status': 'Отклонён'});
+                            .update({'status': 'Отклон\u0451н'});
                         onUpdate();
                       },
                       style: OutlinedButton.styleFrom(

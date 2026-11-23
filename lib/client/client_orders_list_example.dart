@@ -24,9 +24,9 @@ class _ClientOrdersListExampleState extends State<ClientOrdersListExample> {
       setState(() {
         _ordersFuture = gpmApi.getOrders();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Статус обновлён')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Статус обновлен')));
     }
   }
 
@@ -40,17 +40,13 @@ class _ClientOrdersListExampleState extends State<ClientOrdersListExample> {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Ошибка: ${snapshot.error}'),
-          );
+          return Center(child: Text('Ошибка: ${snapshot.error}'));
         }
 
         final orders = snapshot.data ?? [];
 
         if (orders.isEmpty) {
-          return const Center(
-            child: Text('Нет заказов'),
-          );
+          return const Center(child: Text('Нет заказов'));
         }
 
         return ListView.builder(
@@ -69,18 +65,12 @@ class _ClientOrdersListExampleState extends State<ClientOrdersListExample> {
                     _updateStatus(order['id'].toString(), value);
                   },
                   itemBuilder: (BuildContext context) => [
-                    const PopupMenuItem(
-                      value: 'NEW',
-                      child: Text('Новый'),
-                    ),
+                    const PopupMenuItem(value: 'NEW', child: Text('Новый')),
                     const PopupMenuItem(
                       value: 'IN_PROGRESS',
                       child: Text('В процессе'),
                     ),
-                    const PopupMenuItem(
-                      value: 'WON',
-                      child: Text('Завершён'),
-                    ),
+                    const PopupMenuItem(value: 'WON', child: Text('Завершен')),
                   ],
                 ),
               ),

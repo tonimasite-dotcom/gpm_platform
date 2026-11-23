@@ -122,7 +122,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: GpmColors.brandSoft,
+                        color: GpmColors.yellowSoft,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: GpmColors.softLine),
                       ),
@@ -148,7 +148,7 @@ class _WorkerFinanceScreenState extends State<WorkerFinanceScreen> {
                     ),
                     const SizedBox(height: 6),
                     _BreakdownRow(
-                      label: 'Завершённых заказов',
+                      label: 'Завершенных заказов',
                       value: '$completedCount',
                     ),
                     const SizedBox(height: 14),
@@ -203,7 +203,10 @@ class _BreakdownRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: GpmColors.graphite)),
+        Expanded(
+          child: Text(label, style: const TextStyle(color: GpmColors.graphite)),
+        ),
+        const SizedBox(width: 12),
         Padding(
           // Align with the amount panel's 14 px inset and 1 px border.
           padding: const EdgeInsets.only(right: 15),

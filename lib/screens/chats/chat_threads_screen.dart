@@ -104,13 +104,13 @@ class _ChatThreadsScreenState extends State<ChatThreadsScreen>
         .toList();
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 800),
+        constraints: const BoxConstraints(maxWidth: 1120),
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
             key: PageStorageKey('chat-threads-${widget.role.name}'),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
             children: [
               Text('Чаты', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 14),
@@ -313,7 +313,10 @@ class _ThreadRow extends StatelessWidget {
         style: const TextStyle(color: GpmColors.muted, fontSize: 13),
       ),
     ),
-    trailing: Column(
+    trailing: Flex(
+      direction: MediaQuery.textScalerOf(context).scale(11) > 15
+          ? Axis.horizontal
+          : Axis.vertical,
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -322,7 +325,7 @@ class _ThreadRow extends StatelessWidget {
           _time(thread.updatedAt),
           style: const TextStyle(color: GpmColors.muted, fontSize: 11),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(width: 6, height: 6),
         if (thread.unreadCount > 0)
           Badge(
             label: Text('${thread.unreadCount}'),

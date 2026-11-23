@@ -153,16 +153,18 @@ class OrderPublishedAtMarker extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: GpmColors.yellow,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.schedule_rounded, size: 13, color: foreground),
           const SizedBox(width: 4),
-          Text(
-            'Опубликовано $publishedAt',
-            style: TextStyle(fontSize: 11, color: foreground),
+          Flexible(
+            child: Text(
+              'Опубликовано $publishedAt',
+              style: TextStyle(fontSize: 11, color: foreground),
+            ),
           ),
         ],
       ),

@@ -80,13 +80,9 @@ class WorkerReferralPromoCard extends StatelessWidget {
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFF3BF), Color(0xFFFFDF60)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: GpmColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: GpmColors.yellowLine),
+          border: Border.all(color: GpmColors.brandRed, width: 2),
         ),
         child: InkWell(
           key: const Key('worker_referral_promo_card'),
@@ -132,39 +128,14 @@ class WorkerReferralPromoCard extends StatelessWidget {
                   ],
                 ),
               );
-              final heading = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Приведи друга',
-                    style: TextStyle(
-                      color: GpmColors.black,
-                      fontWeight: FontWeight.w800,
-                      fontSize: wide ? 18 : 14,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  if (wide)
-                    const Text(
-                      'Работать вместе — выгоднее',
-                      style: TextStyle(
-                        color: GpmColors.yellowInk,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    )
-                  else
-                    const Text(
-                      'Бонус до 5 000 ₽',
-                      style: TextStyle(
-                        color: GpmColors.black,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        height: 1.2,
-                      ),
-                    ),
-                ],
+              final heading = Text(
+                'Акция «Приведи друга»',
+                style: TextStyle(
+                  color: GpmColors.black,
+                  fontWeight: FontWeight.w800,
+                  fontSize: wide ? 18 : 14,
+                  height: 1.3,
+                ),
               );
               final cta = Container(
                 key: const Key('worker_referral_promo_cta'),
@@ -173,7 +144,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                   vertical: 11,
                 ),
                 decoration: BoxDecoration(
-                  color: GpmColors.graphite,
+                  color: GpmColors.redAction,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -208,7 +179,7 @@ class WorkerReferralPromoCard extends StatelessWidget {
                         Text(
                           'за приглашенного друга',
                           style: TextStyle(
-                            color: GpmColors.yellowInk,
+                            color: GpmColors.muted,
                             fontSize: 12,
                           ),
                         ),

@@ -59,7 +59,8 @@ class QueryBuilder {
     );
     if (result['success'] != true) {
       throw StateError(
-          result['error']?.toString() ?? 'Не удалось создать заказ');
+        result['error']?.toString() ?? 'Не удалось создать заказ',
+      );
     }
   }
 
@@ -88,7 +89,8 @@ class QueryBuilder {
         return 'CONVERTED';
       case 'На подтверждении':
         return 'DONE_PENDING';
-      case 'Отклонён':
+      case 'Отклон\u0451н':
+      case 'Отклонен':
         return 'JUNK';
       default:
         return 'NEW';
@@ -101,23 +103,26 @@ class QueryBuilder {
     if (_table == 'orders') {
       final orders = await _compat._gpmApi.getOrders();
       results = orders
-          .map((o) => {
-                'id': o['id'] ?? '',
-                'title': o['title'] ?? 'Заказ',
-                'status': _mapBitrixStatus(o['status'] ?? 'NEW'),
-                'address': o['address'] ?? '',
-                'workers_count': o['workers_count'] ?? 1,
-                'hours': o['hours'] ?? 1,
-                'description': o['description'] ?? '',
-                'created_at': o['created_at'],
-                'source': o['source'],
-                'external_order_id': o['external_order_id'],
-              })
+          .map(
+            (o) => {
+              'id': o['id'] ?? '',
+              'title': o['title'] ?? 'Заказ',
+              'status': _mapBitrixStatus(o['status'] ?? 'NEW'),
+              'address': o['address'] ?? '',
+              'workers_count': o['workers_count'] ?? 1,
+              'hours': o['hours'] ?? 1,
+              'description': o['description'] ?? '',
+              'created_at': o['created_at'],
+              'source': o['source'],
+              'external_order_id': o['external_order_id'],
+            },
+          )
           .toList();
 
       if (_filterColumn != null && _filterValue != null) {
-        results =
-            results.where((o) => o[_filterColumn] == _filterValue).toList();
+        results = results
+            .where((o) => o[_filterColumn] == _filterValue)
+            .toList();
       }
 
       if (_orFilter != null) {
@@ -169,7 +174,7 @@ class QueryBuilder {
       case 'DONE_PENDING':
         return 'На подтверждении';
       case 'JUNK':
-        return 'Отклонён';
+        return 'Отклонен';
       default:
         return 'На модерации';
     }

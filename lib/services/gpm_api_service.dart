@@ -51,7 +51,7 @@ class GpmApiService {
     },
     {
       'id': '1003',
-      'title': 'Подъём стройматериалов',
+      'title': 'Подъем стройматериалов',
       'status': 'CONVERTED',
       'address': 'ул. Строителей, 7',
       'workers_count': 4,
@@ -194,7 +194,7 @@ class GpmApiService {
     } on TimeoutException {
       return {
         'success': false,
-        'error': 'Сервер не ответил вовремя. Попробуйте ещё раз.',
+        'error': 'Сервер не ответил вовремя. Попробуйте еще раз.',
       };
     } catch (_) {
       return {'success': false, 'error': 'Не удалось принять приглашение'};
@@ -247,7 +247,7 @@ class GpmApiService {
       if (authenticatedRole != role) {
         return {
           'success': false,
-          'error': 'Эта учётная запись относится к другой роли.',
+          'error': 'Эта учетная запись относится к другой роли.',
         };
       }
 
@@ -2127,7 +2127,7 @@ class GpmApiService {
     if (reviews.containsKey(workerId)) {
       return reviews[workerId]['result'] == result
           ? {'success': true, 'already_recorded': true, 'order': order}
-          : {'success': false, 'error': 'Исполнитель уже оценён'};
+          : {'success': false, 'error': 'Исполнитель уже оценен'};
     }
     if (!{'DONE_PENDING', 'CONVERTED'}.contains(order['status'])) {
       return {'success': false, 'error': 'Заявка не ожидает подтверждения'};

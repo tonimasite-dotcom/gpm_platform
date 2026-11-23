@@ -197,7 +197,7 @@ class _LogistWorkersScreenState extends State<LogistWorkersScreen> {
                                 ? 'Штатный'
                                 : 'Подрядчик',
                             if (worker['is_active'] == false)
-                              'Аккаунт отключён',
+                              'Аккаунт отключен',
                           ].join(' · '),
                         ),
                         Text(workerRatingSummary(worker)),
@@ -210,7 +210,7 @@ class _LogistWorkersScreenState extends State<LogistWorkersScreen> {
               if (_hasMore)
                 OutlinedButton(
                   onPressed: _loading ? null : () => _load(more: true),
-                  child: const Text('Показать ещё'),
+                  child: const Text('Показать еще'),
                 ),
             ],
           ),

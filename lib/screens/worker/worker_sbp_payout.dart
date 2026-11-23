@@ -351,7 +351,7 @@ class _BankPickerState extends State<_BankPicker> {
 
   String _search(String value) => value
       .toLowerCase()
-      .replaceAll('ё', 'е')
+      .replaceAll('\u0451', 'е')
       .replaceAll(RegExp(r'[^a-zа-я0-9]'), '');
   @override
   Widget build(BuildContext context) => Column(

@@ -58,7 +58,7 @@ void main() {
     expect(find.text('Не РФ'), findsNothing);
     await tester.tap(find.text('Любое').last);
     await tester.pumpAndSettle();
-    final rate = find.widgetWithText(TextFormField, 'Ставка в час: наёмник');
+    final rate = find.widgetWithText(TextFormField, 'Ставка в час: наемник');
     await tester.scrollUntilVisible(
       rate,
       300,

@@ -188,7 +188,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Профиль сохранён'),
+          content: Text('Профиль сохранен'),
           backgroundColor: Colors.green,
         ),
       );
@@ -433,25 +433,17 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Самозанятым по умолчанию выбрана выплата по счёту.',
-                            style: TextStyle(
-                              color: GpmColors.graphite,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
                           GpmSegmentedButton<String>(
                             segments: const [
+                              ButtonSegment(
+                                value: 'account',
+                                icon: Icon(Icons.account_balance_outlined),
+                                label: Text('Счет (для самозанятых)'),
+                              ),
                               ButtonSegment(
                                 value: 'sbp',
                                 icon: Icon(Icons.phone_android_outlined),
                                 label: Text('СБП'),
-                              ),
-                              ButtonSegment(
-                                value: 'account',
-                                icon: Icon(Icons.account_balance_outlined),
-                                label: Text('Счёт'),
                               ),
                               ButtonSegment(
                                 value: 'card',
@@ -503,7 +495,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                                 TextFormField(
                                   controller: _payoutAccount,
                                   decoration: const InputDecoration(
-                                    labelText: 'Счёт для выплат',
+                                    labelText: 'Счет для выплат',
                                   ),
                                   keyboardType: TextInputType.number,
                                   inputFormatters: [
@@ -842,28 +834,50 @@ class _VerificationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(
-                verified
-                    ? Icons.verified
-                    : pending
-                    ? Icons.schedule
-                    : Icons.verified_user_outlined,
-                color: color,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 260 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 18;
+              final heading = Row(
+                children: [
+                  Icon(
+                    verified
+                        ? Icons.verified
+                        : pending
+                        ? Icons.schedule
+                        : Icons.verified_user_outlined,
+                    color: color,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              );
+              final statusLabel = Text(
                 _verificationLabel(status),
                 style: TextStyle(color: color, fontWeight: FontWeight.w700),
-              ),
-            ],
+              );
+              return stacked
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        heading,
+                        const SizedBox(height: 6),
+                        statusLabel,
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: heading),
+                        const SizedBox(width: 10),
+                        statusLabel,
+                      ],
+                    );
+            },
           ),
           const SizedBox(height: 8),
           Text(description),
@@ -1033,7 +1047,7 @@ class _PassportDialogState extends State<_PassportDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Используйте только закрытый тестовый контур. Фотография будет храниться в защищённом серверном каталоге.',
+                  'Используйте только закрытый тестовый контур. Фотография будет храниться в защищенном серверном каталоге.',
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

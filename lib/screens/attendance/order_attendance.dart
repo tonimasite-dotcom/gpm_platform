@@ -185,7 +185,7 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
       final action = attendance['status'] == 'completed' ? 'Уход' : 'Приход';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$action подтверждён'),
+          content: Text('$action подтвержден'),
           backgroundColor: Colors.green,
         ),
       );

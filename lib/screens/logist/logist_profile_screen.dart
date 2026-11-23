@@ -137,7 +137,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Профиль логиста сохранён'),
+          content: Text('Профиль логиста сохранен'),
           backgroundColor: Colors.green,
         ),
       );

@@ -116,7 +116,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
 
   String _cityFromAddress(dynamic value) {
     final firstPart = _value(value).split(',').first.trim();
-    final lower = firstPart.toLowerCase().replaceAll('ё', 'е');
+    final lower = firstPart.toLowerCase().replaceAll('\u0451', 'е');
     for (final prefix in const ['город ', 'г. ', 'г ']) {
       if (lower.startsWith(prefix)) {
         return firstPart.substring(prefix.length).trim();
@@ -175,7 +175,7 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
       return 'Минимум через 30 минут';
     }
     if (scheduledAt.isAfter(now.add(const Duration(days: 366)))) {
-      return 'Не более чем на год вперёд';
+      return 'Не более чем на год вперед';
     }
     return null;
   }
@@ -338,8 +338,8 @@ class _OrderDraftEditScreenState extends State<OrderDraftEditScreen> {
             _priceField(
               _pricePerHour,
               _workMode == 'shift'
-                  ? 'Ставка за смену: наёмник'
-                  : 'Ставка в час: наёмник',
+                  ? 'Ставка за смену: наемник'
+                  : 'Ставка в час: наемник',
               requirePerformerRate: true,
             ),
             _field(_additionalInfo, 'Дополнительная информация', maxLines: 3),

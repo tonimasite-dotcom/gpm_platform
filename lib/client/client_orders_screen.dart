@@ -8,7 +8,9 @@ class ClientOrdersScreen extends StatelessWidget {
     if (status.contains('модерации')) return Colors.orange;
     if (status.contains('работе')) return Colors.blue;
     if (status.contains('Завершен')) return Colors.green;
-    if (status.contains('Отменён')) return Colors.red;
+    if ((status.contains('Отменен') || status.contains('Отмен\u0451н'))) {
+      return Colors.red;
+    }
     return Colors.grey;
   }
 
@@ -26,9 +28,7 @@ class ClientOrdersScreen extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Ошибка загрузки: ${snapshot.error}'),
-          );
+          return Center(child: Text('Ошибка загрузки: ${snapshot.error}'));
         }
 
         final orders = snapshot.data ?? [];
@@ -67,7 +67,9 @@ class ClientOrdersScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -84,7 +86,8 @@ class ClientOrdersScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 4),
                     Text(
-                        '👷 ${order['workers_count']} грузчиков × ${order['hours']} ч'),
+                      '👷 ${order['workers_count']} грузчиков × ${order['hours']} ч',
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       '📍 ${order['address'] ?? ''}',
@@ -121,9 +124,7 @@ class ClientOrderDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Детали заказа'),
-      ),
+      appBar: AppBar(title: const Text('Детали заказа')),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: supabase.from('orders').select().eq('id', orderId).single(),
         builder: (context, snapshot) {
@@ -145,7 +146,9 @@ class ClientOrderDetailsScreen extends StatelessWidget {
                 Text(
                   order['title'] ?? 'Заказ',
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -153,15 +156,19 @@ class ClientOrderDetailsScreen extends StatelessWidget {
                     const Text('📋 Статус: '),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         order['status'] ?? '',
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.blue),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue,
+                        ),
                       ),
                     ),
                   ],
@@ -170,7 +177,8 @@ class ClientOrderDetailsScreen extends StatelessWidget {
                 Text('📍 ${order['address'] ?? ''}'),
                 const SizedBox(height: 8),
                 Text(
-                    '👷 ${order['workers_count']} грузчиков × ${order['hours']} ч'),
+                  '👷 ${order['workers_count']} грузчиков × ${order['hours']} ч',
+                ),
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 16),
@@ -188,7 +196,8 @@ class ClientOrderDetailsScreen extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                              'Функция изменения/отмены заказа будет добавлена позже'),
+                            'Функция изменения/отмены заказа будет добавлена позже',
+                          ),
                         ),
                       );
                     },
