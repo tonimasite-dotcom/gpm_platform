@@ -1,5 +1,8 @@
 import os
 import tempfile
+from contextlib import contextmanager
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from uuid import uuid4
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -9,19 +12,36 @@ from app import crew_storage as s, crew_flow as flow, crew_confirmation as confi
 
 
 class CrewAttendanceTests(unittest.TestCase):
+    postgres = False
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        database_url = ""
+        self.schema = None
+        if self.postgres:
+            from psycopg2 import sql
+            self.postgres_dsn = os.environ["GPM_TEST_POSTGRES_URL"]
+            target = urlsplit(self.postgres_dsn)
+            self.assertIn(target.hostname, {"127.0.0.1", "localhost"})
+            self.assertEqual(target.path, "/gpm_test")
+            self.schema = "crew_test_" + uuid4().hex
+            with api.psycopg2.connect(self.postgres_dsn) as admin:
+                with admin.cursor() as cursor:
+                    cursor.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
+            query = dict(parse_qsl(target.query))
+            query["options"] = "-csearch_path=" + self.schema
+            database_url = urlunsplit((target.scheme, target.netloc, target.path, urlencode(query), target.fragment))
         self.environment = patch.dict(os.environ, {
             "GPM_APP_SQLITE_DB_FILE": self.temp.name+"/crew.sqlite3",
-            "GPM_APP_DATABASE_URL": "", "DATABASE_URL": "",
+            "GPM_APP_DATABASE_URL": database_url, "DATABASE_URL": "",
             "GPM_APP_JWT_SECRET": "x"*40, "GPM_APP_CREW_ATTENDANCE_ENABLED": "true",
         }, clear=True)
         self.environment.start()
         api.init_db()
-        with api.db_connection() as c:
+        with self.db() as c:
             for user,role in [("client","client"),("leader","worker"),("member","worker"),
                               ("late","worker"),("logist","logist"),("stranger","logist")]:
-                c.execute(f"""INSERT INTO {api.ACCOUNTS_TABLE_NAME}
+                s.query(c,f"""INSERT INTO {api.ACCOUNTS_TABLE_NAME}
                     (account_id,username,username_normalized,password_hash,role) VALUES (?,?,?,?,?)""",
                     (user,user,user,"synthetic-hash",role))
         self.client={"sub":"client","role":"client"}
@@ -33,11 +53,27 @@ class CrewAttendanceTests(unittest.TestCase):
             "logist_account_id":"logist","assigned_worker_ids":["leader","member"],"workers_count":2,
             "crew_leader_account_id":"leader","address_lat":59.93,"address_lon":30.31,
             "hours":4,"min_time":4,"price_per_hour":500}
-        with api.db_connection() as c:
+        with self.db() as c:
             api.write_order_in_connection(c,self.order)
+
+    @contextmanager
+    def db(self):
+        with api.db_connection() as connection:
+            try:
+                yield connection
+                if self.postgres:
+                    connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
 
     def tearDown(self):
         self.environment.stop()
+        if self.schema:
+            from psycopg2 import sql
+            with api.psycopg2.connect(self.postgres_dsn) as admin:
+                with admin.cursor() as cursor:
+                    cursor.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(self.schema)))
         self.temp.cleanup()
 
     def geo(self,**changes):
@@ -59,7 +95,7 @@ class CrewAttendanceTests(unittest.TestCase):
     def test_batch_records_individual_scan_time(self):
         _,proof,token=self.batch()
         self.assertEqual(len(api.preview_attendance_for_client(self.client,token=token)["participants"]),2)
-        with api.db_connection() as c:
+        with self.db() as c:
             scanned=s.one(c,f"SELECT collected_at FROM {s.MEMBERS} WHERE evidence_id=?",(proof["evidence_id"],))["collected_at"]
         self.assertTrue(api.confirm_attendance_by_client(self.client,token=token)["crew"])
         rows=api.list_order_attendance(self.order["id"],self.client)["attendance"]
@@ -81,14 +117,14 @@ class CrewAttendanceTests(unittest.TestCase):
     def test_geo_review_is_scoped_and_preserves_time(self):
         _,proof,token=self.batch(bad=True)
         api.confirm_attendance_by_client(self.client,token=token)
-        with api.db_connection() as c:
+        with self.db() as c:
             self.assertIsNone(api._read_attendance_in_connection(c,self.order["id"],"member"))
             row=s.one(c,f"SELECT * FROM {s.MEMBERS} WHERE evidence_id=?",(proof["evidence_id"],))
             self.assertEqual(row["status"],"pending_review")
         self.error(403,confirmation.review,proof["evidence_id"],{"sub":"stranger","role":"logist"},"approve","checked")
         self.error(422,confirmation.review,proof["evidence_id"],self.logist,"approve","")
         confirmation.review(proof["evidence_id"],self.logist,"approve","Checked presence evidence")
-        with api.db_connection() as c:
+        with self.db() as c:
             record=api._read_attendance_in_connection(c,self.order["id"],"member")
             self.assertEqual(api.parse_db_datetime(record["check_in_at"]),api.parse_db_datetime(row["collected_at"]))
         self.error(409,confirmation.review,proof["evidence_id"],self.logist,"approve","retry")
@@ -101,7 +137,7 @@ class CrewAttendanceTests(unittest.TestCase):
         _,proof,token=self.batch(bad=True)
         api.confirm_attendance_by_client(self.client,token=token)
         confirmation.review(proof["evidence_id"],self.logist,"reject","Not present at object")
-        with api.db_connection() as c:
+        with self.db() as c:
             self.assertIsNone(api._read_attendance_in_connection(c,self.order["id"],"member"))
         flow.presence(self.order["id"],self.member,self.geo())
 
@@ -111,7 +147,7 @@ class CrewAttendanceTests(unittest.TestCase):
 
     def test_reassigned_leader_invalidates_frozen_qr(self):
         _,_,token=self.batch()
-        with api.db_connection() as c:
+        with self.db() as c:
             order=api.read_order_in_connection(c,self.order["id"])
             order["crew_leader_account_id"]="member"
             api.write_order_in_connection(c,order)
@@ -138,13 +174,13 @@ class CrewAttendanceTests(unittest.TestCase):
         order=api.get_order(self.order["id"])
         self.assertNotEqual(order["status"],"DONE_PENDING")
         order["status"]="DONE_PENDING"
-        with api.db_connection() as c:
+        with self.db() as c:
             self.error(409,api.write_order_in_connection,c,order)
         confirmation.review(proof["evidence_id"],self.logist,"approve","Confirmed exception")
         self.assertEqual(api.get_order(self.order["id"])["status"],"DONE_PENDING")
 
     def test_solo_worker_uses_own_final_qr(self):
-        with api.db_connection() as c:
+        with self.db() as c:
             order=api.read_order_in_connection(c,self.order["id"])
             order["assigned_worker_ids"]=["member"]
             order.pop("crew_leader_account_id",None)
@@ -161,7 +197,7 @@ class CrewAttendanceTests(unittest.TestCase):
         flow.cancel(session["session_id"],self.leader)
 
     def test_crm_identity_and_roster_are_explicit(self):
-        with api.db_connection() as c:
+        with self.db() as c:
             order=api.read_order_in_connection(c,self.order["id"])
             order.update(source="crm",source_system="workstaff",source_instance=api.CRM_SYNC_INSTANCE)
             api.write_order_in_connection(c,order)
@@ -178,7 +214,7 @@ class CrewAttendanceTests(unittest.TestCase):
 
 
     def test_guest_confirms_one_frozen_list_and_only_leader_redeems_code(self):
-        with api.db_connection() as c:
+        with self.db() as c:
             order=api.read_order_in_connection(c,self.order["id"])
             order.update(created_by_role="logist",created_by="logist")
             api.write_order_in_connection(c,order)
@@ -207,7 +243,7 @@ class CrewAttendanceTests(unittest.TestCase):
         self.assertEqual(len(api.list_order_attendance(self.order["id"],self.client)["attendance"]),2)
 
     def test_activation_preserves_an_already_started_legacy_shift(self):
-        with api.db_connection() as c:
+        with self.db() as c:
             order=api.read_order_in_connection(c,self.order["id"])
             order.pop("attendance_policy",None)
             api.write_order_in_connection(c,order)
@@ -215,3 +251,8 @@ class CrewAttendanceTests(unittest.TestCase):
         challenge=api.create_attendance_challenge(self.order["id"],self.member,public_api_url="https://example.test")
         api.confirm_attendance_by_client(self.client,token=challenge["confirmation_url"].split("/")[-1])
         self.error(409,flow.enable_order,self.order["id"],self.logist)
+
+
+@unittest.skipUnless(os.getenv("GPM_TEST_POSTGRES_URL"), "isolated PostgreSQL CI service only")
+class CrewAttendancePostgresTests(CrewAttendanceTests):
+    postgres = True
