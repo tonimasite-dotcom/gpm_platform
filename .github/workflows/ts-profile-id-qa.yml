@@ -1,0 +1,37 @@
+name: TS profile ID QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/ts-profile-gpm-id-2026-11-22]
+permissions:
+  contents: read
+jobs:
+  php:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:5.7.44
+        env:
+          MYSQL_ROOT_PASSWORD: synthetic-profile-password
+          MYSQL_ROOT_HOST: "%"
+          MYSQL_DATABASE: gpm_profile_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent -h 127.0.0.1 -psynthetic-profile-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      GPM_PROFILE_TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=gpm_profile_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate optional TS profile routing ID
+        run: |
+          find integrations/workstaff-test-crm/profile-crm-id -name '*.php' -print0 | xargs -0 -n 1 php -l
+          php integrations/workstaff-test-crm/profile-crm-id/test_profile_id.php
+          php integrations/workstaff-test-crm/profile-crm-id/test_schema_mysql.php
+          python3 -m py_compile integrations/workstaff-test-crm/profile-crm-id/prepare.py
