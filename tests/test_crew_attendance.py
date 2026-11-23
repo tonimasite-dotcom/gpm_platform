@@ -250,7 +250,11 @@ class CrewAttendanceTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as caught:
             api.confirm_attendance_by_client(self.client, token=token)
         self.assertIn(caught.exception.status_code, [409, 410])
-        self.assertEqual(api.list_order_attendance(self.order["id"], self.client)["attendance"], [])
+        rows = api.list_order_attendance(self.order["id"], self.client)["attendance"]
+        self.assertTrue(all(row["status"] == "not_started" and row["check_in_at"] is None for row in rows))
+        with self.db() as connection:
+            self.assertIsNone(api._read_attendance_in_connection(connection, self.order["id"], "leader"))
+            self.assertIsNone(api._read_attendance_in_connection(connection, self.order["id"], "member"))
 
     def test_rollback_preparation_preserves_confirmed_and_manual_review_rows(self):
         from app.crew_maintenance import quiesce
