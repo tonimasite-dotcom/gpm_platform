@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../main.dart' show gpmApi;
 import '../../theme/gpm_theme.dart';
+import 'crew_attendance.dart';
 
 String? attendanceTokenFromQr(String rawValue) {
   final raw = rawValue.trim();
@@ -148,11 +149,20 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
             children: [
               Text(preview['order_title']?.toString() ?? widget.orderId),
               const SizedBox(height: 12),
-              const Text('Исполнитель:'),
-              Text(
-                preview['worker_name']?.toString() ?? 'Исполнитель',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              if (preview['participants'] is List) ...[
+                const Text('Подтверждаемый список:'),
+                for (final person in (preview['participants'] as List).whereType<Map>())
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text('${person['worker_name']} · ${crewTime(person['collected_at'])}${person['geo_status'] == 'valid' ? '' : ' · геолокацию проверит логист'}'),
+                  ),
+              ] else ...[
+                const Text('Исполнитель:'),
+                Text(
+                  preview['worker_name']?.toString() ?? 'Исполнитель',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
               const SizedBox(height: 12),
               const Text(
                 'Подтверждайте только если исполнитель находится рядом с вами.',
@@ -182,10 +192,11 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
       );
       if (!mounted) return;
       setState(_reload);
-      final action = attendance['status'] == 'completed' ? 'Уход' : 'Приход';
+      final action = preview['action'] == 'check_out' ? 'Уход' : 'Приход';
+      final pending = (attendance['pending_review'] as num? ?? 0) > 0;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$action подтвержден'),
+          content: Text(pending ? 'Список подтвержден. Спорные отметки проверит логист' : '$action подтвержден'),
           backgroundColor: Colors.green,
         ),
       );
@@ -204,7 +215,10 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return CrewAttendanceGate(
+      orderId: widget.orderId,
+      
+      child: Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -275,7 +289,7 @@ class _OrderAttendancePanelState extends State<OrderAttendancePanel> {
           },
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -344,7 +358,10 @@ class _WorkerAttendancePanelState extends State<WorkerAttendancePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
+    return CrewAttendanceGate(
+      orderId: widget.orderId,
+      onChanged: widget.onChanged,
+      child: FutureBuilder<Map<String, dynamic>>(
       future: _future,
       builder: (context, snapshot) {
         final rows = (snapshot.data?['attendance'] as List? ?? const [])
@@ -395,7 +412,7 @@ class _WorkerAttendancePanelState extends State<WorkerAttendancePanel> {
           ),
         );
       },
-    );
+    ));
   }
 }
 

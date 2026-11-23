@@ -33,3 +33,36 @@ jobs:
           cache-dependency-path: requirements-api.lock
       - run: python -m pip install --disable-pip-version-check -r requirements-api.lock
       - run: python -m unittest tests.test_crew_attendance -v
+  flutter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+      - name: Configure synthetic environment
+        run: printf '%s\n' 'GPM_APP_MODE=demo' > .env
+      - run: flutter pub get
+      - run: dart format lib/screens/attendance lib/services/gpm_api_service.dart test/crew_attendance_test.dart
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub test/crew_attendance_test.dart test/order_attendance_test.dart
+      - name: Save previews and locked dependencies
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: crew-attendance-review
+          path: |
+            build/crew-attendance-shots/*.png
+            lib/screens/attendance/*.dart
+            lib/services/gpm_api_service.dart
+            test/crew_attendance_test.dart
+            pubspec.lock
+            linux/flutter/generated_plugin_registrant.cc
+            windows/flutter/generated_plugin_registrant.cc
+            macos/Flutter/GeneratedPluginRegistrant.swift
+          retention-days: 7

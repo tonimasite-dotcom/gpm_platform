@@ -36,6 +36,11 @@ def register(app):
         user = await user_for(authorization, response)
         return await asyncio.to_thread(flow.state, order_id, user)
 
+    @app.post("/app-api/me/crew-attendance/{order_id:path}/enable")
+    async def crew_enable(order_id: str, response: Response, authorization: str | None = Header(default=None)):
+        user = await user_for(authorization, response)
+        return await asyncio.to_thread(flow.enable_order, order_id, user)
+
     @app.post("/app-api/me/crew-attendance/{order_id:path}/leader")
     async def crew_leader(order_id: str, request: Request, response: Response,
                           authorization: str | None = Header(default=None)):
@@ -97,7 +102,7 @@ def register(app):
         body = await s.api().bounded_json_payload(request, max_bytes=32768)
         operation = body.get("operation")
         functions = {"export": confirmation.export, "link": confirmation.link_worker,
-                     "roster": confirmation.sync_roster, "review": confirmation.crm_review}
+                     "roster": confirmation.sync_roster, "review": confirmation.crm_review, "enable": confirmation.crm_enable}
         if operation not in functions:
             from fastapi import HTTPException
             raise HTTPException(422, "Неизвестное действие табеля")

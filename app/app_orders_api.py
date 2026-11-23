@@ -2787,7 +2787,7 @@ def create_attendance_challenge(
     public_api_url: str,
 ) -> dict[str, Any]:
     require_role(user, "worker")
-    if crew_storage.enabled() or crew_storage.protected(get_order(order_id) or {}):
+    if crew_storage.protected(get_order(order_id) or {}):
         return crew_flow.presence(order_id, user, public_api_url=public_api_url)
     init_db()
     worker_account_id = str(user.get("sub") or "")

@@ -160,6 +160,10 @@ def mark_policy(connection, order):
 
 
 def audit(connection, event, user, order_id, details):
+    order = api().read_order_in_connection(connection, str(order_id), for_update=True)
+    if order is not None:
+        order["crew_event_revision"] = int(order.get("crew_event_revision") or 0)+1
+        api().write_order_in_connection(connection, order)
     api().record_audit_event_in_connection(
         connection, event_type=event, outcome="success",
         actor_account_id=actor(user), actor_username=str(user.get("username") or user.get("role") or ""),

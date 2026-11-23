@@ -29,7 +29,7 @@ class CrewAttendanceTests(unittest.TestCase):
         self.member={"sub":"member","role":"worker"}
         self.logist={"sub":"logist","role":"logist"}
         self.order={"id":"SYNTHETIC/CREW","external_order_id":"SYNTHETIC/CREW","title":"Synthetic",
-            "status":"PROCESSED","source":"manual","created_by_role":"client","created_by":"client",
+            "attendance_policy":"crew_geo_v1","status":"PROCESSED","source":"manual","created_by_role":"client","created_by":"client",
             "logist_account_id":"logist","assigned_worker_ids":["leader","member"],"workers_count":2,
             "crew_leader_account_id":"leader","address_lat":59.93,"address_lon":30.31,
             "hours":4,"min_time":4,"price_per_hour":500}
@@ -120,10 +120,9 @@ class CrewAttendanceTests(unittest.TestCase):
     def test_expired_presence_cannot_be_collected(self):
         session=flow.start(self.order["id"],self.leader,"check_in",self.geo())
         proof=flow.presence(self.order["id"],self.member,self.geo())
-        with api.db_connection() as c:
-            s.query(c,f"UPDATE {s.MEMBERS} SET token_expires_at=? WHERE evidence_id=?",
-                    (s.stamp(s.now()-timedelta(seconds=1)),proof["evidence_id"]))
-        self.error(410,flow.scan,session["session_id"],self.leader,proof["confirmation_url"],self.geo())
+        future=s.now()+timedelta(seconds=61)
+        with patch("app.crew_storage.now",return_value=future):
+            self.error(410,flow.scan,session["session_id"],self.leader,proof["confirmation_url"],self.geo())
 
     def test_geo_accuracy_distance_age_and_invalid_values(self):
         self.assertEqual(s.geo_evidence(self.geo(),self.order)["status"],"valid")
@@ -176,3 +175,43 @@ class CrewAttendanceTests(unittest.TestCase):
         result=confirmation.export(self.order["id"],body)
         self.assertEqual({r["crm_worker_id"] for r in result["rows"]},{"101","102"})
         self.error(409,confirmation.link_worker,self.order["id"],{**body,"crm_worker_id":"999"})
+
+
+    def test_guest_confirms_one_frozen_list_and_only_leader_redeems_code(self):
+        with api.db_connection() as c:
+            order=api.read_order_in_connection(c,self.order["id"])
+            order.update(created_by_role="logist",created_by="logist")
+            api.write_order_in_connection(c,order)
+        _,_,token=self.batch()
+        context=api.public_attendance_confirmation_context(token=token)
+        self.assertEqual(len(context["participants"]),2)
+        code=api.guest_confirm_attendance(token=token)["completion_code"]
+        self.error(409,api.complete_guest_attendance_by_worker,self.member,code)
+        result=api.complete_guest_attendance_by_worker(self.leader,code)
+        self.assertTrue(result["crew"])
+        self.assertEqual(len(result["rows"]),2)
+        self.error(409,api.complete_guest_attendance_by_worker,self.leader,code)
+
+    def test_duplicate_confirmations_are_serialized(self):
+        from concurrent.futures import ThreadPoolExecutor
+        _,_,token=self.batch()
+        def confirm():
+            try:
+                api.confirm_attendance_by_client(self.client,token=token)
+                return 200
+            except HTTPException as error:
+                return error.status_code
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results=list(executor.map(lambda _:confirm(),range(2)))
+        self.assertEqual(sorted(results),[200,409])
+        self.assertEqual(len(api.list_order_attendance(self.order["id"],self.client)["attendance"]),2)
+
+    def test_activation_preserves_an_already_started_legacy_shift(self):
+        with api.db_connection() as c:
+            order=api.read_order_in_connection(c,self.order["id"])
+            order.pop("attendance_policy",None)
+            api.write_order_in_connection(c,order)
+        self.assertFalse(flow.state(self.order["id"],self.member)["enabled"])
+        challenge=api.create_attendance_challenge(self.order["id"],self.member,public_api_url="https://example.test")
+        api.confirm_attendance_by_client(self.client,token=challenge["confirmation_url"].split("/")[-1])
+        self.error(409,flow.enable_order,self.order["id"],self.logist)

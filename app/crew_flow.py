@@ -46,6 +46,8 @@ def presence(order_id, user, location=None, action=None, public_api_url=None):
     with s.transaction() as connection:
         order = s.load_order(connection, order_id, user)
         s.require_open(order)
+        if not s.protected(order):
+            raise HTTPException(409, "Сначала логист должен включить новый QR-табель")
         s.expire_unconfirmed(connection, str(order["id"]))
         if s.actor(user) == s.leader(order):
             session = _start(connection, order, user, action, location)
@@ -68,6 +70,8 @@ def presence(order_id, user, location=None, action=None, public_api_url=None):
 def _start(connection, order, user, action, location):
     s.require_leader(order, user)
     s.require_open(order)
+    if not s.protected(order):
+        raise HTTPException(409, "Сначала логист должен включить новый QR-табель")
     order_id = str(order["id"])
     s.expire_unconfirmed(connection, order_id)
     action = s.action_value(action) if action else s.next_action(connection, order_id, s.actor(user))
@@ -241,12 +245,28 @@ def set_leader(order_id, user, worker_id):
         return assign_leader(connection, order, worker_id, user)
 
 
-def assign_leader(connection, order, worker_id, user):
+def assign_leader(connection, order, worker_id, user, *, force=False):
     if worker_id not in s.assigned(order):
         raise HTTPException(422, "Старший должен быть назначен на эту заявку")
     account = s.one(connection, f"SELECT role,is_active FROM {s.api().ACCOUNTS_TABLE_NAME} WHERE account_id=?", (worker_id,))
     if not account or account["role"] != "worker" or not account["is_active"]:
         raise HTTPException(422, "Нужен активный профиль исполнителя")
+    if order.get("crew_leader_account_id") == worker_id and not force:
+        return {"success": True}
+    # Reassignment expires unconfirmed collections and keeps accepted history.
+    old_sessions = s.query(connection, f"SELECT * FROM {s.SESSIONS} WHERE order_id=? AND status IN ('collecting','awaiting_confirmation')",
+                           (str(order["id"]),))
+    for previous in old_sessions:
+        challenge = s.one(connection, f"SELECT * FROM {s.api().ATTENDANCE_CHALLENGES_TABLE_NAME} WHERE challenge_id=?",
+                          (previous.get("final_challenge_id"),))
+        if challenge and challenge.get("verifier_confirmed_at") and s.api().parse_db_datetime(challenge["expires_at"]) > s.now():
+            raise HTTPException(409, "Сначала завершите подтвержденный клиентом сбор")
+        if challenge:
+            s.query(connection, f"UPDATE {s.api().ATTENDANCE_CHALLENGES_TABLE_NAME} SET expires_at=? WHERE challenge_id=?",
+                    (s.stamp(), challenge["challenge_id"]))
+        s.query(connection, f"UPDATE {s.MEMBERS} SET status='expired' WHERE session_id=? AND status IN ('collected','awaiting_confirmation')",
+                (previous["session_id"],))
+        s.query(connection, f"UPDATE {s.SESSIONS} SET status='expired' WHERE session_id=?", (previous["session_id"],))
     order["crew_leader_account_id"] = worker_id
     order["crew_roster_revision"] = int(order.get("crew_roster_revision") or 0)+1
     s.api().write_order_in_connection(connection, order)
@@ -276,7 +296,7 @@ def session_view(connection, session, user):
 def state(order_id, user):
     with s.transaction() as connection:
         order = s.load_order(connection, order_id, user)
-        if not s.enabled() and not s.protected(order):
+        if not s.protected(order) and (not s.enabled() or user.get("role") != "logist"):
             return {"enabled": False}
         s.expire_unconfirmed(connection, str(order["id"]))
         role = user.get("role")
@@ -295,7 +315,35 @@ def state(order_id, user):
         session = s.one(connection, f"""SELECT * FROM {s.SESSIONS} WHERE order_id=? AND leader_account_id=?
             AND status IN ('collecting','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1""",
             (str(order["id"]), s.actor(user))) if is_leader else None
-        return {"enabled": True, "paused": not s.enabled(), "role": role, "is_leader": is_leader,
+        return {"enabled": True, "setup_required": not s.protected(order), "paused": not s.enabled(), "role": role, "is_leader": is_leader,
                 "mode": "solo" if len(s.assigned(order)) == 1 else "crew", "leader_account_id": s.leader(order),
-                "roster": roster, "proofs": [proof_view(connection, p, private=role=="logist") for p in visible],
+                "leader_in_crm": order.get("source_instance") == s.api().CRM_SYNC_INSTANCE,
+                "roster": roster, "proofs": [proof_view(connection, p, private=role=="logist") for p in visible] if role!="client" else [],
                 "session": session_view(connection, session, user) if session else None}
+
+
+def enable_order(order_id, user):
+    s.require_enabled()
+    with s.transaction() as connection:
+        order = s.load_order(connection, order_id, user, owner=True)
+        s.require_open(order)
+        if s.protected(order):
+            return {"success": True}
+        workers = s.assigned(order)
+        if not workers or s.leader(order) not in workers:
+            raise HTTPException(409, "Сначала назначьте исполнителей и старшего")
+        for worker_id in workers:
+            if s.api()._read_attendance_in_connection(connection, str(order["id"]), worker_id):
+                raise HTTPException(409, "Учет по старой схеме уже начат. Завершите эту смену по прежним правилам")
+        active = s.one(connection, f"SELECT challenge_id FROM {s.api().ATTENDANCE_CHALLENGES_TABLE_NAME} WHERE order_id=? AND used_at IS NULL AND expires_at>? LIMIT 1",
+                       (str(order["id"]), s.stamp()))
+        if active:
+            raise HTTPException(409, "Дождитесь завершения ранее выданного QR")
+        if order.get("source_instance") == s.api().CRM_SYNC_INSTANCE:
+            for worker_id in workers:
+                if not s.one(connection, f"SELECT crm_worker_id FROM {s.LINKS} WHERE source_instance=? AND worker_account_id=?",
+                             (s.api().CRM_SYNC_INSTANCE, worker_id)):
+                    raise HTTPException(409, "Сначала свяжите профили всех рабочих в CRM")
+        s.mark_policy(connection, order)
+        s.audit(connection, "crew_attendance_enabled", user, order["id"], {"workers": len(workers)})
+    return {"success": True}

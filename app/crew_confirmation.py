@@ -205,7 +205,7 @@ def sync_roster(order_id, payload):
                     raise HTTPException(409, "В составе есть неактивный профиль")
             order["assigned_worker_ids"] = workers
         if order.get("crew_leader_account_id") != new_leader or payload.get("apply_roster") is True:
-            flow.assign_leader(connection, order, new_leader, user)
+            flow.assign_leader(connection, order, new_leader, user, force=payload.get("apply_roster") is True)
     return {"success": True}
 
 
@@ -229,8 +229,8 @@ def export(order_id, payload):
                          "check_in_at": attendance.get("check_in_at"), "check_out_at": attendance.get("check_out_at"),
                          "duration_minutes": attendance.get("duration_minutes")})
         document = {"protocol":"gpm-crew-attendance-v1","source_instance":s.api().CRM_SYNC_INSTANCE,
-                    "enabled":s.enabled() or s.protected(order), "order_id":str(order["id"]),
-                    "roster_fingerprint":s.fingerprint(order), "rows":rows,
+                    "enabled":s.enabled(), "enrolled":s.protected(order), "order_id":str(order["id"]),
+                    "roster_fingerprint":s.fingerprint(order), "revision_number":int(order.get("crew_event_revision") or 0), "rows":rows,
                     "proofs":[{**flow.proof_view(connection,p,private=True),"crm_worker_id":mapping.get(p["worker_account_id"])}
                               for p in proofs]}
         canonical = json.dumps(document, sort_keys=True, ensure_ascii=True, default=str)
@@ -262,3 +262,12 @@ def guest_list_html(context):
         pending = " · геолокация на проверке у логиста" if row.get("geo_status") != "valid" else ""
         items.append("<li>"+html.escape(str(row["worker_name"]))+" — "+html.escape(label+pending)+"</li>")
     return "<div class='meta'><strong>Подтверждаемый список</strong><ul>"+"".join(items)+"</ul></div><p>Подтверждайте только если все перечисленные исполнители находятся рядом.</p>"
+
+
+def crm_enable(order_id, payload):
+    with s.transaction() as connection:
+        order = s.api().read_order_in_connection(connection, order_id, for_update=True)
+        if order is None:
+            raise HTTPException(404, "Заявка не найдена")
+        user = crm_actor(connection, order, payload)
+    return flow.enable_order(order_id, user)
