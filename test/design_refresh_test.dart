@@ -246,7 +246,9 @@ void main() {
         Scaffold(body: WorkerDashboardScreen(onOpenOrders: () {})),
         size,
       );
-      expect(find.text('Подробнее и пригласить'), findsOneWidget);
+      expect(find.text('Подробнее и пригласить'), findsNothing);
+      expect(find.text('Найти смену'), findsOneWidget);
+      expect(find.byKey(const Key('worker_referral_promo_card')), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, 'dashboard-${size.width.toInt()}');
     });

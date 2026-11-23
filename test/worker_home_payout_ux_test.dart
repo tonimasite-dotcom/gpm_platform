@@ -114,7 +114,7 @@ void main() {
       await tester.pumpWidget(
         RepaintBoundary(
           key: key,
-          child: MaterialApp(
+          child: MaterialApp(debugShowCheckedModeBanner: false, 
             theme: buildGpmTheme(),
             home: const WorkerHomeScreen(),
           ),
@@ -148,7 +148,7 @@ void main() {
       await tester.pumpWidget(
         RepaintBoundary(
           key: key,
-          child: MaterialApp(
+          child: MaterialApp(debugShowCheckedModeBanner: false, 
             theme: buildGpmTheme(),
             home: const Scaffold(body: WorkerProfileScreen()),
           ),
@@ -188,7 +188,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
       await tester.pumpWidget(
-        MaterialApp(
+        MaterialApp(debugShowCheckedModeBanner: false, 
           theme: buildGpmTheme(),
           home: const Scaffold(body: WorkerProfileScreen()),
         ),
@@ -212,7 +212,7 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(
         key: key,
-        child: MaterialApp(
+        child: MaterialApp(debugShowCheckedModeBanner: false, 
           theme: buildGpmTheme(),
           home: Scaffold(
             body: Builder(
@@ -259,7 +259,7 @@ void main() {
       await tester.pumpWidget(
         RepaintBoundary(
           key: key,
-          child: MaterialApp(
+          child: MaterialApp(debugShowCheckedModeBanner: false, 
             theme: buildGpmTheme(),
             home: Scaffold(
               body: Builder(
