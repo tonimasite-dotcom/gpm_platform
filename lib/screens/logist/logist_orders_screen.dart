@@ -115,14 +115,24 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
 
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> orders) {
     final range = _publicationRange;
-    return _filterOrdersByStatus(range == null ? orders : orders.where(
-      (order) => matchesOrderDateRange(
-        order['created_at'], from: range.start, to: range.end,
-      ),
-    ).toList());
+    return _filterOrdersByStatus(
+      range == null
+          ? orders
+          : orders
+                .where(
+                  (order) => matchesOrderDateRange(
+                    order['created_at'],
+                    from: range.start,
+                    to: range.end,
+                  ),
+                )
+                .toList(),
+    );
   }
 
-  List<Map<String, dynamic>> _filterOrdersByStatus(List<Map<String, dynamic>> orders) {
+  List<Map<String, dynamic>> _filterOrdersByStatus(
+    List<Map<String, dynamic>> orders,
+  ) {
     if (_selectedFilter == 'Все') return orders;
     if (_selectedFilter == 'Без оценки') {
       return orders.where((order) {
@@ -283,8 +293,8 @@ class _LogistOrdersScreenState extends State<LogistOrdersScreen> {
                     _publicationRange != null
                         ? 'Нет заказов по выбранным фильтрам'
                         : _selectedFilter == 'Все'
-                            ? 'Заказов пока нет'
-                            : 'Нет заказов со статусом "$_selectedFilter"',
+                        ? 'Заказов пока нет'
+                        : 'Нет заказов со статусом "$_selectedFilter"',
                     textAlign: TextAlign.center,
                   ),
                 );

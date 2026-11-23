@@ -76,9 +76,15 @@ void main() {
       'enabled controls and selected text remain readable for ${audience.name}',
       () {
         final theme = buildGpmTheme(audience: audience);
-        expect(theme.chipTheme.labelStyle!.fontFamily, theme.textTheme.labelLarge!.fontFamily);
-      expect(theme.chipTheme.secondaryLabelStyle!.fontFamily, theme.textTheme.labelLarge!.fontFamily);
-      final button = theme.filledButtonTheme.style!;
+        expect(
+          theme.chipTheme.labelStyle!.fontFamily,
+          theme.textTheme.labelLarge!.fontFamily,
+        );
+        expect(
+          theme.chipTheme.secondaryLabelStyle!.fontFamily,
+          theme.textTheme.labelLarge!.fontFamily,
+        );
+        final button = theme.filledButtonTheme.style!;
         final bg = button.backgroundColor!.resolve({});
         final fg = button.foregroundColor!.resolve({});
         expect(contrast(bg!, fg!), greaterThanOrEqualTo(4.5));
@@ -153,7 +159,12 @@ void main() {
             ),
           ),
         );
-        await tester.runAsync(() => precacheImage(const AssetImage('assets/images/gpm_logo.png'), tester.element(find.byType(GpmLogoImage))));
+        await tester.runAsync(
+          () => precacheImage(
+            const AssetImage('assets/images/gpm_logo.png'),
+            tester.element(find.byType(GpmLogoImage)),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(
@@ -176,20 +187,37 @@ void main() {
         // Exercise the actual tabs under the same app width and navigation.
         if (!config.$4) {
           final nav = find.byType(BottomNavigationBar);
-          await tester.tap(find.descendant(of: nav, matching: find.text('Финансы')));
+          await tester.tap(
+            find.descendant(of: nav, matching: find.text('Финансы')),
+          );
           await tester.pumpAndSettle();
           expect(find.text('Доступно к выводу'), findsOneWidget);
-          await captureGold(tester, key, 'finance_${config.$1.toInt()}_${config.$3}');
+          await captureGold(
+            tester,
+            key,
+            'finance_${config.$1.toInt()}_${config.$3}',
+          );
           expect(tester.takeException(), isNull);
-          await tester.tap(find.descendant(of: nav, matching: find.text('Чаты')));
+          await tester.tap(
+            find.descendant(of: nav, matching: find.text('Чаты')),
+          );
           await tester.pumpAndSettle();
           expect(find.text('Поиск по всем чатам'), findsOneWidget);
           if (config.$1 > 1000) {
-            expect(tester.getSize(find.byType(TextField)).width, greaterThan(1050));
+            expect(
+              tester.getSize(find.byType(TextField)).width,
+              greaterThan(1050),
+            );
           }
-          await captureGold(tester, key, 'chats_${config.$1.toInt()}_${config.$3}');
+          await captureGold(
+            tester,
+            key,
+            'chats_${config.$1.toInt()}_${config.$3}',
+          );
           expect(tester.takeException(), isNull);
-          await tester.tap(find.descendant(of: nav, matching: find.text('Профиль')));
+          await tester.tap(
+            find.descendant(of: nav, matching: find.text('Профиль')),
+          );
           await tester.pumpAndSettle();
           await tester.ensureVisible(find.text('Счет (для самозанятых)'));
           await tester.pumpAndSettle();
@@ -198,9 +226,17 @@ void main() {
           await tester.ensureVisible(find.text('Счет для выплат'));
           await tester.pumpAndSettle();
           expect(find.textContaining('Самозанятым по умолчанию'), findsNothing);
-          await captureGold(tester, key, 'profile_${config.$1.toInt()}_${config.$3}');
+          await tester.ensureVisible(find.text('Выплаты'));
+          await tester.pumpAndSettle();
+          await captureGold(
+            tester,
+            key,
+            'profile_${config.$1.toInt()}_${config.$3}',
+          );
           expect(tester.takeException(), isNull);
-          await tester.tap(find.descendant(of: nav, matching: find.text('Заявки')));
+          await tester.tap(
+            find.descendant(of: nav, matching: find.text('Заявки')),
+          );
           await tester.pumpAndSettle();
         }
         await tester.tap(find.byKey(const Key('worker_referral_promo_cta')));

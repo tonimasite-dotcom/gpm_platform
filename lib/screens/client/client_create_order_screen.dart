@@ -870,7 +870,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                   ],
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: _isLoading || _isProfileLoading || _profileError != null
+                    onPressed:
+                        _isLoading || _isProfileLoading || _profileError != null
                         ? null
                         : _submit,
                     style: ElevatedButton.styleFrom(
