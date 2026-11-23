@@ -160,9 +160,11 @@ class OrderPublishedAtMarker extends StatelessWidget {
         children: [
           Icon(Icons.schedule_rounded, size: 13, color: foreground),
           const SizedBox(width: 4),
-          Text(
-            'Опубликовано $publishedAt',
-            style: TextStyle(fontSize: 11, color: foreground),
+          Flexible(
+            child: Text(
+              'Опубликовано $publishedAt',
+              style: TextStyle(fontSize: 11, color: foreground),
+            ),
           ),
         ],
       ),

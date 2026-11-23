@@ -23,6 +23,14 @@ class _DesignOrdersApi extends GpmApiService {
   final bool empty;
   _DesignOrdersApi({this.empty = false});
   @override
+  Future<Map<String, dynamic>?> getWorkerProfile(String workerId) async => {
+    'display_name': 'Тестовый исполнитель',
+    'phone': '+79000000000',
+    'payout_method': 'card',
+    'card_last4': '1234',
+    'cities': ['Санкт-Петербург'],
+  };
+  @override
   Future<List<Map<String, dynamic>>> getOrdersForWorker(
     String workerId,
   ) async => empty

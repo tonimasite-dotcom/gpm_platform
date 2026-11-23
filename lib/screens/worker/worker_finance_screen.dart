@@ -203,7 +203,10 @@ class _BreakdownRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: GpmColors.graphite)),
+        Expanded(
+          child: Text(label, style: const TextStyle(color: GpmColors.graphite)),
+        ),
+        const SizedBox(width: 12),
         Padding(
           // Align with the amount panel's 14 px inset and 1 px border.
           padding: const EdgeInsets.only(right: 15),
