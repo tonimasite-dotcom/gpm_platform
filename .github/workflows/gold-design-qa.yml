@@ -23,11 +23,11 @@ jobs:
       - run: flutter pub get
       - name: Format design sources
         run: |
-          dart format lib/theme/gpm_theme.dart lib/widgets/gpm_bottom_navigation_bar.dart lib/screens/worker/worker_referral_promo.dart test/gpm_gold_design_test.dart
+          dart format test/worker_orders_screen_test.dart test/order_date_filter_screens_test.dart lib/theme/gpm_theme.dart lib/widgets/gpm_bottom_navigation_bar.dart lib/screens/worker/worker_referral_promo.dart test/gpm_gold_design_test.dart
           dart fix --apply --code=curly_braces_in_flow_control_structures
       - run: flutter analyze --no-pub
       - name: Check responsive layout, contrast and existing application flows
-        run: flutter test --no-pub test/gpm_gold_design_test.dart test/worker_dashboard_screen_test.dart test/worker_home_payout_ux_test.dart test/adaptive_buttons_test.dart
+        run: flutter test --no-pub test/gpm_gold_design_test.dart test/worker_orders_screen_test.dart test/order_date_filter_screens_test.dart test/worker_dashboard_screen_test.dart test/worker_home_payout_ux_test.dart test/adaptive_buttons_test.dart
       - name: Save reviewed design previews and formatted sources
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -39,4 +39,6 @@ jobs:
             lib/widgets/gpm_bottom_navigation_bar.dart
             lib/screens/worker/worker_referral_promo.dart
             test/gpm_gold_design_test.dart
+            test/worker_orders_screen_test.dart
+            test/order_date_filter_screens_test.dart
           retention-days: 7

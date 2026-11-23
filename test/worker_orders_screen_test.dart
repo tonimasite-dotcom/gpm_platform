@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/main.dart' as app;
 import 'package:gpm_platform/screens/worker/worker_orders_screen.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
+import 'package:gpm_platform/theme/gpm_theme.dart';
+import 'support/load_test_fonts.dart';
 
 class _CitizenshipApi extends GpmApiService {
   final bool isRussian;
@@ -29,6 +31,7 @@ class _CitizenshipApi extends GpmApiService {
 }
 
 void main() {
+  setUpAll(loadMobileTestFonts);
   for (final isRussian in [true, false]) {
     testWidgets('demo citizenship list matches server rules: RF=$isRussian', (
       tester,
@@ -36,7 +39,7 @@ void main() {
       dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
       app.gpmApi = _CitizenshipApi(isRussian);
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
+        MaterialApp(theme: buildGpmTheme(), home: const Scaffold(body: WorkerOrdersScreen())),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Все'));
@@ -59,7 +62,7 @@ void main() {
     app.gpmApi = GpmApiService();
     for (final requirement in ['yes', 'every', 'no']) {
       await tester.pumpWidget(
-        MaterialApp(
+        MaterialApp(theme: buildGpmTheme(), 
           home: WorkerOrderDetailsScreen(
             key: ValueKey(requirement),
             order: {
@@ -92,7 +95,7 @@ void main() {
       'JUNK',
     ]) {
       await tester.pumpWidget(
-        MaterialApp(
+        MaterialApp(theme: buildGpmTheme(), 
           home: Scaffold(
             body: OrdersList(
               orders: [
@@ -147,7 +150,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
+      MaterialApp(theme: buildGpmTheme(), home: const Scaffold(body: WorkerOrdersScreen())),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Все'));

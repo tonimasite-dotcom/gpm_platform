@@ -6,6 +6,8 @@ import 'package:gpm_platform/main.dart' as app;
 import 'package:gpm_platform/screens/worker/worker_orders_screen.dart';
 import 'package:gpm_platform/screens/logist/logist_orders_screen.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
+import 'package:gpm_platform/theme/gpm_theme.dart';
+import 'support/load_test_fonts.dart';
 
 class _OrdersApi extends GpmApiService {
   _OrdersApi(this.orders);
@@ -24,7 +26,7 @@ Future<void> _open(WidgetTester tester, Widget screen, {Size size = const Size(9
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
+  await tester.pumpWidget(MaterialApp(theme: buildGpmTheme(), 
     locale: const Locale('ru', 'RU'),
     supportedLocales: const [Locale('ru', 'RU')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -49,6 +51,7 @@ Future<void> _period(WidgetTester tester, DateTime from, DateTime to) async {
 }
 
 void main() {
+  setUpAll(loadMobileTestFonts);
   testWidgets('worker defaults to today and day choices compose with tabs without reload', (tester) async {
     dotenv.testLoad(fileInput: 'GPM_APP_MODE=production\n');
     final now = DateTime.now();

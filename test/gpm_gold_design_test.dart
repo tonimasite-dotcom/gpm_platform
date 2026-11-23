@@ -142,6 +142,7 @@ void main() {
             ),
           ),
         );
+        await tester.runAsync(() => precacheImage(const AssetImage('assets/images/gpm_logo.png'), tester.element(find.byType(GpmLogoImage))));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(
