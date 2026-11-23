@@ -21,6 +21,15 @@ on:
           - keep
           - enable
           - disable
+      registration_preview_sync:
+        description: Test registration worker exchange with TS only
+        required: true
+        default: keep
+        type: choice
+        options:
+          - keep
+          - enable
+          - disable
 
 permissions:
   contents: read
@@ -122,13 +131,14 @@ jobs:
       - name: Deploy backend
         env:
           CREW_ATTENDANCE_MODE: ${{ inputs.crew_attendance || 'keep' }}
+          PREVIEW_SYNC_MODE: ${{ inputs.registration_preview_sync || 'keep' }}
         if: inputs.target == 'all' || inputs.target == 'backend'
         shell: bash
         run: |
           ssh -o BatchMode=yes -o ConnectTimeout=15 \
             -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
             "${SSH_USER}@${BACKEND_HOST}" \
-            "DEPLOY_SHA='${GITHUB_SHA}' CREW_ATTENDANCE_MODE='$CREW_ATTENDANCE_MODE' bash -se" <<'REMOTE'
+            "DEPLOY_SHA='${GITHUB_SHA}' CREW_ATTENDANCE_MODE='$CREW_ATTENDANCE_MODE' PREVIEW_SYNC_MODE='$PREVIEW_SYNC_MODE' bash -se" <<'REMOTE'
           set -euo pipefail
 
           cd /opt/gpm/gpm_platform
@@ -208,25 +218,30 @@ jobs:
           "$NEW_VENV/bin/python" -m pip check
           "$NEW_VENV/bin/python" -m compileall -q app main.py tests
           "$NEW_VENV/bin/python" -m unittest discover -s tests -p 'test_*.py'
-          case "$CREW_ATTENDANCE_MODE" in
-            keep) ;;
-            enable|disable)
-              CREW_ATTENDANCE_MODE="$CREW_ATTENDANCE_MODE" python3 - <<'PYFLAG'
+          CREW_ATTENDANCE_MODE="$CREW_ATTENDANCE_MODE" PREVIEW_SYNC_MODE="$PREVIEW_SYNC_MODE" python3 - <<'PYFLAGS'
           import os
           from pathlib import Path
           path = Path('/root/gpm-app-env')
-          original = path.read_text()
-          key = 'GPM_APP_CREW_ATTENDANCE_ENABLED'
-          lines = [line for line in original.splitlines() if not line.startswith(key + '=')]
-          lines.append(key + '=' + ('true' if os.environ['CREW_ATTENDANCE_MODE'] == 'enable' else 'false'))
-          temporary = path.with_name(path.name + '.pending')
-          temporary.write_text('\n'.join(lines) + '\n')
-          temporary.chmod(0o600)
-          os.replace(str(temporary), str(path))
-          PYFLAG
-              ;;
-            *) echo "Unsupported crew attendance mode" >&2; false ;;
-          esac
+          values = {
+              'GPM_APP_CREW_ATTENDANCE_ENABLED': os.environ['CREW_ATTENDANCE_MODE'],
+              'GPM_REGISTRATION_PREVIEW_CRM_ENABLED': os.environ['PREVIEW_SYNC_MODE'],
+          }
+          lines = path.read_text().splitlines()
+          changed = False
+          for key, mode in values.items():
+              if mode not in {'keep', 'enable', 'disable'}:
+                  raise ValueError('Unsupported availability mode')
+              if mode == 'keep':
+                  continue
+              lines = [line for line in lines if not line.startswith(key + '=')]
+              lines.append(key + '=' + ('true' if mode == 'enable' else 'false'))
+              changed = True
+          if changed:
+              temporary = path.with_name(path.name + '.pending')
+              temporary.write_text('\n'.join(lines) + '\n')
+              temporary.chmod(0o600)
+              os.replace(str(temporary), str(path))
+          PYFLAGS
           set -a
           . /root/gpm-app-env
           set +a
