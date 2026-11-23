@@ -28,10 +28,8 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      WorkerDashboardScreen(
-        onOpenOrders: () => _openSection(1),
-      ),
       const WorkerOrdersScreen(),
+      WorkerDashboardScreen(onOpenOrders: () => _openSection(0)),
       const ChatThreadsScreen(role: ChatRole.worker),
       const WorkerFinanceScreen(),
       const WorkerProfileScreen(),
@@ -57,8 +55,8 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
         type: BottomNavigationBarType.fixed,
         onTap: _openSection,
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Заявки'),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Заказы'),
           BottomNavigationBarItem(
             icon: Icon(Icons.forum_outlined),
             label: 'Чаты',

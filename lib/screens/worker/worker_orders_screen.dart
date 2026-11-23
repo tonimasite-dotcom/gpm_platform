@@ -6,6 +6,8 @@ import '../../utils/order_display.dart';
 import '../../utils/order_date_filter.dart';
 import '../../utils/order_citizenship.dart';
 import '../attendance/order_attendance.dart';
+import '../../widgets/adaptive_buttons.dart';
+import 'worker_referral_promo.dart';
 
 class WorkerOrdersScreen extends StatefulWidget {
   const WorkerOrdersScreen({super.key});
@@ -85,9 +87,15 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
 
   List<Map<String, dynamic>> _filterByDay(List<Map<String, dynamic>> orders) {
     final now = DateTime.now();
-    return orders.where((order) => matchesWorkerOrderDay(
-      order['scheduled_at'], _dayFilter, now: now,
-    )).toList();
+    return orders
+        .where(
+          (order) => matchesWorkerOrderDay(
+            order['scheduled_at'],
+            _dayFilter,
+            now: now,
+          ),
+        )
+        .toList();
   }
 
   String _emptyText(String original) => _dayFilter == WorkerOrderDay.all
@@ -104,6 +112,12 @@ class _WorkerOrdersScreenState extends State<WorkerOrdersScreen> {
       length: 3,
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: WorkerReferralPromoCard(
+              onTap: () => showWorkerReferralPromo(context),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
             child: Align(
@@ -203,46 +217,62 @@ class OrdersList extends StatelessWidget {
           shape: orderCardShape,
           elevation: 0,
           margin: const EdgeInsets.symmetric(vertical: 6),
-          child: ListTile(
-            title: Text(order['title'] ?? order['description'] ?? 'Заказ'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                _LocationLine(order: order),
-                const SizedBox(height: 4),
-                Text('🗓 ${formatOrderSchedule(order['scheduled_at'])}'),
-                const SizedBox(height: 4),
-                Text(
-                  _isRecruitmentClosedForWorker(order)
-                      ? '👷 Набор исполнителей завершен'
-                      : '👷 ${order['assigned_count'] ?? 0}/${order['workers_count']} чел. × ${order['hours']} ч',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                title: Text(order['title'] ?? order['description'] ?? 'Заказ'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    _LocationLine(order: order),
+                    const SizedBox(height: 4),
+                    Text('🗓 ${formatOrderSchedule(order['scheduled_at'])}'),
+                    const SizedBox(height: 4),
+                    Text(
+                      _isRecruitmentClosedForWorker(order)
+                          ? '👷 Набор исполнителей завершен'
+                          : '👷 ${order['assigned_count'] ?? 0}/${order['workers_count']} чел. × ${order['hours']} ч',
+                    ),
+                    const SizedBox(height: 4),
+                    _StatusPill(text: statusText, color: color),
+                    const SizedBox(height: 4),
+                    Text(
+                      workerRateText(order),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    for (final line in workerPaymentLines(order).skip(1)) ...[
+                      const SizedBox(height: 4),
+                      Text(line),
+                    ],
+                    const SizedBox(height: 5),
+                    OrderPublishedAtMarker(createdAt: order['created_at']),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                _StatusPill(text: statusText, color: color),
-                const SizedBox(height: 4),
-                Text(
-                  workerRateText(order),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WorkerOrderDetailsScreen(order: order),
+                    ),
+                  );
+                  onChanged();
+                },
+              ),
+              if (order['status'] == 'PROCESSED' &&
+                  order['worker_application_status'] == null &&
+                  order['is_assigned_to_worker'] != true)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: _WorkerOrderApplyButton(
+                    key: ValueKey(order['id']),
+                    order: order,
+                    onChanged: onChanged,
+                  ),
                 ),
-                for (final line in workerPaymentLines(order).skip(1)) ...[
-                  const SizedBox(height: 4),
-                  Text(line),
-                ],
-                const SizedBox(height: 5),
-                OrderPublishedAtMarker(createdAt: order['created_at']),
-              ],
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => WorkerOrderDetailsScreen(order: order),
-                ),
-              );
-              onChanged();
-            },
+            ],
           ),
         );
       },
@@ -274,6 +304,86 @@ class OrdersList extends StatelessWidget {
     if (applicationStatus == 'REJECTED') return Colors.red;
     return orderStatusColor(order['status']?.toString());
   }
+}
+
+class _WorkerOrderApplyButton extends StatefulWidget {
+  final Map<String, dynamic> order;
+  final VoidCallback onChanged;
+  const _WorkerOrderApplyButton({
+    super.key,
+    required this.order,
+    required this.onChanged,
+  });
+  @override
+  State<_WorkerOrderApplyButton> createState() =>
+      _WorkerOrderApplyButtonState();
+}
+
+class _WorkerOrderApplyButtonState extends State<_WorkerOrderApplyButton> {
+  bool _sending = false;
+  bool _sent = false;
+  Future<void> _apply() async {
+    if (_sending || _sent) return;
+    setState(() => _sending = true);
+    try {
+      final result = await gpmApi.applyToOrder(
+        orderId: widget.order['id'].toString(),
+        workerId: GpmApiService.demoWorkerId,
+        workerName: GpmApiService.demoWorkerName,
+      );
+      if (!mounted) return;
+      if (result['success'] == true) {
+        setState(() => _sent = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Отклик отправлен логисту')),
+        );
+        widget.onChanged();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['error']?.toString() ?? 'Не удалось отправить отклик',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось отправить отклик. Повторите попытку'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FilledButton(
+    key: ValueKey('worker_apply_${widget.order['id']}'),
+    onPressed: _sending || _sent ? null : _apply,
+    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+    child: GpmButtonContent(
+      icon: _sending
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              _sent ? Icons.check_circle_outline : Icons.front_hand_outlined,
+              size: 20,
+            ),
+      label: Text(
+        _sent
+            ? 'Отклик отправлен'
+            : _sending
+            ? 'Отправляем отклик...'
+            : 'Откликнуться на заказ',
+      ),
+    ),
+  );
 }
 
 class _LocationLine extends StatelessWidget {

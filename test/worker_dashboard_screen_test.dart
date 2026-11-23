@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpm_platform/main.dart' as app;
 import 'package:gpm_platform/screens/worker/worker_dashboard_screen.dart';
+import 'package:gpm_platform/screens/worker/worker_orders_screen.dart';
 import 'package:gpm_platform/services/gpm_api_service.dart';
 
 void main() {
@@ -10,9 +11,13 @@ void main() {
     dotenv.testLoad(fileInput: 'GPM_APP_MODE=demo\n');
     app.gpmApi = GpmApiService();
     String? opened;
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: WorkerDashboardScreen(
-      onOpenOrders: () => opened = 'orders',
-    ))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WorkerDashboardScreen(onOpenOrders: () => opened = 'orders'),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Активные заявки'), findsOneWidget);
     expect(find.text('Рейтинг'), findsOneWidget);
@@ -40,8 +45,11 @@ void main() {
     expect(find.text('Активные заявки'), findsOneWidget);
     expect(find.text('Рейтинг'), findsOneWidget);
     expect(find.text('Выплаты'), findsOneWidget);
-    expect(find.text('Приведи друга - получи бонус от 3500 до 5000 рублей!'), findsOneWidget);
-    expect(find.byIcon(Icons.card_giftcard), findsOneWidget);
+    expect(
+      find.text('Приведи друга - получи бонус от 3500 до 5000 рублей!'),
+      findsNothing,
+    );
+    expect(find.byIcon(Icons.card_giftcard), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -57,7 +65,7 @@ void main() {
     app.gpmApi = GpmApiService();
 
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: WorkerDashboardScreen())),
+      const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
     );
     await tester.pumpAndSettle();
 
@@ -67,10 +75,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.text('Приведи друга - получи бонус от 3500 до 5000 рублей!'),
-    ), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text(
+          'Приведи друга - получи бонус от 3500 до 5000 рублей!',
+        ),
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining('Джи Пи Эм'), findsOneWidget);
     expect(find.byIcon(Icons.card_giftcard), findsOneWidget);
     expect(find.byIcon(Icons.card_giftcard_rounded), findsOneWidget);
@@ -91,7 +104,7 @@ void main() {
     app.gpmApi = GpmApiService();
 
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: WorkerDashboardScreen())),
+      const MaterialApp(home: Scaffold(body: WorkerOrdersScreen())),
     );
     await tester.pumpAndSettle();
 

@@ -1,0 +1,46 @@
+name: Worker home and payout UX QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/worker-home-sbp-2026-11-23]
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.38.5
+          channel: stable
+          cache: true
+      - name: Configure synthetic demo
+        run: printf '%s\n' 'GPM_APP_MODE=demo' > .env
+      - run: flutter pub get
+      - name: Format targeted sources
+        run: |
+          dart format lib/screens/worker/worker_home_screen.dart lib/screens/worker/worker_orders_screen.dart lib/screens/worker/worker_dashboard_screen.dart lib/screens/worker/worker_profile_screen.dart lib/screens/worker/worker_referral_promo.dart lib/screens/worker/worker_sbp_payout.dart test/worker_dashboard_screen_test.dart test/worker_home_payout_ux_test.dart
+          dart fix --apply --code=curly_braces_in_flow_control_structures
+      - run: flutter analyze --no-pub
+      - name: Check worker entry, application, promo and payout UX
+        run: flutter test --no-pub test/worker_home_payout_ux_test.dart test/worker_dashboard_screen_test.dart test/worker_profile_screen_test.dart test/worker_orders_screen_test.dart
+      - name: Save synthetic previews and formatted sources
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-home-payout-ux
+          path: |
+            build/worker-ux-shots/*.png
+            lib/screens/worker/worker_home_screen.dart
+            lib/screens/worker/worker_orders_screen.dart
+            lib/screens/worker/worker_dashboard_screen.dart
+            lib/screens/worker/worker_profile_screen.dart
+            lib/screens/worker/worker_referral_promo.dart
+            lib/screens/worker/worker_sbp_payout.dart
+            test/worker_dashboard_screen_test.dart
+            test/worker_home_payout_ux_test.dart
+          retention-days: 7
