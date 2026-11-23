@@ -30,18 +30,28 @@ class GpmBottomNavigationBar extends StatelessWidget {
         final navigation = BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: onTap,
-          items: [for (final item in items) BottomNavigationBarItem(
-            icon: item.icon,
-            activeIcon: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color: business ? GpmColors.businessSoft : GpmColors.helmetYellow,
-                borderRadius: BorderRadius.circular(14),
+          items: [
+            for (final item in items)
+              BottomNavigationBarItem(
+                icon: item.icon,
+                activeIcon: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: business
+                        ? GpmColors.businessSoft
+                        : GpmColors.helmetYellow,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: item.activeIcon,
+                ),
+                label: item.label,
+                tooltip: item.tooltip,
+                backgroundColor: item.backgroundColor,
               ),
-              child: item.activeIcon,
-            ),
-            label: item.label, tooltip: item.tooltip, backgroundColor: item.backgroundColor,
-          )],
+          ],
           type: type,
           selectedFontSize: selectedFontSize,
           unselectedFontSize: unselectedFontSize,

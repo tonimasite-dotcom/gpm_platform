@@ -68,7 +68,7 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
         fontSize: 16,
         fontWeight: FontWeight.w700,
       ),
-      bodyMedium: TextStyle(color: GpmColors.graphite, fontSize: 16),
+      bodyMedium: TextStyle(color: GpmColors.graphite, fontSize: 14),
     ),
     appBarTheme: const AppBarTheme(
       elevation: 0,
@@ -196,7 +196,11 @@ ThemeData buildGpmTheme({GpmAudience audience = GpmAudience.personal}) {
       selectedColor: action,
       secondarySelectedColor: action,
       labelStyle: const TextStyle(color: GpmColors.graphite, fontSize: 14),
-      secondaryLabelStyle: TextStyle(color: actionInk, fontSize: 14, fontWeight: FontWeight.w700),
+      secondaryLabelStyle: TextStyle(
+        color: actionInk,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
       checkmarkColor: actionInk,
       side: const BorderSide(color: GpmColors.softLine),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

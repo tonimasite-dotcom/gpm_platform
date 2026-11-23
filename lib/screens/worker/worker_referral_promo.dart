@@ -82,69 +82,157 @@ class WorkerReferralPromoCard extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFFFF3BF), Color(0xFFFFDF60)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: GpmColors.yellowLine),
         ),
         child: InkWell(
           key: const Key('worker_referral_promo_card'),
-          onTap: onTap, borderRadius: BorderRadius.circular(18),
-          child: LayoutBuilder(builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 680;
-            final stacked = MediaQuery.textScalerOf(context).scale(14) > 19;
-            final showGift = wide || constraints.maxWidth >= 350 || stacked;
-            final gift = Container(
-              width: wide ? 52 : 42, height: wide ? 52 : 42,
-              decoration: BoxDecoration(
-                color: GpmColors.helmetYellow,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [BoxShadow(color: Color(0x145F4500), blurRadius: 8, offset: Offset(0, 3))],
-              ),
-              child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
-                Icon(Icons.card_giftcard, color: GpmColors.black, size: wide ? 27 : 24),
-                const Positioned(top: -3, right: -4, child: Icon(Icons.auto_awesome, size: 15, color: GpmColors.yellowInk)),
-              ]),
-            );
-            final heading = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Приведи друга', style: TextStyle(
-                color: GpmColors.black, fontWeight: FontWeight.w800, fontSize: wide ? 18 : 14, height: 1.25,
-              )),
-              const SizedBox(height: 3),
-              if (wide) const Text('Работать вместе — выгоднее', style: TextStyle(
-                color: GpmColors.yellowInk, fontWeight: FontWeight.w500, fontSize: 14,
-              )) else const Text('Бонус до 5 000 ₽', style: TextStyle(
-                color: GpmColors.black, fontWeight: FontWeight.w800, fontSize: 18, height: 1.2,
-              )),
-            ]);
-            final cta = Container(
-              key: const Key('worker_referral_promo_cta'),
-              padding: EdgeInsets.symmetric(horizontal: wide ? 22 : 14, vertical: 11),
-              decoration: BoxDecoration(color: GpmColors.graphite, borderRadius: BorderRadius.circular(12)),
-              child: Text(wide || stacked ? 'Пригласить друга' : 'Пригласить',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            );
-            final main = Row(children: [
-              if (showGift) ...[gift, const SizedBox(width: 12)],
-              Expanded(child: heading),
-              if (wide) ...[
-                const SizedBox(width: 20),
-                const Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('до 5 000 ₽', style: TextStyle(color: GpmColors.black, fontSize: 28, fontWeight: FontWeight.w800, height: 1.15)),
-                  SizedBox(height: 2),
-                  Text('за приглашенного друга', style: TextStyle(color: GpmColors.yellowInk, fontSize: 12)),
-                ]),
-                const SizedBox(width: 28),
-              ],
-              if (!stacked) ...[const SizedBox(width: 12), cta],
-            ]);
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: wide ? 20 : 14, vertical: wide ? 16 : 12),
-              child: stacked ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [main, const SizedBox(height: 12), cta]) : main,
-            );
-          }),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 680;
+              final stacked = MediaQuery.textScalerOf(context).scale(14) > 19;
+              final showGift = wide || constraints.maxWidth >= 350 || stacked;
+              final gift = Container(
+                width: wide ? 52 : 42,
+                height: wide ? 52 : 42,
+                decoration: BoxDecoration(
+                  color: GpmColors.helmetYellow,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x145F4500),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.card_giftcard,
+                      color: GpmColors.black,
+                      size: wide ? 27 : 24,
+                    ),
+                    const Positioned(
+                      top: -3,
+                      right: -4,
+                      child: Icon(
+                        Icons.auto_awesome,
+                        size: 15,
+                        color: GpmColors.yellowInk,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              final heading = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Приведи друга',
+                    style: TextStyle(
+                      color: GpmColors.black,
+                      fontWeight: FontWeight.w800,
+                      fontSize: wide ? 18 : 14,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  if (wide)
+                    const Text(
+                      'Работать вместе — выгоднее',
+                      style: TextStyle(
+                        color: GpmColors.yellowInk,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    )
+                  else
+                    const Text(
+                      'Бонус до 5 000 ₽',
+                      style: TextStyle(
+                        color: GpmColors.black,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        height: 1.2,
+                      ),
+                    ),
+                ],
+              );
+              final cta = Container(
+                key: const Key('worker_referral_promo_cta'),
+                padding: EdgeInsets.symmetric(
+                  horizontal: wide ? 22 : 14,
+                  vertical: 11,
+                ),
+                decoration: BoxDecoration(
+                  color: GpmColors.graphite,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  wide || stacked ? 'Пригласить друга' : 'Пригласить',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+              final main = Row(
+                children: [
+                  if (showGift) ...[gift, const SizedBox(width: 12)],
+                  Expanded(child: heading),
+                  if (wide) ...[
+                    const SizedBox(width: 20),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'до 5 000 ₽',
+                          style: TextStyle(
+                            color: GpmColors.black,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'за приглашенного друга',
+                          style: TextStyle(
+                            color: GpmColors.yellowInk,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 28),
+                  ],
+                  if (!stacked) ...[const SizedBox(width: 12), cta],
+                ],
+              );
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: wide ? 20 : 14,
+                  vertical: wide ? 16 : 12,
+                ),
+                child: stacked
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [main, const SizedBox(height: 12), cta],
+                      )
+                    : main,
+              );
+            },
+          ),
         ),
       ),
     ),
