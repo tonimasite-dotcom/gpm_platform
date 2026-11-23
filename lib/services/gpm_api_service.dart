@@ -521,7 +521,7 @@ class GpmApiService {
 
 
   Future<Map<String, dynamic>> getCrewAttendance(String orderId) async {
-    if (usesLocalPersistence) return {'enabled': false};
+    if (usesLocalPersistence || _appAccessToken.trim().isEmpty) return {'enabled': false};
     return _authenticatedJsonRequest(
       '/app-api/me/crew-attendance/${Uri.encodeComponent(orderId)}/state',
     );

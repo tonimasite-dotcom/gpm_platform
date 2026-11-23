@@ -225,6 +225,7 @@ def export(order_id, payload):
             attendance = s.api()._read_attendance_in_connection(connection, str(order["id"]), worker_id) or {}
             rows.append({"worker_account_id": worker_id, "crm_worker_id": mapping.get(worker_id),
                          "worker_name": s.api()._worker_name_in_connection(connection, worker_id),
+                         "phone_hint": phone_hint(connection, worker_id),
                          "is_leader": worker_id==s.leader(order),
                          "check_in_at": attendance.get("check_in_at"), "check_out_at": attendance.get("check_out_at"),
                          "duration_minutes": attendance.get("duration_minutes")})
@@ -271,3 +272,11 @@ def crm_enable(order_id, payload):
             raise HTTPException(404, "Заявка не найдена")
         user = crm_actor(connection, order, payload)
     return flow.enable_order(order_id, user)
+
+
+def phone_hint(connection, worker_id):
+    import re
+    row = s.one(connection, f"SELECT data FROM {s.api().PROFILES_TABLE_NAME} WHERE account_id=?", (worker_id,))
+    profile = s.decode(row["data"]) if row else {}
+    digits = re.sub(r"[^0-9]", "", str(profile.get("phone") or profile.get("phone_number") or ""))
+    return "..." + digits[-4:] if len(digits) >= 4 else ""

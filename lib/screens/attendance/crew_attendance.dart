@@ -60,7 +60,7 @@ class _CrewAttendanceGateState extends State<CrewAttendanceGate> {
   void dispose() { _timer?.cancel(); super.dispose(); }
 
   Future<void> _run(Future<void> Function() action) async {
-    if (_busy) return;
+    if (_busy) { return; }
     setState(() => _busy = true);
     try {
       await action();
@@ -76,7 +76,7 @@ class _CrewAttendanceGateState extends State<CrewAttendanceGate> {
   }
 
   Future<void> _showQr(Map<String, dynamic> challenge) async {
-    if (!mounted) return;
+    if (!mounted) { return; }
     await Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
       CrewAttendanceQrScreen(orderId: widget.orderId, challenge: challenge)));
   }
@@ -107,24 +107,32 @@ class _CrewAttendanceGateState extends State<CrewAttendanceGate> {
   });
 
   Future<void> _review(Map proof, String decision) async {
-    final reason = TextEditingController();
-    final answer = await showDialog<String>(context: context, builder: (context) =>
-      AlertDialog(
+    String reason = '';
+    final answer = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(decision == 'approve' ? 'Подтвердить отметку' : 'Отклонить отметку'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Text('${proof['worker_name']} · ${crewTime(proof['collected_at'])}'),
           const SizedBox(height: 12),
-          TextField(key: const Key('crew_review_reason'), controller: reason, minLines: 2, maxLines: 4,
-            maxLength: 1000, decoration: const InputDecoration(labelText: 'Причина решения')),
+          TextField(
+            key: const Key('crew_review_reason'),
+            onChanged: (value) => reason = value.trim(),
+            minLines: 2, maxLines: 4, maxLength: 1000,
+            decoration: const InputDecoration(labelText: 'Причина решения'),
+          ),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
           FilledButton(onPressed: () {
-            if (reason.text.trim().length >= 3) Navigator.pop(context, reason.text.trim());
+            if (reason.length >= 3) {
+              Navigator.pop(context, reason);
+            }
           }, child: const Text('Сохранить решение')),
         ],
-      ));
-    reason.dispose();
+      ),
+    );
     if (answer == null) return;
     await _run(() async {
       await gpmApi.crewAttendanceRequest('/app-api/me/crew-reviews/${proof['evidence_id']}',

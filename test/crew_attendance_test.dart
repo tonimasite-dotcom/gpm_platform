@@ -23,11 +23,11 @@ class CrewFakeApi extends GpmApiService {
     String method='POST', Map<String,dynamic>? body,
   }) async {
     calls.add({'path':path,'method':method,'body':body});
-    if (path.endsWith('/presence')) return {
+    if (path.endsWith('/presence')) { return {
       'kind':'presence','evidence_id':'synthetic-proof','verifier_mode':'crew_scan',
       'confirmation_url':'gpm-crew-presence:synthetic-token',
       'expires_at':DateTime.now().add(const Duration(seconds:60)).toIso8601String(),
-    };
+    }; }
     if (path.contains('/crew-reviews/')) {
       state['proofs']=[];
       return {'success':true};
