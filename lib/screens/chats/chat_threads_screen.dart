@@ -313,7 +313,10 @@ class _ThreadRow extends StatelessWidget {
         style: const TextStyle(color: GpmColors.muted, fontSize: 13),
       ),
     ),
-    trailing: Column(
+    trailing: Flex(
+      direction: MediaQuery.textScalerOf(context).scale(11) > 15
+          ? Axis.horizontal
+          : Axis.vertical,
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -322,7 +325,7 @@ class _ThreadRow extends StatelessWidget {
           _time(thread.updatedAt),
           style: const TextStyle(color: GpmColors.muted, fontSize: 11),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(width: 6, height: 6),
         if (thread.unreadCount > 0)
           Badge(
             label: Text('${thread.unreadCount}'),
