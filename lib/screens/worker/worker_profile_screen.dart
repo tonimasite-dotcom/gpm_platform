@@ -834,28 +834,50 @@ class _VerificationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(
-                verified
-                    ? Icons.verified
-                    : pending
-                    ? Icons.schedule
-                    : Icons.verified_user_outlined,
-                color: color,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 260 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 18;
+              final heading = Row(
+                children: [
+                  Icon(
+                    verified
+                        ? Icons.verified
+                        : pending
+                        ? Icons.schedule
+                        : Icons.verified_user_outlined,
+                    color: color,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              );
+              final statusLabel = Text(
                 _verificationLabel(status),
                 style: TextStyle(color: color, fontWeight: FontWeight.w700),
-              ),
-            ],
+              );
+              return stacked
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        heading,
+                        const SizedBox(height: 6),
+                        statusLabel,
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: heading),
+                        const SizedBox(width: 10),
+                        statusLabel,
+                      ],
+                    );
+            },
           ),
           const SizedBox(height: 8),
           Text(description),
