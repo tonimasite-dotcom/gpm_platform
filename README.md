@@ -1,3 +1,5 @@
+24.11.2026: [Чат исполнителя упрощен](PROJECT_HANDOFF_2026-11-24_WORKER_CHAT.md). PR #37, frontend deployment 45351941359 success, CI/backup проверены. Убраны отмеченные сведения и две быстрые кнопки, свои сообщения светло-желтые. [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-24_WORKER_CHAT.md).
+
 24.11.2026: [Светлая подсказка телефона опубликована](PROJECT_HANDOFF_2026-11-24_PHONE_HINT.md). PR #36, frontend deployment 45350020730 success, проверки пройдены. Пример номера отличается от введенных данных. [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-24_PHONE_HINT.md).
 
 24.11.2026: [Единый ввод телефонов опубликован](PROJECT_HANDOFF_2026-11-24_UNIFIED_PHONES.md). PR #35, код a53ab626, deployment 45347964877 success; CI/QA и backup проверены. Формат +7 (999) 999-99-77 в приложении, сопоставление вариантов CRM без изменения номеров CRM. [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-24_UNIFIED_PHONES.md).
