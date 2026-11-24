@@ -372,7 +372,8 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
   void didUpdateWidget(covariant LogistOrderCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.order['id'] != widget.order['id'] ||
-        oldWidget.order['status'] != widget.order['status']) {
+        oldWidget.order['status'] != widget.order['status'] ||
+        oldWidget.order['has_published_copy'] != widget.order['has_published_copy']) {
       order = Map<String, dynamic>.from(widget.order);
     }
   }
@@ -468,6 +469,22 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
+                if (order['status'] == 'NEW' && order['has_published_copy'] == true)
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: GpmColors.yellowSoft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Есть опубликованная копия',
+                      style: TextStyle(
+                        color: GpmColors.yellowInk,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 Text(order['address'] ?? ''),
                 const SizedBox(height: 2),
                 Text('🗓 ${formatOrderSchedule(order['scheduled_at'])}'),
