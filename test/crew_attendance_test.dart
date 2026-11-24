@@ -219,7 +219,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Включить QR-табель'), findsNothing);
-    expect(find.text('Назначьте бригадира этой заявки в TS'), findsOneWidget);
+    expect(find.text('Назначьте бригадира этой заявки в TS'), findsNothing);
     expect(find.byKey(const Key('crew_leader_selector')), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
