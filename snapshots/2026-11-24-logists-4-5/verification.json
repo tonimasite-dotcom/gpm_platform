@@ -1,0 +1,21 @@
+{
+  "ids": [
+    4,
+    5
+  ],
+  "created_accounts": 2,
+  "role": "logist",
+  "backup": 45386406923,
+  "inspect": 45387710912,
+  "rehearse": 45387882726,
+  "apply": 45388083292,
+  "post_inspect": 45388327314,
+  "other_accounts_preserved": true,
+  "temporary_request_deleted": true,
+  "encrypted_delivery_verified": true,
+  "credential_file_verified": true,
+  "crm_touched": false,
+  "production_runtime_code": "ddb5f6faf78281df1209e99bc677ee5303352c44",
+  "frontend_backend_deployed": false,
+  "migrations": false
+}
