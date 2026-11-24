@@ -1,0 +1,43 @@
+{
+  "code_commit": "a53ab626139ad7771c5f0d24a2f160089b0abda5",
+  "pr": 35,
+  "ci": [
+    45347463122,
+    45347455339
+  ],
+  "phone_qa": 45347455229,
+  "backup": 45346906141,
+  "deployment": 45347964877,
+  "result": "success",
+  "live": [
+    {
+      "url": "https://app.gpmbot.ru/",
+      "status": 200
+    },
+    {
+      "url": "https://app.gpmbot.ru/registration-preview/",
+      "status": 200
+    },
+    {
+      "url": "https://app-api.gpmbot.ru/health",
+      "status": 200,
+      "health": "ok"
+    },
+    {
+      "url": "https://app.gpmbot.ru/main.dart.js",
+      "status": 200,
+      "sha256": "3c1084cd53449a7a5cdb246f698de8ac7574dc9ad47a2db6841b07d19dac2ccf",
+      "bytes": 4027009
+    },
+    {
+      "url": "https://app.gpmbot.ru/registration-preview/main.dart.js",
+      "status": 200,
+      "sha256": "665e4c6688a03813db367f072226ed19fc311faacbd1beacfe6e76ec432de054",
+      "bytes": 3099096
+    }
+  ],
+  "crm_installed": false,
+  "crm_existing_phone_values_changed": false,
+  "new_test_users_created": false,
+  "manual_acceptance": "pending owner input"
+}
