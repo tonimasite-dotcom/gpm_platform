@@ -2113,13 +2113,17 @@ def list_orders() -> list[dict[str, Any]]:
                 row[0] if isinstance(row[0], dict) else json.loads(row[0])
             )
             for row in rows
+            if not ((row[0] if isinstance(row[0], dict) else json.loads(row[0])).get("moderation_parent_id"))
+            or (row[0] if isinstance(row[0], dict) else json.loads(row[0])).get("moderation_state") == "pending"
         ]
 
     with db_connection() as connection:
         rows = connection.execute(
             f"SELECT data FROM {TABLE_NAME} ORDER BY updated_at DESC"
         ).fetchall()
-    return [ensure_order_display_title(json.loads(row[0])) for row in rows]
+    return [ensure_order_display_title(json.loads(row[0])) for row in rows
+            if not json.loads(row[0]).get("moderation_parent_id")
+            or json.loads(row[0]).get("moderation_state") == "pending"]
 
 
 def get_order(order_id: str) -> dict[str, Any] | None:
@@ -2468,6 +2472,9 @@ def order_for_user(order: dict[str, Any], user: dict[str, Any]) -> dict[str, Any
     role = str(user.get("role") or "")
     visible = dict(order)
     visible.pop("source_payload", None)
+    if role != "logist":
+        visible.pop("pending_moderation_id", None)
+        visible.pop("publication_review_hold", None)
     assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
     applications = [
         dict(item)
@@ -2522,6 +2529,8 @@ def orders_for_user(
     profile: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     role = str(user.get("role") or "")
+    orders = [order for order in orders if not order.get("moderation_parent_id")
+              or (role == "logist" and order.get("moderation_state") == "pending")]
     username = str(user.get("sub") or "")
     if role == "client":
         orders = [order for order in orders if order.get("created_by") == username]
@@ -3546,6 +3555,8 @@ def worker_matches_nationality_requirement(
 def worker_can_discover_order(
     order: dict[str, Any], profile: dict[str, Any] | None
 ) -> bool:
+    if order.get("moderation_parent_id"):
+        return False
     if str(order.get("status") or "").upper() != "PROCESSED":
         return False
     order_city = order_city_identity(order)
@@ -4068,6 +4079,9 @@ def patch_order_atomically(
     actor: dict[str, Any] | None,
     integration: bool,
 ) -> dict[str, Any]:
+    if order_id.startswith("gpm-review-"):
+        from app.order_resubmission import patch_copy
+        return patch_copy(order_id, patch, actor=actor, integration=integration)
     init_db()
     actor_profile = None
     if actor is not None and str(actor.get("role") or "") == "logist":
@@ -4152,6 +4166,8 @@ def patch_order_atomically(
 
 
 def crm_sync_snapshot(order: dict[str, Any]) -> dict[str, Any]:
+    if order.get("moderation_parent_id"):
+        raise HTTPException(status_code=409, detail="moderation copy is not a published CRM link")
     if order.get("source") not in {"external", "crm"} or order.get("source_system") != "workstaff":
         raise HTTPException(status_code=409, detail="order is not from Workstaff CRM")
     if order.get("source_instance") != CRM_SYNC_INSTANCE:
@@ -4167,6 +4183,7 @@ def crm_sync_snapshot(order: dict[str, Any]) -> dict[str, Any]:
         "source_instance": CRM_SYNC_INSTANCE,
         "order_id": str(order["external_order_id"]),
         "status": order.get("status"),
+        "publication_review_hold": bool(order.get("publication_review_hold")),
         "logist_account_id": str(order.get("logist_account_id") or ""),
         "fields": fields,
         "revision": revision,
@@ -4178,6 +4195,31 @@ def read_crm_sync_snapshot(order_id: str) -> dict[str, Any]:
     if order is None:
         raise HTTPException(status_code=404, detail="order not found")
     return crm_sync_snapshot(order)
+
+
+def clean_crm_sync_patch(order, patch):
+    normalized = validate_order_patch(
+        order, {key: value for key, value in patch.items() if key not in CRM_SYNC_GEO_FIELDS},
+        actor=None, integration=True,
+    )
+    if order.get("status") in {"CONVERTED", "JUNK"}:
+        raise HTTPException(status_code=409, detail="closed order cannot be edited")
+    for field in ("address_street", "address_number"):
+        if field in patch:
+            try:
+                normalized[field] = bounded_text(patch[field], field, max_length=500)
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error)) from error
+    for field, limit in (("address_lat", 90), ("address_lon", 180)):
+        if field in patch:
+            try:
+                value = float(patch[field])
+                if not math.isfinite(value) or not -limit <= value <= limit:
+                    raise ValueError()
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=422, detail=f"invalid {field}")
+            normalized[field] = value
+    return normalized
 
 
 def sync_crm_order_atomically(order_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -4199,29 +4241,11 @@ def sync_crm_order_atomically(order_id: str, payload: dict[str, Any]) -> dict[st
         if order is None:
             raise HTTPException(status_code=404, detail="order not found")
         snapshot = crm_sync_snapshot(order)
+        if snapshot["publication_review_hold"]:
+            raise HTTPException(status_code=409, detail="published content is held for manual review")
         if not hmac.compare_digest(snapshot["revision"], revision):
             raise HTTPException(status_code=409, detail="CRM sync revision changed; retry")
-        normalized = validate_order_patch(
-            order, {key: value for key, value in patch.items() if key not in CRM_SYNC_GEO_FIELDS},
-            actor=None, integration=True,
-        )
-        if snapshot["status"] in {"CONVERTED", "JUNK"}:
-            raise HTTPException(status_code=409, detail="closed order cannot be edited")
-        for field in ("address_street", "address_number"):
-            if field in patch:
-                try:
-                    normalized[field] = bounded_text(patch[field], field, max_length=500)
-                except ValueError as error:
-                    raise HTTPException(status_code=422, detail=str(error)) from error
-        for field, limit in (("address_lat", 90), ("address_lon", 180)):
-            if field in patch:
-                try:
-                    value = float(patch[field])
-                    if not math.isfinite(value) or not -limit <= value <= limit:
-                        raise ValueError()
-                except (ValueError, TypeError):
-                    raise HTTPException(status_code=422, detail=f"invalid {field}")
-                normalized[field] = value
+        normalized = clean_crm_sync_patch(order, patch)
         order.update(normalized)
         write_order_in_connection(connection, order)
         record_audit_event_in_connection(
@@ -5690,6 +5714,8 @@ def _ensure_chat_thread_in_connection(
 
 def _ensure_order_chat_threads(connection: Any, orders: list[dict[str, Any]]) -> None:
     for order in orders:
+        if order.get("moderation_parent_id"):
+            continue
         order_id = str(order.get("id") or order.get("external_order_id") or "")
         if not order_id:
             continue
@@ -6950,3 +6976,7 @@ crew_routes.register(app)
 # Test-only registration exchange with TS; laboratory identities never authenticate.
 from app.registration_preview_crm import register_routes as _register_preview_crm_routes
 _register_preview_crm_routes(app)
+
+
+from app.order_resubmission import register_routes as _register_order_resubmission_routes
+_register_order_resubmission_routes(app)

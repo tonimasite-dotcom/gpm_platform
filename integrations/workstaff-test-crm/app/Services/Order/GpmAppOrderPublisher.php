@@ -21,6 +21,34 @@ class GpmAppOrderPublisher
         return false;
     }
 
+    private function requestModeration(string $baseUrl, string $token, string $number, int $code, string $recipient, array $candidate): bool
+    {
+        $requestId = bin2hex(random_bytes(16));
+        $response = Http::timeout(8)->acceptJson()->asJson()
+            ->withHeaders(['X-GPM-App-Token' => $token])
+            ->post($baseUrl . '/app-api/integration/order-resubmission/' . rawurlencode($number), [
+                'source_instance' => GpmAppOrderSync::INSTANCE,
+                'logist_crm_id' => $code,
+                'request_id' => $requestId,
+                'revision' => $candidate['revision'],
+                'fields' => $candidate['fields'],
+            ]);
+        if (!$response->successful()) {
+            if ($response->status() === 409) {
+                return $this->fail('Повторная модерация доступна только до начала работ', 409);
+            }
+            return $this->fail('Не удалось передать заявку на модерацию в GPM. Повторите отправку позже', 502);
+        }
+        $result = $response->json();
+        if (!is_array($result) || ($result['success'] ?? false) !== true
+            || ($result['request_id'] ?? '') !== $requestId
+            || ($result['logist_account_id'] ?? '') !== $recipient
+            || (($result['status'] ?? '') !== 'NEW' && ($result['already_applied'] ?? false) !== true)) {
+            return $this->fail('GPM не подтвердил повторную модерацию заявки', 502);
+        }
+        return true;
+    }
+
     private function profileCrmId(string $requested, string $phone): ?int
     {
         $sender = auth()->user();
@@ -88,8 +116,11 @@ class GpmAppOrderPublisher
                         return $this->fail('Заявка уже закреплена за другим логистом', 409);
                     }
                 }
-                $success = $sync->syncOrder($order);
-                return $success ?: $this->fail('Не удалось синхронизировать заявку с GPM', 502);
+                if (!in_array($linked->json('status'), ['NEW', 'PROCESSED'], true)) {
+                    return $this->fail('Повторная модерация доступна только до начала работ', 409);
+                }
+                $candidate = $sync->prepareModeration($order);
+                return $this->requestModeration($baseUrl, $token, (string) $order->order_number, $code, $recipient, $candidate);
             }
             if (!is_numeric($order->workers_cost) || (float) $order->workers_cost <= 0) {
                 return $this->fail('Укажите положительную ставку рабочим перед отправкой');
@@ -154,6 +185,9 @@ class GpmAppOrderPublisher
                     return $this->fail('GPM вернул неполный результат отправки. Сообщите администратору', 502);
                 }
                 $sync->rememberPublication($order, $logistPhone, $appOrder, $publishedCrm);
+                if (($appOrder['status'] ?? 'NEW') !== 'NEW') {
+                    return $this->requestModeration($baseUrl, $token, (string) $order->order_number, $code, $recipient, $sync->prepareModeration($order));
+                }
             }
 
             if (!$response->successful()) {

@@ -371,8 +371,7 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
   @override
   void didUpdateWidget(covariant LogistOrderCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.order['id'] != widget.order['id'] ||
-        oldWidget.order['status'] != widget.order['status']) {
+    if (!identical(oldWidget.order, widget.order)) {
       order = Map<String, dynamic>.from(widget.order);
     }
   }
@@ -468,6 +467,22 @@ class _LogistOrderCardState extends State<LogistOrderCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
+                if (order['status'] == 'NEW' && order['has_published_copy'] == true)
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: GpmColors.yellowSoft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Есть опубликованная копия',
+                      style: TextStyle(
+                        color: GpmColors.yellowInk,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 Text(order['address'] ?? ''),
                 const SizedBox(height: 2),
                 Text('🗓 ${formatOrderSchedule(order['scheduled_at'])}'),
@@ -699,10 +714,12 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Отменить заявку?'),
-        content: const Text(
-          'Исполнители потеряют доступ к отметкам прихода и ухода. Начисление по отмененной заявке не создается.',
-        ),
+        title: Text(order['moderation_parent_id'] != null
+            ? 'Отклонить новую версию?'
+            : 'Отменить заявку?'),
+        content: Text(order['moderation_parent_id'] != null
+            ? 'Опубликованная версия останется доступна исполнителям.'
+            : 'Исполнители потеряют доступ к отметкам прихода и ухода. Начисление по отмененной заявке не создается.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -722,7 +739,9 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
         'JUNK',
       );
       return {'success': success};
-    }, 'Заявка отменена');
+    }, order['moderation_parent_id'] != null
+        ? 'Новая версия отклонена, опубликованная сохранена'
+        : 'Заявка отменена');
   }
 
   Future<void> _finishOrder() async {
@@ -843,7 +862,8 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
     final status = orderStatusText(order['status']);
     final color = orderStatusColor(order['status']);
     final isExternalOrder = gpmApi.isExternalOrder(order);
-    final orderNumber = order['external_order_id'] ?? order['id'];
+    final orderNumber =
+        order['published_copy_id'] ?? order['external_order_id'] ?? order['id'];
     final title = isExternalOrder
         ? 'Заявка № $orderNumber'
         : order['title'] ?? 'Заказ';
@@ -926,7 +946,16 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
             const SizedBox(height: 8),
             _StatusPill(text: status, color: color),
             const SizedBox(height: 20),
-            OrderAttendancePanel(orderId: order['id'].toString()),
+            if (order['moderation_parent_id'] == null)
+              OrderAttendancePanel(orderId: order['id'].toString()),
+            if (order['status'] == 'NEW' && order['has_published_copy'] == true)
+              const Text(
+                'Есть опубликованная копия',
+                style: TextStyle(
+                  color: GpmColors.yellowInk,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             if (const {
               'NEW',
               'PROCESSED',
@@ -947,9 +976,11 @@ class _LogistOrderDetailsScreenState extends State<LogistOrderDetailsScreen> {
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: _isUpdating ? null : _cancelOrder,
-                child: const GpmButtonContent(
-                  icon: Icon(Icons.cancel_outlined),
-                  label: Text('Отменить заявку'),
+                child: GpmButtonContent(
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: Text(order['moderation_parent_id'] != null
+                      ? 'Отклонить новую версию'
+                      : 'Отменить заявку'),
                 ),
               ),
             ],
