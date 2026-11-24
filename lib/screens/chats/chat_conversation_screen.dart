@@ -354,7 +354,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
     return Column(
       children: [
         if (data.order != null)
-          _OrderContextCard(order: data.order!, thread: data.thread),
+          _OrderContextCard(
+            order: data.order!,
+            thread: data.thread,
+            showDetails: widget.role != ChatRole.worker,
+          ),
         if (_searching)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -528,11 +532,33 @@ class _ConversationData {
 class _OrderContextCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final ChatThread thread;
+  final bool showDetails;
 
-  const _OrderContextCard({required this.order, required this.thread});
+  const _OrderContextCard({
+    required this.order,
+    required this.thread,
+    required this.showDetails,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final title = Text(
+      order['title']?.toString() ?? 'Заявка',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+    );
+    const leading = Icon(
+      Icons.assignment_outlined,
+      color: GpmColors.muted,
+      size: 22,
+    );
+    if (!showDetails) {
+      return GpmSurface(
+        margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: ListTile(leading: leading, title: title),
+      );
+    }
     final status = _orderStatusText(order['status']);
     final statusColor = _orderStatusColor(order['status']);
     final scheduledAt = _formatScheduledAt(order['scheduled_at']);
@@ -548,17 +574,8 @@ class _OrderContextCard extends StatelessWidget {
         collapsedShape: const Border(),
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        leading: const Icon(
-          Icons.assignment_outlined,
-          color: GpmColors.muted,
-          size: 22,
-        ),
-        title: Text(
-          order['title']?.toString() ?? 'Заявка',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
+        leading: leading,
+        title: title,
         subtitle: Text(
           status,
           style: TextStyle(color: statusColor, fontSize: 12),
@@ -613,21 +630,6 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <Widget>[];
-
-    if (role == ChatRole.worker) {
-      actions.addAll([
-        _ActionButton(
-          icon: Icons.location_on_outlined,
-          label: 'Я на месте',
-          onTap: () => onQuickMessage('Я на месте. Готов начинать работы.'),
-        ),
-        _ActionButton(
-          icon: Icons.task_alt,
-          label: 'Работы завершены',
-          onTap: () => onQuickMessage('Работы завершены.'),
-        ),
-      ]);
-    }
 
     if (role == ChatRole.client && order?['status'] == 'DONE_PENDING') {
       actions.add(
@@ -791,7 +793,7 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
-    final background = isOwn ? const Color(0xFFFFE4E6) : GpmColors.surface;
+    final background = isOwn ? GpmColors.yellowSoft : GpmColors.surface;
     const foreground = GpmColors.black;
 
     return Align(
