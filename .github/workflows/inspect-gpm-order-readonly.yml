@@ -1,0 +1,102 @@
+name: Inspect GPM order routing read-only
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gpm-order-routing-inspection
+  cancel-in-progress: false
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 6
+    steps:
+      - name: Configure verified GPM backend access
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+      - name: Read routing without data or account changes
+        env:
+          PRIVATE_REQUEST: ${{ secrets.GPM_READONLY_ORDER_INSPECTION_20261124 }}
+        run: |
+          python3 - <<'RUNNER'
+          import json, os, subprocess, textwrap
+          request = json.loads(os.environ['PRIVATE_REQUEST'])
+          assert set(request) == {'order_number', 'crm_id'}
+          assert isinstance(request['order_number'], str) and 0 < len(request['order_number']) < 100
+          assert type(request['crm_id']) is int and request['crm_id'] > 0
+          source = r'''
+          import os, json, subprocess
+          from pathlib import Path
+          from datetime import datetime, timezone
+          assert os.environ.get('SSH_CONNECTION', '').split()[2] == '46.149.71.147'
+          root = Path('/opt/gpm/gpm_platform')
+          assert Path.cwd() == root and root.resolve() == root
+          assert subprocess.check_output(['git','remote','get-url','origin'],text=True).strip() == 'https://github.com/tonimasite-dotcom/gpm_platform.git'
+          from app import app_orders_api as api
+          from app import crm_logist_ids as ids
+          assert api.is_postgres_enabled()
+          with api.db_connection() as connection:
+              connection.set_session(readonly=True, autocommit=False)
+              with connection.cursor() as cursor:
+                  cursor.execute("SET LOCAL statement_timeout = '10s'")
+                  cursor.execute('SHOW transaction_read_only')
+                  assert cursor.fetchone()[0] == 'on'
+                  cursor.execute('SELECT c.account_id,c.enabled,a.role,a.is_active FROM '+ids.MEMBERS+' c JOIN '+api.ACCOUNTS_TABLE_NAME+' a ON a.account_id=c.account_id WHERE c.crm_id=%s',(request['crm_id'],))
+                  member = cursor.fetchone()
+                  account_id = str(member[0]) if member else ''
+                  profile = {}
+                  if account_id:
+                      cursor.execute('SELECT data FROM '+api.PROFILES_TABLE_NAME+' WHERE account_id=%s',(account_id,))
+                      row = cursor.fetchone()
+                      if row: profile = row[0] if isinstance(row[0],dict) else json.loads(row[0])
+                  cursor.execute("SELECT data,updated_at FROM "+api.TABLE_NAME+" WHERE order_id=%s OR data->>'external_order_id'=%s OR data->>'external_order_number'=%s OR data->>'crm_order_number'=%s OR data#>>'{source_payload,order_data,order_number}'=%s ORDER BY updated_at DESC LIMIT 20", (request['order_number'],)*5)
+                  found = cursor.fetchall()
+                  matches = []
+                  for order, updated in found:
+                      order = order if isinstance(order,dict) else json.loads(order)
+                      status = str(order.get('status') or '')
+                      matches.append({
+                          'source_is_ts': order.get('source_instance') == 'https://ts.workstaffcrm.ru',
+                          'assigned_to_requested_logist': str(order.get('logist_account_id') or '') == account_id and bool(account_id),
+                          'status': status if status in {'NEW','PROCESSED','IN_PROCESS','DONE_PENDING','CONVERTED','JUNK'} else 'other',
+                          'visible_by_logist_api_rules': bool(api.orders_for_user([order],{'sub':account_id,'role':'logist'},profile=profile)) if account_id else False,
+                          'updated_within_hour': (datetime.now(timezone.utc)-updated).total_seconds() < 3600,
+                      })
+                  cursor.execute("SELECT data->>'status',COUNT(*) FROM "+api.TABLE_NAME+" WHERE data->>'source_instance'=%s AND data->>'logist_account_id'=%s GROUP BY data->>'status'",('https://ts.workstaffcrm.ru',account_id))
+                  counts = {key:count for key,count in cursor.fetchall() if key in {'NEW','PROCESSED','IN_PROCESS','DONE_PENDING','CONVERTED','JUNK'}}
+              connection.rollback()
+          print(json.dumps({
+              'ok': True,'read_only': True,
+              'active_company_logist_found': bool(member and member[1] and member[2]=='logist' and member[3]),
+              'matching_order_count':len(matches),'matches':matches,
+              'requested_logist_ts_status_counts':counts,
+              'live_code_commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+          }))
+          '''
+          program = 'import json\nrequest=json.loads('+repr(json.dumps(request))+')\n'+textwrap.dedent(source)
+          compile(program, '<readonly-gpm-order-inspection>', 'exec')
+          shell = "set -euo pipefail\ncd /opt/gpm/gpm_platform\ntest ! -L /opt/gpm/gpm_platform\nset -a\n. /root/gpm-app-env\nset +a\nexport PYTHONDONTWRITEBYTECODE=1\n.venv/bin/python - <<'GPM_READONLY'\n"+program+"\nGPM_READONLY\n"
+          result = subprocess.run(['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','IdentitiesOnly=yes','-o','ConnectTimeout=15','-o','ServerAliveInterval=15','-o','ServerAliveCountMax=3','root@46.149.71.147','bash -se'],input=shell,text=True,capture_output=True,timeout=150)
+          summaries=[]
+          for line in result.stdout.splitlines():
+              try:
+                  value=json.loads(line)
+                  if isinstance(value,dict) and value.get('read_only') is True: summaries.append(value)
+              except ValueError: pass
+          if result.returncode or not summaries:
+              print(json.dumps({'ok':False,'exit_code':result.returncode,'error_types':[name for name in ['AssertionError','KeyError','UndefinedTable','UndefinedColumn','ReadOnlySqlTransaction','SyntaxError','Permission denied'] if name in result.stderr]}))
+              raise SystemExit('Read-only GPM inspection failed; raw private output withheld')
+          print(json.dumps(summaries[-1]))
+          RUNNER
+      - name: Remove runner SSH credentials
+        if: always()
+        run: rm -f "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
