@@ -103,7 +103,7 @@ class HeadlessLeaderTests(unittest.TestCase):
         self.sync()
         _,_,token=self.batch()
         self.assertFalse(self.sync(leader=None)["ready"])
-        self.error(409,flow.start,self.order["id"],self.leader,"check_in",self.geo())
+        self.error(403,flow.start,self.order["id"],self.leader,"check_in",self.geo())
         with self.assertRaises(Exception):
             api.confirm_attendance_by_client(self.client,token=token)
         self.assertTrue(self.sync()["ready"])
