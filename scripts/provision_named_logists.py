@@ -55,7 +55,10 @@ def plan(connection, profiles):
             same_login = api.normalize_username(username) == api.normalize_username(p["username"])
             if same_phone or same_email or same_login:
                 found.append((account_id, username, role, active, data, same_phone, same_email))
-        assert len(found) <= 1, "Ambiguous existing identity"
+        assert len(found) <= 1, json.dumps({"reason":"ambiguous_identity","slot":p["expected_id"],
+            "matches":[{"role":r[2],"active":bool(r[3]),"phone_match":r[5],"email_match":r[6],
+                        "login_match":api.normalize_username(r[1])==api.normalize_username(p["username"]),
+                        "crm_id":ids.for_account(connection,r[0])} for r in found]})
         existing = found[0] if found else None
         if existing:
             assert existing[2] == "logist" and existing[3], "Existing role/activation conflict"
