@@ -227,9 +227,15 @@ void main() {
       );
       expect(find.text('Москва, Тестовая улица, 10'), findsNothing);
       await capture(tester, 'conversation-${role.name}');
-      await tester.tap(find.byType(ExpansionTile));
-      await tester.pumpAndSettle();
-      expect(find.text('Москва, Тестовая улица, 10'), findsOneWidget);
+      if (role == ChatRole.worker) {
+        expect(find.byType(ExpansionTile), findsNothing);
+        expect(find.text('Я на месте'), findsNothing);
+        expect(find.text('Работы завершены'), findsNothing);
+      } else {
+        await tester.tap(find.byType(ExpansionTile));
+        await tester.pumpAndSettle();
+        expect(find.text('Москва, Тестовая улица, 10'), findsOneWidget);
+      }
       chats.archived = true;
       await tester.pump(const Duration(seconds: 3));
       await tester.pumpAndSettle();
