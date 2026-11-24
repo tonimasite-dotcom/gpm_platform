@@ -175,5 +175,7 @@ def execute(request, operation, run_id):
     except BaseException as error:
         report.write_text(json.dumps({"ok":False,"operation":operation,"error_type":type(error).__name__,"private_traceback":traceback.format_exc()}))
         report.chmod(0o600)
-        print(json.dumps({"ok":False,"operation":operation,"error_type":type(error).__name__}))
+        print(json.dumps({"ok":False,"operation":operation,"error_type":type(error).__name__,
+            "reason":str(error) if isinstance(error,AssertionError) else "",
+            "failed_line":traceback.extract_tb(error.__traceback__)[-1].lineno}))
         raise SystemExit(1)
