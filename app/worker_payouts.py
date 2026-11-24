@@ -1,6 +1,5 @@
 """Worker payout preferences. No transfers or external profile lookups."""
 import json
-import re
 from pathlib import Path
 
 _DIRECTORY = json.loads((Path(__file__).resolve().parents[1] / "assets/data/sbp_banks.json").read_text(encoding="utf-8"))
@@ -10,15 +9,8 @@ PAYOUT_FIELDS = {"payout_method", "payout_bank_id", "payout_phone"}
 def normalize_phone(value: str) -> str:
     if not value:
         return ""
-    if (not re.fullmatch(r"[+0-9 ()-]+", value) or value.count("+") > 1
-            or ("+" in value and not value.strip().startswith("+"))):
-        raise ValueError("Укажите телефон банка в формате +7 900 000-00-00")
-    digits = re.sub(r"[^0-9]", "", value)
-    if len(digits) == 11 and digits[0] in "78":
-        digits = digits[1:]
-    if len(digits) != 10:
-        raise ValueError("Укажите телефон банка в формате +7 900 000-00-00")
-    return "+7" + digits
+    from app.phone_numbers import normalize_russian_phone
+    return normalize_russian_phone(value)
 
 def clean_bank_id(value: str) -> str:
     if value and value not in BANK_NAMES:

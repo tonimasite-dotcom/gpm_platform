@@ -86,12 +86,12 @@ void main() {
     final target = find.byKey(const Key('registration_phone'));
     String text() => tester.widget<TextFormField>(target).controller!.text;
     await enter(tester, 'phone', '999999999999999999999999999999');
-    expect(text(), '9999999999');
+    expect(text(), '+7 (999) 999-99-99');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await enter(tester, 'phone', '+7 (999) 123-45-67 890123');
-    expect(text(), '+79991234567');
+    expect(text(), '+7 (999) 123-45-67');
     await enter(tester, 'phone', '8 (999) 123-45-67 890');
-    expect(text(), '89991234567');
+    expect(text(), '+7 (999) 123-45-67');
     await enter(tester, 'phone', '999');
     await primary(tester);
     expect(find.textContaining('Нужно 10 цифр'), findsWidgets);
@@ -143,8 +143,8 @@ void main() {
           selection: TextSelection.collapsed(offset: 8),
         ),
       );
-      expect(result.text, '+79991234567');
-      expect(result.selection.baseOffset, 5);
+      expect(result.text, '+7 (999) 123-45-67');
+      expect(result.selection.baseOffset, 8);
       for (final value in [
         '9991234567',
         '89991234567',

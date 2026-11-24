@@ -1,3 +1,4 @@
+import '../registration/registration_phone_input.dart';
 import 'package:flutter/material.dart';
 import '../main.dart';
 
@@ -26,13 +27,19 @@ class _BitrixRegistrationExampleState extends State<BitrixRegistrationExample> {
       return;
     }
 
+    final phoneError = russianPhoneError(_phoneController.text, required: true);
+    if (phoneError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(phoneError)));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final result = await gpmApi.createContact(
         name: _nameController.text,
         email: _emailController.text,
-        phone: _phoneController.text,
+        phone: phoneForDisplay(_phoneController.text),
         role: selectedRole,
       );
 
@@ -95,10 +102,11 @@ class _BitrixRegistrationExampleState extends State<BitrixRegistrationExample> {
               controller: _phoneController,
               decoration: const InputDecoration(
                 labelText: 'Телефон',
-                prefixText: '+7 ',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
+              inputFormatters: const [RegistrationPhoneFormatter('RU')],
+              autofillHints: const [AutofillHints.telephoneNumber],
             ),
             const SizedBox(height: 16),
             const Text(

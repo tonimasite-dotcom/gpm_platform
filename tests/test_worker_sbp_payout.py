@@ -30,7 +30,7 @@ class WorkerSbpPayoutTests(unittest.TestCase):
         self.assertEqual(result["payout_method"], "sbp")
         self.assertEqual(result["payout_bank_name"], BANK_NAMES[self.bank])
         self.assertEqual(result["payout_phone"], "+79000000001")
-        self.assertEqual(result["phone"], "+79000000000")
+        self.assertEqual(result["phone"], "+7 (900) 000-00-00")
         self.assertEqual(result["payout_account"], "synthetic-account")
         self.assertEqual(api.get_account_profile(self.worker)["payout_phone"], "+79000000001")
         self.assertEqual(api.get_account_profile(self.other)["payout_phone"], "")

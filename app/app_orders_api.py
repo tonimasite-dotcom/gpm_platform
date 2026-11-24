@@ -3478,11 +3478,11 @@ def _attendance_completion_code_page(result: dict[str, Any]) -> HTMLResponse:
 
 
 def normalized_phone_identity(value: Any) -> str:
-    digits = "".join(
-        character for character in str(value or "") if character.isdigit()
-    )
-    # Russian phone numbers arrive from CRM in both +7 and 8 formats.
-    return digits[-10:] if len(digits) >= 10 else digits
+    from app.phone_numbers import normalize_russian_phone
+    try:
+        return normalize_russian_phone(value)[2:]
+    except ValueError:
+        return ""
 
 
 def normalized_city_identity(value: Any) -> str:
@@ -4972,6 +4972,11 @@ def get_account_profile(user: dict[str, Any]) -> dict[str, Any]:
 
 
 def _clean_profile_value(field: str, value: Any) -> Any:
+    if field == "phone":
+        from app.phone_numbers import format_russian_phone
+        if value == "":
+            return ""
+        return format_russian_phone(value)
     if field in {"nationality", "notify_new_orders"}:
         if not isinstance(value, bool):
             raise ValueError(f"{field} must be boolean")

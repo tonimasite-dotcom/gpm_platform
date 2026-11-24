@@ -244,7 +244,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Сбербанк'), findsOneWidget);
-    expect(find.text('+79000000000'), findsOneWidget);
+    expect(find.text('+7 (900) 000-00-00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('worker_sbp_save')));
     await tester.pumpAndSettle();
     expect(attempts, 2);

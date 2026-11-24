@@ -1,3 +1,4 @@
+import '../../registration/registration_phone_input.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -78,7 +79,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
           data['display_name']?.toString() ??
           data['name']?.toString() ??
           _nameController.text;
-      _phoneController.text = data['phone']?.toString() ?? '';
+      _phoneController.text = phoneForDisplay(data['phone']?.toString() ?? '');
       _emailController.text =
           data['email']?.toString() ?? _emailController.text;
       final cities = data['cities'];
@@ -108,7 +109,7 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
       'department': _department,
       'notify_new_orders': _notifyNewOrders,
       'display_name': _nameController.text.trim(),
-      'phone': _phoneController.text.trim(),
+      'phone': phoneForDisplay(_phoneController.text.trim()),
       'email': _emailController.text.trim(),
       'cities': _cityController.text
           .split(',')
@@ -330,10 +331,13 @@ class _LogistProfileScreenState extends State<LogistProfileScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                inputFormatters: const [RegistrationPhoneFormatter('RU')],
+                autofillHints: const [AutofillHints.telephoneNumber],
                 decoration: const InputDecoration(
                   labelText: 'Телефон',
                   border: OutlineInputBorder(),
                 ),
+                validator: (value) => russianPhoneError(value, required: false),
               ),
               const SizedBox(height: 12),
               TextFormField(

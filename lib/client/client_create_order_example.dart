@@ -1,3 +1,4 @@
+import '../registration/registration_phone_input.dart';
 import 'package:flutter/material.dart';
 import '../main.dart';
 
@@ -29,6 +30,12 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
       return;
     }
 
+    final phoneError = russianPhoneError(_phoneController.text, required: false);
+    if (phoneError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(phoneError)));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -39,7 +46,7 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         hours: int.parse(_hoursController.text),
         description: _descriptionController.text,
         clientEmail: _emailController.text,
-        clientPhone: _phoneController.text,
+        clientPhone: phoneForDisplay(_phoneController.text),
       );
 
       if (!mounted) return;
@@ -109,6 +116,8 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
+              inputFormatters: const [RegistrationPhoneFormatter('RU')],
+              autofillHints: const [AutofillHints.telephoneNumber],
             ),
             const SizedBox(height: 16),
             Row(

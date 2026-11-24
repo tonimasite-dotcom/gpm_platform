@@ -1,3 +1,4 @@
+import '../../registration/registration_phone_input.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/adaptive_buttons.dart';
 import 'package:flutter/services.dart';
@@ -80,7 +81,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       if (!mounted) return;
       _profile = Map<String, dynamic>.from(raw);
       _name.text = _text(raw['display_name'] ?? raw['full_name']);
-      _phone.text = _text(raw['phone'] ?? raw['phone_number']);
+      _phone.text = phoneForDisplay(_text(raw['phone'] ?? raw['phone_number']));
       _birthDate.text = _text(raw['date_birth']);
       _cities.text = (raw['cities'] as List? ?? const []).join(', ');
       _addressCity.text = _text(raw['address_city']);
@@ -149,7 +150,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     setState(() => _saving = true);
     final patch = <String, dynamic>{
       'display_name': _name.text.trim(),
-      'phone': _phone.text.trim(),
+      'phone': phoneForDisplay(_phone.text.trim()),
       'date_birth': _birthDate.text.trim(),
       'cities': _cities.text
           .split(',')
@@ -342,10 +343,12 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               TextFormField(
                                 controller: _phone,
                                 keyboardType: TextInputType.phone,
+                inputFormatters: const [RegistrationPhoneFormatter('RU')],
+                autofillHints: const [AutofillHints.telephoneNumber],
                                 decoration: const InputDecoration(
                                   labelText: 'Телефон',
                                 ),
-                                validator: _required,
+                                validator: (value) => russianPhoneError(value),
                               ),
                             ],
                           ),
