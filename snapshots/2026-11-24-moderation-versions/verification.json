@@ -1,0 +1,51 @@
+{
+  "gpm_code": "60f453c36e493358541f6dce6d5d110d96a0127d",
+  "ts_code": "e31edd10704633530e016f7219ec0b9e06ae8b91",
+  "prs": [
+    38,
+    39
+  ],
+  "gpm_deployment": 45370387441,
+  "backup": 45369984608,
+  "ci": [
+    45369710453,
+    45369725382,
+    45372081636,
+    45372088057
+  ],
+  "qa": [
+    45369725370,
+    45372088375
+  ],
+  "backend_tests": 240,
+  "php74_candidate_rollback": "PASS",
+  "ts_files_changed": 2,
+  "settings_jobs_preserved": true,
+  "production_order_replay": false,
+  "manual_acceptance": "pending owner",
+  "live": [
+    {
+      "url": "https://app.gpmbot.ru/",
+      "status": 200
+    },
+    {
+      "url": "https://app.gpmbot.ru/main.dart.js",
+      "status": 200,
+      "sha256": "b44e0e56f470d85eab3da3632860bd3ea78bdca79ca928a4426e669ec137563f",
+      "published_copy_notice_in_live_bundle": true
+    },
+    {
+      "url": "https://app.gpmbot.ru/registration-preview/",
+      "status": 200
+    },
+    {
+      "url": "https://app-api.gpmbot.ru/health",
+      "status": 200,
+      "health": "ok"
+    },
+    {
+      "url": "https://ts.workstaffcrm.ru/",
+      "status": 200
+    }
+  ]
+}
