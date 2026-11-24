@@ -209,7 +209,7 @@ void main() {
   testWidgets('TS brigadier setup needs no manual enable button', (tester) async {
     final state = fixture(logist: true);
     state['leader_in_crm'] = true;
-    state['leader_sync_managed'] = true;
+    state['leader_sync_managed'] = false;
     state['setup_required'] = true;
     state['setup_message'] = 'Назначьте бригадира этой заявки в TS';
     state['paused'] = true;
