@@ -6950,3 +6950,7 @@ crew_routes.register(app)
 # Test-only registration exchange with TS; laboratory identities never authenticate.
 from app.registration_preview_crm import register_routes as _register_preview_crm_routes
 _register_preview_crm_routes(app)
+
+
+from app.order_resubmission import register_routes as _register_order_resubmission_routes
+_register_order_resubmission_routes(app)

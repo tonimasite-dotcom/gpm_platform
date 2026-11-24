@@ -40,7 +40,7 @@ namespace App\Services\Order {
 namespace Illuminate\Support\Facades {
     class Log {public static $events=[];public static function warning($message,$context=[]){self::$events[]=[$message,$context];}}
     class Http {
-        public static $calls=[],$lookupStatus=200,$linkedOwner='company-one',$postStatus=200;
+        public static $calls=[],$lookupStatus=200,$linkedOwner='company-one',$postStatus=200,$moderationStatus=200,$linkedStatus='PROCESSED';
         public static function timeout($seconds){return new FakeRequest;}
     }
     class FakeResponse {
@@ -57,10 +57,16 @@ namespace Illuminate\Support\Facades {
         public function get($url){
             Http::$calls[]=['GET',$url];
             if(strpos($url,'/crm-logists/')!==false){return new FakeResponse(Http::$lookupStatus,['crm_logist_id'=>1,'account_id'=>'company-one']);}
-            return new FakeResponse(200,['logist_account_id'=>Http::$linkedOwner]);
+            return new FakeResponse(200,['logist_account_id'=>Http::$linkedOwner,'status'=>Http::$linkedStatus]);
         }
         public function post($url,$payload){
             Http::$calls[]=['POST',$url,$payload];
+            if(strpos($url,'/order-resubmission/')!==false){
+                return new FakeResponse(Http::$moderationStatus,[
+                    'success'=>true,'request_id'=>$payload['request_id'],
+                    'logist_account_id'=>Http::$linkedOwner,'status'=>'NEW','already_applied'=>false,
+                ]);
+            }
             return new FakeResponse(Http::$postStatus,['order'=>['source_instance'=>'https://ts.workstaffcrm.ru','logist_account_id'=>'company-one'],'detail'=>'Arbitrary synthetic server details']);
         }
     }
@@ -70,7 +76,7 @@ namespace {
     use App\Services\Order\GpmAppOrderPublisher;
     use App\Services\Order\GpmAppOrderSync;
     use Illuminate\Support\Facades\Http;
-    function resetFixture(){Http::$calls=[];Http::$lookupStatus=200;Http::$linkedOwner='company-one';Http::$postStatus=200;GpmAppOrderSync::$linked=false;GpmAppOrderSync::$syncCalls=0;$GLOBALS['scope']='https://ts.workstaffcrm.ru';$GLOBALS['sender']=new SyntheticSender;$GLOBALS['freshSender']=$GLOBALS['sender'];}
+    function resetFixture(){Http::$calls=[];Http::$lookupStatus=200;Http::$linkedOwner='company-one';Http::$postStatus=200;Http::$moderationStatus=200;Http::$linkedStatus='PROCESSED';GpmAppOrderSync::$linked=false;GpmAppOrderSync::$syncCalls=0;$GLOBALS['scope']='https://ts.workstaffcrm.ru';$GLOBALS['sender']=new SyntheticSender;$GLOBALS['freshSender']=$GLOBALS['sender'];}
     resetFixture();$order=new App\Models\Order;$publisher=new GpmAppOrderPublisher;
     check($publisher->publish($order,'','#1'),'ID publication');
     $post=Http::$calls[count(Http::$calls)-1][2];
@@ -80,7 +86,7 @@ namespace {
     foreach(['#0','bad','1.5','-1'] as $bad){resetFixture();check(!$publisher->publish($order,'',$bad),'Invalid ID blocked');check(count(Http::$calls)===0,'Invalid ID has no HTTP side effects');}
     resetFixture();Http::$lookupStatus=404;check(!$publisher->publish($order,'','#1'),'Unknown company ID');check(count(Http::$calls)===1,'Unknown ID never publishes');
     resetFixture();GpmAppOrderSync::$linked=true;Http::$linkedOwner='other-account';check(!$publisher->publish($order,'','#1'),'Linked owner protected');check($publisher->errorStatus()===409&&GpmAppOrderSync::$syncCalls===0,'No implicit retargeting');
-    resetFixture();GpmAppOrderSync::$linked=true;check($publisher->publish($order,'','#1'),'Linked same-owner repeat');check(GpmAppOrderSync::$syncCalls===1&&count(Http::$calls)===2,'Repeat validates recipient then syncs');
+    resetFixture();GpmAppOrderSync::$linked=true;check($publisher->publish($order,'','#1'),'Linked same-owner repeat');check(GpmAppOrderSync::$syncCalls===1&&count(Http::$calls)===3,'Manual repeat validates recipient, syncs and requests moderation');
     resetFixture();check(!$publisher->publish($order,'+71111111111'),'Phone publication blocked');check(count(Http::$calls)===0,'Phone cannot bypass saved profile ID');
     foreach([null,'',0,true,'#1','bad'] as $missing){
         resetFixture();$GLOBALS['freshSender']=new SyntheticSender($missing);
@@ -101,5 +107,23 @@ namespace {
     resetFixture();$GLOBALS['scope']='https://other.example';check(!$publisher->publish($order,'','#1')&&count(Http::$calls)===0,'TS-only guard');
     resetFixture();Http::$postStatus=400;check(!$publisher->publish($order,'','#1'),'API failure surfaced');check(strpos($publisher->errorMessage(),'Arbitrary')===false,'Arbitrary response body not exposed');
     check(strpos(json_encode(Illuminate\Support\Facades\Log::$events),'synthetic-token')===false,'Token absent from logs');
+    resetFixture();GpmAppOrderSync::$linked=true;
+    check($publisher->publish($order,'','#1'),'Manual resubmission accepted');
+    $first=Http::$calls[count(Http::$calls)-1];
+    check(strpos($first[1],'/order-resubmission/TEST%2F26')!==false,'Dedicated manual endpoint and encoded number');
+    check(preg_match('/^[0-9a-f]{32}$/D',$first[2]['request_id'])===1,'Unique operation ID');
+    check($first[2]['source_instance']==='https://ts.workstaffcrm.ru'&&$first[2]['logist_crm_id']===1,'Trusted TS and saved ID');
+    check($publisher->publish($order,'','#1'),'Second explicit click requests moderation again');
+    $second=Http::$calls[count(Http::$calls)-1];
+    check($first[2]['request_id']!==$second[2]['request_id'],'Each explicit click is a distinct operation');
+    foreach(['IN_PROCESS','DONE_PENDING','CONVERTED','JUNK'] as $status){
+        resetFixture();GpmAppOrderSync::$linked=true;Http::$linkedStatus=$status;
+        check(!$publisher->publish($order,'','#1')&&$publisher->errorStatus()===409,'Started and closed publication blocked');
+        check(GpmAppOrderSync::$syncCalls===0&&count(Http::$calls)===2,'No sync or moderation after started/closed guard');
+    }
+    resetFixture();GpmAppOrderSync::$linked=true;Http::$moderationStatus=409;
+    check(!$publisher->publish($order,'','#1')&&$publisher->errorStatus()===409,'Server progress race is reported');
+    resetFixture();GpmAppOrderSync::$linked=true;Http::$moderationStatus=503;
+    check(!$publisher->publish($order,'','#1')&&$publisher->errorStatus()===502,'Missing moderation acknowledgement is not success');
     echo "CRM saved profile ID publication and transport checks PASS\n";
 }
