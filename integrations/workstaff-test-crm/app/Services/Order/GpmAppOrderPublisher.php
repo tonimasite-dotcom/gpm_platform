@@ -35,7 +35,10 @@ class GpmAppOrderPublisher
             ]);
         if (!$response->successful()) {
             if ($response->status() === 409) {
-                return $this->fail('Повторная модерация доступна только до начала работ', 409);
+                $detail = $response->json('detail');
+                $message = $detail === 'Повторная модерация доступна только до начала работ'
+                    ? $detail : 'Опубликованная заявка изменилась. Обновите данные и повторите отправку';
+                return $this->fail($message, 409);
             }
             return $this->fail('Не удалось передать заявку на модерацию в GPM. Повторите отправку позже', 502);
         }
@@ -116,7 +119,8 @@ class GpmAppOrderPublisher
                         return $this->fail('Заявка уже закреплена за другим логистом', 409);
                     }
                 }
-                if (!in_array($linked->json('status'), ['NEW', 'PROCESSED'], true)) {
+                if (!in_array($linked->json('status'), ['NEW', 'PROCESSED'], true)
+                    || in_array((int) $order->status_id, [Order::STATUS_JOB, Order::STATUS_COMPLETED, Order::STATUS_RETURNED, Order::STATUS_DELETE], true)) {
                     return $this->fail('Повторная модерация доступна только до начала работ', 409);
                 }
                 $candidate = $sync->prepareModeration($order);

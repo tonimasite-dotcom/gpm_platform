@@ -18,6 +18,8 @@ namespace {
 namespace App\Models {
     class Moment { public function toIso8601String(){return '2026-12-01T10:00:00+03:00';} }
     class Order {
+        public const STATUS_JOB=2,STATUS_COMPLETED=3,STATUS_RETURNED=4,STATUS_DELETE=5;
+        public $status_id=0;
         public $id=1,$order_number='TEST/26',$workers_cost=500,$customer_cost=1000,$city='Synthetic';
         public $address='Synthetic address',$street='Synthetic',$house='1',$coords=[0,0],$note='Synthetic',$info='',$additional=[];
         public $duration=4,$min_time=4,$loader_count=2,$contact_phone='+70000000000',$contact_email='synthetic@example.test';
@@ -126,5 +128,11 @@ namespace {
     check(!$publisher->publish($order,'','#1')&&$publisher->errorStatus()===409,'Server progress race is reported');
     resetFixture();GpmAppOrderSync::$linked=true;Http::$moderationStatus=503;
     check(!$publisher->publish($order,'','#1')&&$publisher->errorStatus()===502,'Missing moderation acknowledgement is not success');
+    foreach([2,3,4,5] as $status){
+        resetFixture();GpmAppOrderSync::$linked=true;$order->status_id=$status;
+        check(!$publisher->publish($order,'','#1')&&$publisher->errorStatus()===409,'TS own progress blocks repeated moderation');
+        check(GpmAppOrderSync::$prepared===0&&GpmAppOrderSync::$syncCalls===0,'No stage or sync for started TS order');
+    }
+    $order->status_id=0;
     echo "CRM saved profile ID publication and transport checks PASS\n";
 }
