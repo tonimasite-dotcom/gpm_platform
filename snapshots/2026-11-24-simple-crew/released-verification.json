@@ -1,0 +1,40 @@
+{
+  "code": "fc27f1a7fc739c46d1f63de607a5b6b4c28849da",
+  "merge": "ddb5f6faf78281df1209e99bc677ee5303352c44",
+  "deployment": 45384189650,
+  "ci": [
+    45383482146,
+    45383470573
+  ],
+  "qa": 45383481705,
+  "backend_tests": 268,
+  "gpm_backup": 45381331928,
+  "ts": {
+    "installed": true,
+    "runtime": {
+      "leader_enabled": true,
+      "order_sync_enabled": true,
+      "class_ready": true,
+      "instance_ok": true
+    },
+    "files_sha256": {
+      "app/Services/Order/GpmCrewLeaderSync.php": "9d5c44da355c8c2231d1e2a115d15de07adb7730212b264743a68dbdfa5ac08f",
+      "app/Services/Order/GpmAppOrderSync.php": "0ab10f59030080c73f3df9331902e39dc9eead894d1257e4323872ee20ee7472"
+    },
+    "settings_cron_preserved": true,
+    "new_flag_only": true,
+    "manual_order_replay": false,
+    "migrations_or_service_restart": false
+  },
+  "live": {
+    "gpm": 200,
+    "registration_preview": 200,
+    "ts": 200,
+    "api_health": "ok",
+    "unauthenticated_crew_integration": 401,
+    "js_sha256": "f5abaa25b9f93bb0cd5c304e2a40edd5c165ccd1393b888ba3e3b48022718408"
+  },
+  "crew_availability": true,
+  "manual_acceptance": "pending owner phone check",
+  "main_crm": "untouched"
+}
