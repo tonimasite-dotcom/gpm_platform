@@ -275,7 +275,9 @@ class _SbpEditorState extends State<_SbpEditor> {
                   key: const Key('worker_sbp_use_profile_phone'),
                   onPressed: _saving
                       ? null
-                      : () => setState(() => _phone.text = phoneForDisplay(ownPhone)),
+                      : () => setState(
+                          () => _phone.text = phoneForDisplay(ownPhone),
+                        ),
                   icon: const Icon(Icons.content_paste, size: 18),
                   label: Text('Вставить мой номер $ownPhone'),
                 ),

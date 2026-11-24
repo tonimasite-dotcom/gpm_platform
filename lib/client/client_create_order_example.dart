@@ -24,15 +24,20 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
     if (_titleController.text.isEmpty ||
         _addressController.text.isEmpty ||
         _emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполните все поля')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Заполните все поля')));
       return;
     }
 
-    final phoneError = russianPhoneError(_phoneController.text, required: false);
+    final phoneError = russianPhoneError(
+      _phoneController.text,
+      required: false,
+    );
     if (phoneError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(phoneError)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(phoneError)));
       return;
     }
 
@@ -60,15 +65,15 @@ class _ClientCreateOrderScreenState extends State<ClientCreateOrderScreen> {
         );
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${result['error']}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: ${result['error']}')));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

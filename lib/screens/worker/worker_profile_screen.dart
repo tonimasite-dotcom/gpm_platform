@@ -343,8 +343,12 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               TextFormField(
                                 controller: _phone,
                                 keyboardType: TextInputType.phone,
-                inputFormatters: const [RegistrationPhoneFormatter('RU')],
-                autofillHints: const [AutofillHints.telephoneNumber],
+                                inputFormatters: const [
+                                  RegistrationPhoneFormatter('RU'),
+                                ],
+                                autofillHints: const [
+                                  AutofillHints.telephoneNumber,
+                                ],
                                 decoration: const InputDecoration(
                                   labelText: 'Телефон',
                                 ),
@@ -839,7 +843,8 @@ class _VerificationCard extends StatelessWidget {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 260 ||
+              final stacked =
+                  constraints.maxWidth < 260 ||
                   MediaQuery.textScalerOf(context).scale(14) > 18;
               final heading = Row(
                 children: [

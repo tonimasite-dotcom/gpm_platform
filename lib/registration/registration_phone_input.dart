@@ -98,7 +98,8 @@ class RegistrationPhoneFormatter extends TextInputFormatter {
       if (digits.length > 11) digits = digits.substring(0, 11);
       return _withSelection(raw, selection, '+$digits', 0);
     }
-    final sourcePrefix = hasPlus ||
+    final sourcePrefix =
+        hasPlus ||
         ((digits.startsWith('7') || digits.startsWith('8')) &&
             digits.length != 10);
     if (sourcePrefix) digits = digits.substring(1);
@@ -116,10 +117,8 @@ class RegistrationPhoneFormatter extends TextInputFormatter {
     if (text == raw) return TextEditingValue(text: text, selection: selection);
     int offset(int position) {
       if (position < 0 || position >= raw.length) return text.length;
-      final count = raw
-              .substring(0, position)
-              .replaceAll(RegExp(r'[^0-9]'), '')
-              .length +
+      final count =
+          raw.substring(0, position).replaceAll(RegExp(r'[^0-9]'), '').length +
           addedDigits;
       if (count <= 0) return 0;
       var seen = 0;
@@ -132,6 +131,7 @@ class RegistrationPhoneFormatter extends TextInputFormatter {
       }
       return text.length;
     }
+
     return TextEditingValue(
       text: text,
       selection: TextSelection(

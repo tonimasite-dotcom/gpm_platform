@@ -35,6 +35,7 @@ jobs:
           flutter test --no-pub test/phone_input_test.dart test/registration_preview_screen_test.dart test/registration_preview_api_test.dart test/registration_preview_visual_test.dart test/worker_home_payout_ux_test.dart
       - name: Check unchanged TS matching policy
         run: |
+          php integrations/workstaff-test-crm/worker-link/test_phone_formats.php
           php integrations/workstaff-test-crm/worker-link/test_policy.php
           php integrations/workstaff-test-crm/worker-link/test_preview_policy.php
           php integrations/workstaff-test-crm/worker-link/test_preview_service.php

@@ -21,15 +21,17 @@ class _BitrixRegistrationExampleState extends State<BitrixRegistrationExample> {
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполните все поля')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Заполните все поля')));
       return;
     }
 
     final phoneError = russianPhoneError(_phoneController.text, required: true);
     if (phoneError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(phoneError)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(phoneError)));
       return;
     }
 
@@ -48,24 +50,22 @@ class _BitrixRegistrationExampleState extends State<BitrixRegistrationExample> {
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Регистрация успешна!\nID: ${result['contactId']}',
-            ),
+            content: Text('Регистрация успешна!\nID: ${result['contactId']}'),
             backgroundColor: Colors.green,
           ),
         );
         // Переход на следующий экран
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${result['error']}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: ${result['error']}')));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -116,14 +116,8 @@ class _BitrixRegistrationExampleState extends State<BitrixRegistrationExample> {
             const SizedBox(height: 12),
             SegmentedButton<String>(
               segments: const <ButtonSegment<String>>[
-                ButtonSegment<String>(
-                  value: 'worker',
-                  label: Text('Грузчик'),
-                ),
-                ButtonSegment<String>(
-                  value: 'logist',
-                  label: Text('Логист'),
-                ),
+                ButtonSegment<String>(value: 'worker', label: Text('Грузчик')),
+                ButtonSegment<String>(value: 'logist', label: Text('Логист')),
               ],
               selected: <String>{selectedRole},
               onSelectionChanged: (Set<String> newSelection) {

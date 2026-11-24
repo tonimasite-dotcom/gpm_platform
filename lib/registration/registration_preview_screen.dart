@@ -722,7 +722,9 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
           }),
           decoration: InputDecoration(
             labelText: 'Телефон',
-            hintText: _country == 'RU' ? '+7 (999) 999-99-77' : '+49 000 0000000',
+            hintText: _country == 'RU'
+                ? '+7 (999) 999-99-77'
+                : '+49 000 0000000',
             helperText: _country == 'RU'
                 ? '10 цифр или 11 с кодом 7/8'
                 : 'От 8 до 15 цифр после +',
@@ -1009,7 +1011,14 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
         ? 'Нет'
         : 'Не указано';
     final rows = [
-      ('Телефон', phoneForDisplay(a['phone']?.toString() ?? 'Не указан', a['phone_country']?.toString() ?? 'RU'), 0),
+      (
+        'Телефон',
+        phoneForDisplay(
+          a['phone']?.toString() ?? 'Не указан',
+          a['phone_country']?.toString() ?? 'RU',
+        ),
+        0,
+      ),
       ('Города и районы', labels.isEmpty ? 'Не выбраны' : labels, 1),
       ('Имя', a['first_name']?.toString() ?? '', 2),
       ('Фамилия', a['last_name']?.toString() ?? '', 2),
