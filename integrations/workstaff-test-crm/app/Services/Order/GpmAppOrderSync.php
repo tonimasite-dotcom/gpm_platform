@@ -126,6 +126,32 @@ class GpmAppOrderSync
         return $snapshot;
     }
 
+    /** Stage a manual candidate without writing published or CRM fields. */
+    public function prepareModeration(Order $order): array
+    {
+        if (!$this->enabled() || !$this->linked($order)) {
+            throw new \RuntimeException('Order must be linked before moderation');
+        }
+        return $this->locked((int) $order->id, function () use ($order) {
+            $state = json_decode(file_get_contents($this->statePath((int) $order->id)), true, 512, JSON_THROW_ON_ERROR);
+            return DB::transaction(function () use ($order, $state) {
+                $current = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+                $number = (string) $current->order_number;
+                if ($number !== $state['order_number']) {
+                    throw new \RuntimeException('Linked CRM order number changed');
+                }
+                $snapshot = $this->snapshot($this->request()->get($this->endpoint($number)), $number);
+                if (!in_array($snapshot['status'], ['NEW', 'PROCESSED'], true)
+                    || in_array((int) $current->status_id, [Order::STATUS_COMPLETED, Order::STATUS_RETURNED, Order::STATUS_DELETE], true)) {
+                    throw new \RuntimeException('Started or closed order cannot be resubmitted');
+                }
+                $app = $this->comparableFields($snapshot['fields']);
+                $plan = GpmOrderSyncPlan::make($state['base_crm'], $state['base_app'], $this->crmFields($current), $app);
+                return ['revision' => $snapshot['revision'], 'fields' => array_merge($app, $plan['to_app'])];
+            });
+        });
+    }
+
     public function syncOrder(Order $order): bool
     {
         try {
@@ -141,7 +167,8 @@ class GpmAppOrderSync
                         throw new \RuntimeException('Linked CRM order number changed');
                     }
                     $snapshot = $this->snapshot($this->request()->get($this->endpoint($number)), $number);
-                    if (in_array($snapshot['status'], ['CONVERTED', 'JUNK'], true)
+                    if (!empty($snapshot['publication_review_hold'])
+                        || in_array($snapshot['status'], ['CONVERTED', 'JUNK'], true)
                         || in_array((int) $current->status_id, [Order::STATUS_COMPLETED, Order::STATUS_RETURNED, Order::STATUS_DELETE], true)) {
                         return null;
                     }

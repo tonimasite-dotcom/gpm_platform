@@ -29,9 +29,10 @@ namespace App\Models {
 namespace App\Services\Order {
     class GpmAppOrderSync {
         public const INSTANCE='https://ts.workstaffcrm.ru';
-        public static $linked=false,$syncCalls=0,$remembered=0;
+        public static $linked=false,$syncCalls=0,$remembered=0,$prepared=0;
         public function enabled(){return true;}
         public function linked($order){return self::$linked;}
+        public function prepareModeration($order){self::$prepared++;return ['revision'=>str_repeat('a',64),'fields'=>['price_per_hour'=>$order->workers_cost]];}
         public function syncOrder($order){self::$syncCalls++;return true;}
         public function crmFields($order){return ['price_per_hour'=>$order->workers_cost];}
         public function rememberPublication($order,$phone,$app,$fields){self::$remembered++;}
@@ -76,7 +77,7 @@ namespace {
     use App\Services\Order\GpmAppOrderPublisher;
     use App\Services\Order\GpmAppOrderSync;
     use Illuminate\Support\Facades\Http;
-    function resetFixture(){Http::$calls=[];Http::$lookupStatus=200;Http::$linkedOwner='company-one';Http::$postStatus=200;Http::$moderationStatus=200;Http::$linkedStatus='PROCESSED';GpmAppOrderSync::$linked=false;GpmAppOrderSync::$syncCalls=0;$GLOBALS['scope']='https://ts.workstaffcrm.ru';$GLOBALS['sender']=new SyntheticSender;$GLOBALS['freshSender']=$GLOBALS['sender'];}
+    function resetFixture(){Http::$calls=[];Http::$lookupStatus=200;Http::$linkedOwner='company-one';Http::$postStatus=200;Http::$moderationStatus=200;Http::$linkedStatus='PROCESSED';GpmAppOrderSync::$linked=false;GpmAppOrderSync::$syncCalls=0;GpmAppOrderSync::$prepared=0;$GLOBALS['scope']='https://ts.workstaffcrm.ru';$GLOBALS['sender']=new SyntheticSender;$GLOBALS['freshSender']=$GLOBALS['sender'];}
     resetFixture();$order=new App\Models\Order;$publisher=new GpmAppOrderPublisher;
     check($publisher->publish($order,'','#1'),'ID publication');
     $post=Http::$calls[count(Http::$calls)-1][2];
@@ -86,7 +87,7 @@ namespace {
     foreach(['#0','bad','1.5','-1'] as $bad){resetFixture();check(!$publisher->publish($order,'',$bad),'Invalid ID blocked');check(count(Http::$calls)===0,'Invalid ID has no HTTP side effects');}
     resetFixture();Http::$lookupStatus=404;check(!$publisher->publish($order,'','#1'),'Unknown company ID');check(count(Http::$calls)===1,'Unknown ID never publishes');
     resetFixture();GpmAppOrderSync::$linked=true;Http::$linkedOwner='other-account';check(!$publisher->publish($order,'','#1'),'Linked owner protected');check($publisher->errorStatus()===409&&GpmAppOrderSync::$syncCalls===0,'No implicit retargeting');
-    resetFixture();GpmAppOrderSync::$linked=true;check($publisher->publish($order,'','#1'),'Linked same-owner repeat');check(GpmAppOrderSync::$syncCalls===1&&count(Http::$calls)===3,'Manual repeat validates recipient, syncs and requests moderation');
+    resetFixture();GpmAppOrderSync::$linked=true;check($publisher->publish($order,'','#1'),'Linked same-owner repeat');check(GpmAppOrderSync::$syncCalls===0&&GpmAppOrderSync::$prepared===1&&count(Http::$calls)===3,'Manual repeat stages a version without changing published data');
     resetFixture();check(!$publisher->publish($order,'+71111111111'),'Phone publication blocked');check(count(Http::$calls)===0,'Phone cannot bypass saved profile ID');
     foreach([null,'',0,true,'#1','bad'] as $missing){
         resetFixture();$GLOBALS['freshSender']=new SyntheticSender($missing);

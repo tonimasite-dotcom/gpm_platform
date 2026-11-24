@@ -225,7 +225,22 @@ namespace {
         $order = fixture($sync);
         $order->id = 2; $order->save();
         check(!$sync->syncOrder($order) && !Http::$calls, 'Unlinked orders must not synchronize');
-        echo "GPM sync service: 16 scenarios passed\n";
+        $order = fixture($sync);
+        $before = file_get_contents($statePath);
+        Order::$rows[1]->workers_cost = 630;
+        Http::$app['status'] = 'PROCESSED';
+        $candidate = $sync->prepareModeration($order);
+        check($candidate['fields']['price_per_hour'] === 630, 'Manual candidate stages CRM changes');
+        check(Http::$app['fields']['price_per_hour'] === 500, 'Published version stays unchanged');
+        check(file_get_contents($statePath) === $before && Order::$rows[1]->workers_cost === 630, 'Staging leaves baseline and CRM unchanged');
+        check(count(array_filter(Http::$calls, function($call){return $call[0] !== 'GET';})) === 0, 'Staging has no PATCH');
+        $order = fixture($sync);
+        $before = file_get_contents($statePath);
+        Http::$app['publication_review_hold'] = true;
+        Order::$rows[1]->workers_cost = 640;
+        check($sync->syncOrder($order), 'Pending review is a safe background skip');
+        check(Http::$app['fields']['price_per_hour'] === 500 && file_get_contents($statePath) === $before, 'Cron cannot publish unreviewed fields');
+        echo "GPM sync service: 22 scenarios passed\n";
     } finally {
         // Only files created by this test, inside its unique fixture directory.
         foreach (glob(storage_path('app/gpm-app-sync/*')) ?: [] as $path) { unlink($path); }

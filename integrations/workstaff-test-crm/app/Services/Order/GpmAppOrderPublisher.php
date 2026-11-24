@@ -21,7 +21,7 @@ class GpmAppOrderPublisher
         return false;
     }
 
-    private function requestModeration(string $baseUrl, string $token, string $number, int $code, string $recipient): bool
+    private function requestModeration(string $baseUrl, string $token, string $number, int $code, string $recipient, array $candidate): bool
     {
         $requestId = bin2hex(random_bytes(16));
         $response = Http::timeout(8)->acceptJson()->asJson()
@@ -30,6 +30,8 @@ class GpmAppOrderPublisher
                 'source_instance' => GpmAppOrderSync::INSTANCE,
                 'logist_crm_id' => $code,
                 'request_id' => $requestId,
+                'revision' => $candidate['revision'],
+                'fields' => $candidate['fields'],
             ]);
         if (!$response->successful()) {
             if ($response->status() === 409) {
@@ -117,11 +119,8 @@ class GpmAppOrderPublisher
                 if (!in_array($linked->json('status'), ['NEW', 'PROCESSED'], true)) {
                     return $this->fail('Повторная модерация доступна только до начала работ', 409);
                 }
-                $success = $sync->syncOrder($order);
-                if (!$success) {
-                    return $this->fail('Не удалось синхронизировать заявку с GPM', 502);
-                }
-                return $this->requestModeration($baseUrl, $token, (string) $order->order_number, $code, $recipient);
+                $candidate = $sync->prepareModeration($order);
+                return $this->requestModeration($baseUrl, $token, (string) $order->order_number, $code, $recipient, $candidate);
             }
             if (!is_numeric($order->workers_cost) || (float) $order->workers_cost <= 0) {
                 return $this->fail('Укажите положительную ставку рабочим перед отправкой');
@@ -187,7 +186,7 @@ class GpmAppOrderPublisher
                 }
                 $sync->rememberPublication($order, $logistPhone, $appOrder, $publishedCrm);
                 if (($appOrder['status'] ?? 'NEW') !== 'NEW') {
-                    return $this->requestModeration($baseUrl, $token, (string) $order->order_number, $code, $recipient);
+                    return $this->requestModeration($baseUrl, $token, (string) $order->order_number, $code, $recipient, $sync->prepareModeration($order));
                 }
             }
 
