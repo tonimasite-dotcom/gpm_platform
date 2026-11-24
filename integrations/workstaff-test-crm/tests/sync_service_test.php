@@ -25,7 +25,7 @@ namespace Carbon {
 }
 namespace App\Models {
     class Order {
-        public const STATUS_COMPLETED = 3, STATUS_RETURNED = 4, STATUS_DELETE = 5;
+        public const STATUS_JOB = 2, STATUS_COMPLETED = 3, STATUS_RETURNED = 4, STATUS_DELETE = 5;
         public static $rows = [];
         public $id = 1, $order_number = '033/25', $status_id = 2, $city = 'Test city';
         public $address = 'Test address', $street = 'Test street', $house = '3';
@@ -228,6 +228,7 @@ namespace {
         $order = fixture($sync);
         $before = file_get_contents($statePath);
         Order::$rows[1]->workers_cost = 630;
+        Order::$rows[1]->status_id = 0;
         Http::$app['status'] = 'PROCESSED';
         $candidate = $sync->prepareModeration($order);
         check($candidate['fields']['price_per_hour'] === 630, 'Manual candidate stages CRM changes');
@@ -240,7 +241,12 @@ namespace {
         Order::$rows[1]->workers_cost = 640;
         check($sync->syncOrder($order), 'Pending review is a safe background skip');
         check(Http::$app['fields']['price_per_hour'] === 500 && file_get_contents($statePath) === $before, 'Cron cannot publish unreviewed fields');
-        echo "GPM sync service: 22 scenarios passed\n";
+        $order = fixture($sync);
+        Http::$app['status'] = 'PROCESSED';
+        $blocked = false;
+        try { $sync->prepareModeration($order); } catch (\RuntimeException $error) { $blocked = true; }
+        check($blocked, 'TS working status blocks manual moderation even if app is approved');
+        echo "GPM sync service: background, staging, hold and progress checks passed\n";
     } finally {
         // Only files created by this test, inside its unique fixture directory.
         foreach (glob(storage_path('app/gpm-app-sync/*')) ?: [] as $path) { unlink($path); }

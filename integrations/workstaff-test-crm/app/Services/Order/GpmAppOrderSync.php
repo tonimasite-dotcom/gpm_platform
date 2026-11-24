@@ -142,7 +142,7 @@ class GpmAppOrderSync
                 }
                 $snapshot = $this->snapshot($this->request()->get($this->endpoint($number)), $number);
                 if (!in_array($snapshot['status'], ['NEW', 'PROCESSED'], true)
-                    || in_array((int) $current->status_id, [Order::STATUS_COMPLETED, Order::STATUS_RETURNED, Order::STATUS_DELETE], true)) {
+                    || in_array((int) $current->status_id, [Order::STATUS_JOB, Order::STATUS_COMPLETED, Order::STATUS_RETURNED, Order::STATUS_DELETE], true)) {
                     throw new \RuntimeException('Started or closed order cannot be resubmitted');
                 }
                 $app = $this->comparableFields($snapshot['fields']);
