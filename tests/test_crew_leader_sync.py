@@ -138,7 +138,17 @@ class HeadlessLeaderTests(unittest.TestCase):
         self.assertEqual(len(rows),2)
         self.assertTrue(all(r["check_in_at"] and r["check_out_at"] for r in rows))
 
+    def test_confirmed_geo_exception_can_be_reviewed_after_brigadier_removed(self):
+        self.sync()
+        _,proof,token=self.batch(bad=True)
+        api.confirm_attendance_by_client(self.client,token=token)
+        self.sync(leader=None)
+        fixture.confirmation.review(proof["evidence_id"],self.logist,"approve","Verified original presence")
+        rows=api.list_order_attendance(self.order["id"],self.client)["attendance"]
+        self.assertTrue(all(r["check_in_at"] for r in rows))
+
     def test_feature_flag_preserves_paused_policy(self):
+
         with patch.dict(os.environ,{"GPM_APP_CREW_ATTENDANCE_ENABLED":"false"}):
             self.error(503,bridge.sync,self.order["id"],self.payload)
 
