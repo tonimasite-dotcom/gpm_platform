@@ -53,7 +53,9 @@ def plan(connection, profiles):
                 same_phone = False
             same_email = bool(data.get("email")) and data["email"].strip().casefold() == p["email"].casefold()
             same_login = api.normalize_username(username) == api.normalize_username(p["username"])
-            if same_phone or same_email or same_login:
+            # Test accounts may share a phone. A phone alone never proves identity.
+            same_name = str(data.get("display_name") or "").strip().casefold() == p["display_name"].strip().casefold()
+            if same_email or same_login or (same_phone and same_name):
                 found.append((account_id, username, role, active, data, same_phone, same_email))
         assert len(found) <= 1, json.dumps({"reason":"ambiguous_identity","slot":p["expected_id"],
             "matches":[{"role":r[2],"active":bool(r[3]),"phone_match":r[5],"email_match":r[6],
