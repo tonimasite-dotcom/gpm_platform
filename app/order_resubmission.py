@@ -192,7 +192,7 @@ def patch_copy(order_id, patch, *, actor, integration):
             parent.update(content)
             parent.update(publication_review_hold=False)
             parent.pop("pending_moderation_id", None)
-            draft.update(moderation_state="approved", status="PROCESSED")
+            draft.update(moderation_state="approved", status="NEW")
         elif status == "JUNK":
             # Rejection never cancels the published order. Hold rejected CRM
             # edits until a later manual review instead of applying them by cron.
