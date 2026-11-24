@@ -5,6 +5,7 @@ from fastapi import Header, Request, Response
 from app import crew_storage as s
 from app import crew_flow as flow
 from app import crew_confirmation as confirmation
+from app import crew_leader_sync
 
 
 def public_base(request):
@@ -102,7 +103,8 @@ def register(app):
         body = await s.api().bounded_json_payload(request, max_bytes=32768)
         operation = body.get("operation")
         functions = {"export": confirmation.export, "link": confirmation.link_worker,
-                     "roster": confirmation.sync_roster, "review": confirmation.crm_review, "enable": confirmation.crm_enable}
+                     "roster": confirmation.sync_roster, "review": confirmation.crm_review, "enable": confirmation.crm_enable,
+                     "leader": crew_leader_sync.sync}
         if operation not in functions:
             from fastapi import HTTPException
             raise HTTPException(422, "Неизвестное действие табеля")

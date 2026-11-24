@@ -389,7 +389,14 @@ class _CrewAttendanceGateState extends State<CrewAttendanceGate> {
                           }),
                   ),
               ],
-              if (isLogist && data['setup_required'] == true) ...[
+              if (data['leader_sync_managed'] == true &&
+                  (data['setup_message']?.toString() ?? '').isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(data['setup_message'].toString()),
+              ],
+              if (isLogist &&
+                  data['setup_required'] == true &&
+                  data['leader_in_crm'] != true) ...[
                 const SizedBox(height: 12),
                 const Text(
                   'Включите новый QR-табель после настройки состава. Уже начатые смены продолжаются по прежним правилам.',

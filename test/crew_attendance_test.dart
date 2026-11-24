@@ -206,6 +206,23 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets('TS brigadier setup needs no manual enable button', (tester) async {
+    final state = fixture(logist: true);
+    state['leader_in_crm'] = true;
+    state['leader_sync_managed'] = false;
+    state['setup_required'] = true;
+    state['setup_message'] = 'Назначьте бригадира этой заявки в TS';
+    state['paused'] = true;
+    app.gpmApi = CrewFakeApi(state);
+    await tester.pumpWidget(
+      host(const CrewAttendanceGate(orderId: 'test', child: Text('legacy'))),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Включить QR-табель'), findsNothing);
+    expect(find.text('Назначьте бригадира этой заявки в TS'), findsNothing);
+    expect(find.byKey(const Key('crew_leader_selector')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   for (final width in [390.0, 1280.0, 320.0]) {
     for (final logist in [false, true]) {
       testWidgets('crew attendance fits $width logist=$logist', (tester) async {

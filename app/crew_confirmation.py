@@ -95,7 +95,7 @@ def review(evidence_id, user, decision, reason):
         if not proof:
             raise HTTPException(404, "Отметка не найдена")
         order = s.load_order(connection, proof["order_id"], user, owner=True)
-        s.require_open(order)
+        s.require_open(order, allow_blocked=True)
         # Re-read under the order lock; competing reviews cannot both pass.
         proof = s.one(connection, f"SELECT * FROM {s.MEMBERS} WHERE evidence_id=?", (evidence_id,))
         session = s.one(connection, f"SELECT * FROM {s.SESSIONS} WHERE session_id=?", (proof["session_id"],))

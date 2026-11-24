@@ -9,7 +9,8 @@ namespace {
     function config($name, $default = null) { return $name === 'app.url' ? $GLOBALS['crm_url'] : $default; }
     function env($name, $default = null) {
         return ['GPM_APP_API_URL' => 'https://app-api.gpmbot.ru', 'GPM_APP_API_TOKEN' => 'synthetic-token',
-            'GPM_APP_ORDER_SYNC_ENABLED' => $GLOBALS['sync_enabled']][$name] ?? $default;
+            'GPM_APP_ORDER_SYNC_ENABLED' => $GLOBALS['sync_enabled'],
+            'GPM_APP_CREW_LEADER_SYNC_ENABLED' => $GLOBALS['crew_leader_enabled'] ?? false][$name] ?? $default;
     }
     function storage_path($suffix) { return $GLOBALS['fixture_dir'] . '/' . $suffix; }
     function optional($value) { return $value ?: (object) ['name' => null]; }
@@ -105,6 +106,10 @@ namespace Illuminate\Support\Facades {
     }
 }
 namespace App\Services\Order {
+    class GpmCrewLeaderSync {
+        public static $calls = 0;
+        public function sync($order) { self::$calls++; return true; }
+    }
     function file_put_contents($path, $data) {
         return $GLOBALS['write_failure'] ? false : \file_put_contents($path, $data);
     }
@@ -246,6 +251,12 @@ namespace {
         $blocked = false;
         try { $sync->prepareModeration($order); } catch (\RuntimeException $error) { $blocked = true; }
         check($blocked, 'TS working status blocks manual moderation even if app is approved');
+        $order = fixture($sync);
+        $GLOBALS['crew_leader_enabled'] = true;
+        Http::$app['publication_review_hold'] = true;
+        check($sync->syncOrder($order), 'Leader handoff works during publication hold');
+        check(\App\Services\Order\GpmCrewLeaderSync::$calls === 1, 'Handoff runs once inside existing order lock');
+        $GLOBALS['crew_leader_enabled'] = false;
         echo "GPM sync service: background, staging, hold and progress checks passed\n";
     } finally {
         // Only files created by this test, inside its unique fixture directory.

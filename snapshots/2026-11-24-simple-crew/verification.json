@@ -1,0 +1,17 @@
+{
+  "code": "a48d026ab2adca0ac7bbbc0150c98195dcbaa69d",
+  "pr": 40,
+  "ci": [
+    45381504432,
+    45381490861
+  ],
+  "qa": 45381504441,
+  "backend_tests": 268,
+  "php74": "PASS",
+  "ts_point_backup": "MATCH",
+  "gpm_backup": 45381331928,
+  "production_deployment": "not performed; owner approval pending",
+  "main_crm": "untouched",
+  "migrations": false,
+  "manual_phone_acceptance": "pending"
+}
