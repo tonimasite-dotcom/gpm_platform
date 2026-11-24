@@ -30,7 +30,6 @@ jobs:
       - name: Format and validate phone fields
         run: |
           flutter pub get
-          dart fix --apply --code=curly_braces_in_flow_control_structures lib/registration/registration_phone_input.dart lib/screens/client/client_profile_screen.dart lib/screens/logist/logist_profile_screen.dart lib/screens/worker/worker_profile_screen.dart lib/registration/registration_preview_screen.dart lib/screens/worker/worker_sbp_payout.dart lib/register_screen.dart lib/auth/bitrix_registration_example.dart lib/client/client_create_order_example.dart test/phone_input_test.dart
           dart format lib/registration/registration_phone_input.dart lib/screens/client/client_profile_screen.dart lib/screens/logist/logist_profile_screen.dart lib/screens/worker/worker_profile_screen.dart lib/registration/registration_preview_screen.dart lib/screens/worker/worker_sbp_payout.dart lib/register_screen.dart lib/auth/bitrix_registration_example.dart lib/client/client_create_order_example.dart test/phone_input_test.dart
           flutter analyze --no-pub
           flutter test --no-pub test/phone_input_test.dart test/registration_preview_screen_test.dart test/registration_preview_api_test.dart test/registration_preview_visual_test.dart test/worker_home_payout_ux_test.dart

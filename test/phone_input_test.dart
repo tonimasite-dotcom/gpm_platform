@@ -36,11 +36,11 @@ void main() {
       var value = formatter.formatEditUpdate(TextEditingValue.empty, edit(leading));
       expect(value.text, '+7');
       for (final digit in '9999999977'.split('')) {
-        value = formatter.formatEditUpdate(value, edit(value.text + digit));
+        value = formatter.formatEditUpdate(value, edit('${value.text}$digit'));
       }
       expect(value.text, display);
       expect(value.selection.baseOffset, display.length);
-      expect(formatter.formatEditUpdate(value, edit(value.text + '123')).text,
+      expect(formatter.formatEditUpdate(value, edit('${value.text}123')).text,
           display);
     }
     expect(formatter.formatEditUpdate(TextEditingValue.empty, edit('999')).text,
