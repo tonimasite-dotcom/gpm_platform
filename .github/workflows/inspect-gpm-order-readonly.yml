@@ -64,12 +64,22 @@ jobs:
                   for order, updated in found:
                       order = order if isinstance(order,dict) else json.loads(order)
                       status = str(order.get('status') or '')
+                      cursor.execute("SELECT occurred_at,details FROM "+api.AUDIT_TABLE_NAME+" WHERE target_type='order' AND target_id=%s AND event_type='order_status_changed' ORDER BY occurred_at DESC LIMIT 30",(str(order.get('id') or ''),))
+                      transitions = cursor.fetchall()
+                      approved = []
+                      for moment, detail in transitions:
+                          detail = detail if isinstance(detail,dict) else json.loads(detail)
+                          if detail.get('status') == 'PROCESSED':
+                              approved.append((moment,detail.get('previous_status')))
                       matches.append({
                           'source_is_ts': order.get('source_instance') == 'https://ts.workstaffcrm.ru',
                           'assigned_to_requested_logist': str(order.get('logist_account_id') or '') == account_id and bool(account_id),
                           'status': status if status in {'NEW','PROCESSED','IN_PROCESS','DONE_PENDING','CONVERTED','JUNK'} else 'other',
                           'visible_by_logist_api_rules': bool(api.orders_for_user([order],{'sub':account_id,'role':'logist'},profile=profile)) if account_id else False,
                           'updated_within_hour': (datetime.now(timezone.utc)-updated).total_seconds() < 3600,
+                          'has_audited_approval': bool(approved),
+                          'audited_new_to_approved': any(previous == 'NEW' for moment,previous in approved),
+                          'last_approval_age_hours': int((datetime.now(timezone.utc)-approved[0][0]).total_seconds()/3600) if approved else None,
                       })
                   cursor.execute("SELECT data->>'status',COUNT(*) FROM "+api.TABLE_NAME+" WHERE data->>'source_instance'=%s AND data->>'logist_account_id'=%s GROUP BY data->>'status'",('https://ts.workstaffcrm.ru',account_id))
                   counts = {key:count for key,count in cursor.fetchall() if key in {'NEW','PROCESSED','IN_PROCESS','DONE_PENDING','CONVERTED','JUNK'}}
