@@ -722,6 +722,7 @@ class _RegistrationPreviewScreenState extends State<RegistrationPreviewScreen> {
           }),
           decoration: InputDecoration(
             labelText: 'Телефон',
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
             hintText: _country == 'RU'
                 ? '+7 (999) 999-99-77'
                 : '+49 000 0000000',
