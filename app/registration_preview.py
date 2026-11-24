@@ -69,16 +69,16 @@ def failure(code, message, field=None, status=422, **extra):
 
 
 def normalize_phone(raw, country='RU'):
-    if not isinstance(raw, str) or len(raw) > 64 or re.search(r'[^+0-9()\s-]', raw):
-        failure('INVALID_PHONE', 'Проверь номер телефона и код страны', 'phone')
-    value = re.sub(r'[()\s-]', '', raw)
     if country == 'RU':
-        if re.fullmatch(r'8\d{10}', value): value = '+7' + value[1:]
-        elif re.fullmatch(r'\d{10}', value): value = '+7' + value
-        elif re.fullmatch(r'7\d{10}', value): value = '+' + value
-        if not re.fullmatch(r'\+7\d{10}', value):
+        from app.phone_numbers import normalize_russian_phone
+        try:
+            return normalize_russian_phone(raw)
+        except ValueError:
             failure('INVALID_PHONE', 'Проверь номер телефона и код страны', 'phone')
-    elif country == 'INT':
+    if not isinstance(raw, str) or len(raw) > 64 or re.search(r'[^+0-9()\s.-]', raw):
+        failure('INVALID_PHONE', 'Проверь номер телефона и код страны', 'phone')
+    value = re.sub(r'[()\s.-]', '', raw)
+    if country == 'INT':
         if not re.fullmatch(r'\+[1-9]\d{7,14}', value):
             failure('INVALID_PHONE', 'Укажи международный номер, начиная с +', 'phone')
     else:

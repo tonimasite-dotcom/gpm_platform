@@ -6,19 +6,7 @@ import '../../registration/registration_phone_input.dart';
 import '../../theme/gpm_theme.dart';
 import '../../widgets/adaptive_buttons.dart';
 
-String? normalizeSbpPhone(String value) {
-  if (!RegExp(r'^[+0-9 ()-]+$').hasMatch(value) ||
-      '+'.allMatches(value).length > 1 ||
-      (value.contains('+') && !value.trim().startsWith('+'))) {
-    return null;
-  }
-  var digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-  if (digits.length == 11 &&
-      (digits.startsWith('7') || digits.startsWith('8'))) {
-    digits = digits.substring(1);
-  }
-  return digits.length == 10 ? '+7$digits' : null;
-}
+String? normalizeSbpPhone(String value) => normalizeRussianPhone(value);
 
 class SbpBank {
   final String id;
@@ -80,7 +68,7 @@ class WorkerSbpPayoutField extends StatelessWidget {
       ),
       subtitle: Text(
         details.complete
-            ? details.phone
+            ? phoneForDisplay(details.phone)
             : 'Выберите банк и телефон для перевода по СБП',
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -154,7 +142,7 @@ class _SbpEditorState extends State<_SbpEditor> {
   @override
   void initState() {
     super.initState();
-    _phone = TextEditingController(text: widget.details.phone);
+    _phone = TextEditingController(text: phoneForDisplay(widget.details.phone));
     if (widget.details.bankId.isNotEmpty) {
       _bank = SbpBank(widget.details.bankId, widget.details.bankName);
     }
@@ -271,11 +259,11 @@ class _SbpEditorState extends State<_SbpEditor> {
               inputFormatters: const [RegistrationPhoneFormatter('RU')],
               decoration: const InputDecoration(
                 labelText: 'Телефон, привязанный к банку',
-                hintText: '+7 900 000-00-00',
+                hintText: '+7 (999) 999-99-77',
                 prefixIcon: Icon(Icons.phone_outlined),
               ),
               validator: (value) => normalizeSbpPhone(value ?? '') == null
-                  ? 'Укажите номер в формате +7 900 000-00-00'
+                  ? 'Укажите номер в формате +7 (999) 999-99-77'
                   : null,
               onFieldSubmitted: (_) => _submit(),
             ),
@@ -287,7 +275,9 @@ class _SbpEditorState extends State<_SbpEditor> {
                   key: const Key('worker_sbp_use_profile_phone'),
                   onPressed: _saving
                       ? null
-                      : () => setState(() => _phone.text = ownPhone),
+                      : () => setState(
+                          () => _phone.text = phoneForDisplay(ownPhone),
+                        ),
                   icon: const Icon(Icons.content_paste, size: 18),
                   label: Text('Вставить мой номер $ownPhone'),
                 ),

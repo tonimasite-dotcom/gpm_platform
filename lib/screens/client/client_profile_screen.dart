@@ -1,3 +1,4 @@
+import '../../registration/registration_phone_input.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -89,7 +90,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       _kppController.text = data['kpp']?.toString() ?? '';
       _ogrnController.text = data['ogrn']?.toString() ?? '';
       _contactController.text = data['contact']?.toString() ?? '';
-      _phoneController.text = data['phone']?.toString() ?? '';
+      _phoneController.text = phoneForDisplay(data['phone']?.toString() ?? '');
       _emailController.text = data['email']?.toString() ?? '';
       _addressController.text = data['address']?.toString() ?? '';
       _legalAddressController.text = data['legal_address']?.toString() ?? '';
@@ -126,7 +127,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       'kpp': _kppController.text.trim(),
       'ogrn': _ogrnController.text.trim(),
       'contact': _contactController.text.trim(),
-      'phone': _phoneController.text.trim(),
+      'phone': phoneForDisplay(_phoneController.text.trim()),
       'email': _emailController.text.trim(),
       'address': _addressController.text.trim(),
       'legal_address': _legalAddressController.text.trim(),
@@ -292,11 +293,13 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                inputFormatters: const [RegistrationPhoneFormatter('RU')],
+                autofillHints: const [AutofillHints.telephoneNumber],
                 decoration: const InputDecoration(
                   labelText: 'Телефон',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => _required(value, 'Укажите телефон'),
+                validator: (value) => russianPhoneError(value),
               ),
               const SizedBox(height: 12),
               TextFormField(
