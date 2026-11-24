@@ -2796,7 +2796,10 @@ def create_attendance_challenge(
     public_api_url: str,
 ) -> dict[str, Any]:
     require_role(user, "worker")
-    if crew_storage.protected(get_order(order_id) or {}):
+    current_order = get_order(order_id) or {}
+    if current_order.get("crew_leader_sync_blocked"):
+        raise HTTPException(409, current_order["crew_leader_sync_blocked"])
+    if crew_storage.protected(current_order):
         return crew_flow.presence(order_id, user, public_api_url=public_api_url)
     init_db()
     worker_account_id = str(user.get("sub") or "")
@@ -2808,6 +2811,8 @@ def create_attendance_challenge(
         order = read_order_in_connection(connection, order_id, for_update=True)
         if order is None:
             raise HTTPException(status_code=404, detail="order not found")
+        if crew_storage.protected(order) or order.get("crew_leader_sync_managed"):
+            raise HTTPException(409, order.get("crew_leader_sync_blocked") or "Обновите заявку и повторите отметку через QR-табель")
         assigned = [str(item) for item in order.get("assigned_worker_ids") or []]
         if worker_account_id not in assigned:
             raise HTTPException(status_code=403, detail="worker is not assigned to this order")

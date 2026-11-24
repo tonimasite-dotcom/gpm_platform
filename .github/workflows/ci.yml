@@ -65,6 +65,7 @@ jobs:
           find integrations/workstaff-test-crm -name '*.php' -print0 | xargs -0 -n 1 php -l
           php integrations/workstaff-test-crm/tests/sync_plan_test.php
           php integrations/workstaff-test-crm/tests/sync_service_test.php
+          php integrations/workstaff-test-crm/headless-crew/test_service.php
           php integrations/workstaff-test-crm/tests/worker_rate_test.php
           php integrations/workstaff-test-crm/tests/crm_logist_id_test.php
           python -m py_compile integrations/workstaff-test-crm/crm-logist-id/prepare.py

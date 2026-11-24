@@ -245,14 +245,7 @@ def set_leader(order_id, user, worker_id):
         return assign_leader(connection, order, worker_id, user)
 
 
-def assign_leader(connection, order, worker_id, user, *, force=False):
-    if worker_id not in s.assigned(order):
-        raise HTTPException(422, "Старший должен быть назначен на эту заявку")
-    account = s.one(connection, f"SELECT role,is_active FROM {s.api().ACCOUNTS_TABLE_NAME} WHERE account_id=?", (worker_id,))
-    if not account or account["role"] != "worker" or not account["is_active"]:
-        raise HTTPException(422, "Нужен активный профиль исполнителя")
-    if order.get("crew_leader_account_id") == worker_id and not force:
-        return {"success": True}
+def expire_collections(connection, order):
     # Reassignment expires unconfirmed collections and keeps accepted history.
     old_sessions = s.query(connection, f"SELECT * FROM {s.SESSIONS} WHERE order_id=? AND status IN ('collecting','awaiting_confirmation')",
                            (str(order["id"]),))
@@ -267,6 +260,17 @@ def assign_leader(connection, order, worker_id, user, *, force=False):
         s.query(connection, f"UPDATE {s.MEMBERS} SET status='expired' WHERE session_id=? AND status IN ('collected','awaiting_confirmation')",
                 (previous["session_id"],))
         s.query(connection, f"UPDATE {s.SESSIONS} SET status='expired' WHERE session_id=?", (previous["session_id"],))
+
+
+def assign_leader(connection, order, worker_id, user, *, force=False):
+    if worker_id not in s.assigned(order):
+        raise HTTPException(422, "Старший должен быть назначен на эту заявку")
+    account = s.one(connection, f"SELECT role,is_active FROM {s.api().ACCOUNTS_TABLE_NAME} WHERE account_id=?", (worker_id,))
+    if not account or account["role"] != "worker" or not account["is_active"]:
+        raise HTTPException(422, "Нужен активный профиль исполнителя")
+    if order.get("crew_leader_account_id") == worker_id and not force:
+        return {"success": True}
+    expire_collections(connection, order)
     order["crew_leader_account_id"] = worker_id
     order["crew_roster_revision"] = int(order.get("crew_roster_revision") or 0)+1
     s.api().write_order_in_connection(connection, order)
@@ -296,7 +300,7 @@ def session_view(connection, session, user):
 def state(order_id, user):
     with s.transaction() as connection:
         order = s.load_order(connection, order_id, user)
-        if not s.protected(order) and (not s.enabled() or user.get("role") != "logist"):
+        if not s.protected(order) and not order.get("crew_leader_sync_managed") and (not s.enabled() or user.get("role") != "logist"):
             return {"enabled": False}
         s.expire_unconfirmed(connection, str(order["id"]))
         role = user.get("role")
@@ -315,11 +319,13 @@ def state(order_id, user):
         session = s.one(connection, f"""SELECT * FROM {s.SESSIONS} WHERE order_id=? AND leader_account_id=?
             AND status IN ('collecting','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1""",
             (str(order["id"]), s.actor(user))) if is_leader else None
-        return {"enabled": True, "setup_required": not s.protected(order), "paused": not s.enabled(), "role": role, "is_leader": is_leader,
+        return {"enabled": True, "setup_required": not s.protected(order), "paused": not s.enabled() or bool(order.get("crew_leader_sync_blocked")), "role": role, "is_leader": is_leader,
                 "mode": "solo" if len(s.assigned(order)) == 1 else "crew", "leader_account_id": s.leader(order),
                 "leader_in_crm": order.get("source_instance") == s.api().CRM_SYNC_INSTANCE,
                 "roster": roster, "proofs": [proof_view(connection, p, private=role=="logist") for p in visible] if role!="client" else [],
-                "session": session_view(connection, session, user) if session else None}
+                "session": session_view(connection, session, user) if session else None,
+                "leader_sync_managed": bool(order.get("crew_leader_sync_managed")),
+                "setup_message": order.get("crew_leader_sync_blocked") or ""}
 
 
 def enable_order(order_id, user):

@@ -119,6 +119,8 @@ def load_order(connection, order_id, user, *, owner=False):
 
 
 def require_open(order):
+    if order.get("crew_leader_sync_blocked"):
+        raise HTTPException(409, order["crew_leader_sync_blocked"])
     if order.get("status") not in {"PROCESSED", "IN_PROCESS"}:
         raise HTTPException(409, "Заявка сейчас не принимает отметки")
 

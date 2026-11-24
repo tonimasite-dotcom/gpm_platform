@@ -159,6 +159,9 @@ class GpmAppOrderSync
                 return false;
             }
             return $this->locked((int) $order->id, function () use ($order) {
+                if (filter_var(env('GPM_APP_CREW_LEADER_SYNC_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
+                    (new GpmCrewLeaderSync)->sync($order);
+                }
                 $state = json_decode(file_get_contents($this->statePath((int) $order->id)), true, 512, JSON_THROW_ON_ERROR);
                 $next = DB::transaction(function () use ($order, $state) {
                     $current = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
