@@ -1,3 +1,5 @@
+24.11.2026: [Проверены прием TS и модерация](PROJECT_HANDOFF_2026-11-24_TS_MODERATION_DIAGNOSTIC.md). Read-only диагностика успешна; новая заявка — NEW, повтор связанной сохраняет состояние без дубля. Данные и приложение не менялись; ручная проверка списка остается. [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-24_TS_MODERATION_DIAGNOSTIC.md).
+
 24.11.2026: [Чат исполнителя упрощен](PROJECT_HANDOFF_2026-11-24_WORKER_CHAT.md). PR #37, frontend deployment 45351941359 success, CI/backup проверены. Убраны отмеченные сведения и две быстрые кнопки, свои сообщения светло-желтые. [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-24_WORKER_CHAT.md).
 
 24.11.2026: [Светлая подсказка телефона опубликована](PROJECT_HANDOFF_2026-11-24_PHONE_HINT.md). PR #36, frontend deployment 45350020730 success, проверки пройдены. Пример номера отличается от введенных данных. [Продолжение](CONTINUE_PROJECT_PROMPT_2026-11-24_PHONE_HINT.md).
