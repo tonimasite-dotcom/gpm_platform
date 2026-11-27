@@ -1,3 +1,5 @@
+27.11.2026. [Краткая точка продолжения TS с другого компьютера](CONTINUE_PROJECT_PROMPT_2026-11-27_SESSION_MINIMAL.md). Основа ветки — main на 5867c22.
+
 26.11.2026: [Продолжение GPM и переноса TS с другого компьютера](CONTINUE_PROJECT_PROMPT_2026-11-26_TS_STRICT_ISOLATION_MINIMAL.md).
 
 > **Строгое правило владельца от 26.11.2026.** [AGENTS.md](AGENTS.md) В· [Продолжение GPM и переноса TS с другого компьютера](CONTINUE_PROJECT_PROMPT_2026-11-26_TS_STRICT_ISOLATION_MINIMAL.md).
